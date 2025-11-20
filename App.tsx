@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/AuthProvider';
@@ -9,7 +10,9 @@ import { ClientDashboard } from './features/client/ClientDashboard';
 import { GurubaDashboard } from './features/guruba/GurubaDashboard';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { ServiceSelection } from './features/booking/ServiceSelection';
+import { ServiceDetailsPage } from './features/services/ServiceDetailsPage';
 import { GurubaSelection } from './features/booking/GurubaSelection';
+import { BookingSuccessPage } from './features/booking/BookingSuccess.tsx';
 
 // Layout that includes the Header
 const PublicLayout = () => {
@@ -98,15 +101,17 @@ const App: React.FC = () => {
 
           {/* Booking Flow Routes (Ideally for Clients, but open for now) */}
           <Route
-            path="/book"
+            path="/"
             element={
               <ProtectedRoute allowedRoles={['client', 'admin']}>
                 <PublicLayout />
               </ProtectedRoute>
             }
           >
-             <Route index element={<ServiceSelection />} />
-             <Route path=":serviceId" element={<GurubaSelection />} />
+             <Route path="book" element={<ServiceSelection />} />
+             <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
+             <Route path="book/:serviceId" element={<GurubaSelection />} />
+             <Route path="booking-success" element={<BookingSuccessPage />} />
           </Route>
           
           {/* Fallback */}

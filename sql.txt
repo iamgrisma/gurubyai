@@ -114,7 +114,32 @@ create policy "Users can create bookings"
 on public.bookings for insert 
 with check ( auth.uid() = user_id );
 
--- 5. TRIGGERS (CRITICAL FOR SIGN UP)
+-- 5. REVIEWS TABLE
+create table if not exists public.reviews (
+  id uuid default uuid_generate_v4() primary key,
+  booking_id uuid references public.bookings(id) not null,
+  user_id uuid references public.profiles(id) not null,
+  guruba_id uuid references public.gurubas(id) not null,
+  rating integer check (rating >= 1 and rating <= 5),
+  comment text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(booking_id) -- One review per booking
+);
+
+-- RLS for Reviews
+alter table public.reviews enable row level security;
+
+drop policy if exists "Reviews are viewable by everyone" on public.reviews;
+create policy "Reviews are viewable by everyone" 
+on public.reviews for select 
+using ( true );
+
+drop policy if exists "Users can create reviews for their bookings" on public.reviews;
+create policy "Users can create reviews for their bookings" 
+on public.reviews for insert 
+with check ( auth.uid() = user_id );
+
+-- 6. TRIGGERS (CRITICAL FOR SIGN UP)
 -- Function to handle new user signup automatically
 create or replace function public.handle_new_user() 
 returns trigger as $$
@@ -137,7 +162,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 6. SEED DATA (Idempotent)
+-- 7. SEED DATA (Idempotent)
 insert into public.services (title, description, duration_minutes, base_price, image_url)
 values 
   ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu.', 90, 51, 'https://picsum.photos/400/300?random=1'),

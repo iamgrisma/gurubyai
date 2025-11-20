@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { BookingModal } from './BookingModal';
-import { Star, MapPin, Award, User } from 'lucide-react';
+import { Star, MapPin, Award, User, ArrowLeft } from 'lucide-react';
 
 export const GurubaSelection: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -45,9 +46,28 @@ export const GurubaSelection: React.FC = () => {
 
         if (gurubaError) throw gurubaError;
 
+        // 3. Fetch Review Stats manually since we can't do complex aggregation SQL easily in this env
+        const { data: reviewData } = await supabase
+            .from('reviews')
+            .select('guruba_id, rating');
+
         if (gurubaData && dbService) {
+            // Map reviews to gurubas
+            const gurubasWithRatings = gurubaData.map((g: any) => {
+                const gReviews = reviewData?.filter((r: any) => r.guruba_id === g.id) || [];
+                const avgRating = gReviews.length > 0 
+                    ? gReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / gReviews.length 
+                    : g.rating || 5.0;
+                
+                return {
+                    ...g,
+                    rating: parseFloat(avgRating.toFixed(1)),
+                    review_count: gReviews.length
+                };
+            });
+
             // Filter: Does the Guruba specialize in this service?
-            const relevantGurubas = gurubaData.filter((g: any) => 
+            const relevantGurubas = gurubasWithRatings.filter((g: any) => 
                 g.specialties && Array.isArray(g.specialties) && g.specialties.includes(dbService.title)
             );
             setGurubas(relevantGurubas);
@@ -69,8 +89,8 @@ export const GurubaSelection: React.FC = () => {
     <div className="min-h-screen bg-stone-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/book')} className="mb-4">
-            ← Back to Services
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/services/${service.id}`)} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Details
           </Button>
           <h1 className="text-3xl font-bold text-stone-900">Select a Guruba</h1>
           <p className="mt-2 text-stone-600">
@@ -100,9 +120,10 @@ export const GurubaSelection: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl font-bold text-stone-900">{guruba.profiles?.full_name}</h3>
-                    <div className="flex items-center text-sm text-yellow-500 bg-yellow-50 px-2 py-0.5 rounded-full">
+                    <div className="flex items-center text-sm text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-100">
                       <Star className="h-3 w-3 mr-1 fill-current" />
-                      {guruba.rating}
+                      <span className="font-bold">{guruba.rating}</span>
+                      <span className="text-stone-400 ml-1 font-normal">({guruba.review_count || 0})</span>
                     </div>
                   </div>
                   
@@ -127,14 +148,13 @@ export const GurubaSelection: React.FC = () => {
                 </div>
 
                 <Button onClick={() => setSelectedGuruba(guruba)}>
-                  Book Now
+                  Select & Book
                 </Button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Step 3: Modal */}
         {selectedGuruba && (
           <BookingModal
             service={service}

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
@@ -76,7 +77,7 @@ export const ServiceSelection: React.FC = () => {
                         ${service.base_price}
                     </span>
                     </div>
-                    <p className="mt-2 text-sm text-stone-500 flex-1">{service.description}</p>
+                    <p className="mt-2 text-sm text-stone-500 flex-1 line-clamp-2">{service.description}</p>
                     
                     <div className="mt-4 flex items-center text-xs text-stone-400 mb-6">
                     <Clock className="mr-1 h-3 w-3" />
@@ -84,10 +85,10 @@ export const ServiceSelection: React.FC = () => {
                     </div>
 
                     <Button 
-                    onClick={() => navigate(`/book/${service.id}`)}
+                    onClick={() => navigate(`/services/${service.id}`)}
                     className="w-full justify-between group-hover:bg-saffron-700"
                     >
-                    Select
+                    Details & Book
                     <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
                 </div>

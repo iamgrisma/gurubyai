@@ -1,9 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
-import { Calendar, Clock, MapPin, AlertCircle, RefreshCw, Save, X } from 'lucide-react';
+import { ReviewModal } from './ReviewModal';
+import { Calendar, Clock, MapPin, AlertCircle, RefreshCw, Save, X, Camera, User } from 'lucide-react';
 
 export const ClientDashboard: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
@@ -12,16 +14,19 @@ export const ClientDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Review State
+  const [reviewModalData, setReviewModalData] = useState<{id: string, gurubaId: string, gurubaName: string} | null>(null);
+
   // Edit Profile State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [profileForm, setProfileForm] = useState({
     full_name: '',
     phone: '',
-    gotra_id: ''
+    gotra_id: '',
+    avatar_url: ''
   });
 
-  // Fallback for display name if profile failed to load during login
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
   useEffect(() => {
@@ -35,23 +40,32 @@ export const ClientDashboard: React.FC = () => {
     setFetchError(null);
     
     try {
+      // Get reviews to check which bookings are already reviewed
+      const { data: reviews } = await supabase.from('reviews').select('booking_id').eq('user_id', user?.id);
+      const reviewedBookingIds = new Set(reviews?.map(r => r.booking_id));
+
       const { data, error } = await supabase
         .from('bookings')
         .select(`
           *,
           services:service_id (title, duration_minutes, base_price),
           gurubas:guruba_id (
+            id,
             location,
             profiles:user_id (full_name)
           )
         `)
         .eq('user_id', user?.id)
-        .order('scheduled_at', { ascending: true });
+        .order('scheduled_at', { ascending: false }); // Show newest first
 
       if (error) {
         throw error;
       } else {
-        setBookings(data || []);
+        const bookingsWithReviewStatus = data?.map(b => ({
+            ...b,
+            is_reviewed: reviewedBookingIds.has(b.id)
+        }));
+        setBookings(bookingsWithReviewStatus || []);
       }
     } catch (err: any) {
       console.error('Error fetching bookings:', err);
@@ -65,7 +79,8 @@ export const ClientDashboard: React.FC = () => {
     setProfileForm({
       full_name: profile?.full_name || '',
       phone: profile?.phone || '',
-      gotra_id: profile?.gotra_id || ''
+      gotra_id: profile?.gotra_id || '',
+      avatar_url: profile?.avatar_url || ''
     });
     setIsEditingProfile(true);
   };
@@ -73,6 +88,21 @@ export const ClientDashboard: React.FC = () => {
   const handleCancelEdit = () => {
     setIsEditingProfile(false);
     setFetchError(null);
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        if (file.size > 500000) { // 500KB limit for Base64
+            alert("Image too large. Please select an image under 500KB.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setProfileForm(prev => ({ ...prev, avatar_url: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -85,7 +115,8 @@ export const ClientDashboard: React.FC = () => {
         .update({
           full_name: profileForm.full_name,
           phone: profileForm.phone,
-          gotra_id: profileForm.gotra_id
+          gotra_id: profileForm.gotra_id,
+          avatar_url: profileForm.avatar_url
         })
         .eq('id', user?.id);
 
@@ -130,7 +161,6 @@ export const ClientDashboard: React.FC = () => {
           <Button onClick={() => navigate('/book')}>Book New Service</Button>
         </div>
 
-        {/* Error Alert */}
         {fetchError && (
           <div className="mb-6 rounded-md bg-red-50 p-4 text-red-800 border border-red-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -192,7 +222,7 @@ export const ClientDashboard: React.FC = () => {
                       </span>
                     </div>
                     
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-stone-500">
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-stone-500 items-center">
                        <div className="flex items-center">
                          <Clock className="mr-1 h-4 w-4" />
                          {formatTime(booking.scheduled_at)} 
@@ -203,6 +233,23 @@ export const ClientDashboard: React.FC = () => {
                          {booking.gurubas?.location || 'Location TBD'}
                        </div>
                     </div>
+
+                    {/* Review Button */}
+                    {booking.status === 'completed' && !booking.is_reviewed && (
+                        <div className="mt-4 pt-3 border-t border-stone-100 text-right">
+                            <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => setReviewModalData({
+                                    id: booking.id,
+                                    gurubaId: booking.guruba_id,
+                                    gurubaName: booking.gurubas?.profiles?.full_name
+                                })}
+                            >
+                                ★ Rate & Review
+                            </Button>
+                        </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -216,6 +263,27 @@ export const ClientDashboard: React.FC = () => {
                   My Profile
                   {isEditingProfile && <span className="text-xs font-normal text-stone-500">Editing</span>}
                 </h3>
+
+                {/* Avatar Display */}
+                <div className="flex justify-center mb-6">
+                    <div className="relative h-24 w-24">
+                        <div className="h-24 w-24 rounded-full bg-stone-200 border-2 border-white shadow-md overflow-hidden flex items-center justify-center">
+                            {isEditingProfile && profileForm.avatar_url ? (
+                                <img src={profileForm.avatar_url} className="h-full w-full object-cover" />
+                            ) : profile?.avatar_url ? (
+                                <img src={profile?.avatar_url} className="h-full w-full object-cover" />
+                            ) : (
+                                <User className="h-10 w-10 text-stone-400" />
+                            )}
+                        </div>
+                        {isEditingProfile && (
+                            <label className="absolute bottom-0 right-0 bg-saffron-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-saffron-700 shadow-sm">
+                                <Camera className="h-4 w-4" />
+                                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                            </label>
+                        )}
+                    </div>
+                </div>
                 
                 {isEditingProfile ? (
                   <div className="space-y-4">
@@ -286,6 +354,19 @@ export const ClientDashboard: React.FC = () => {
 
         </div>
       </div>
+
+      {reviewModalData && (
+        <ReviewModal
+            bookingId={reviewModalData.id}
+            gurubaId={reviewModalData.gurubaId}
+            gurubaName={reviewModalData.gurubaName}
+            onClose={() => setReviewModalData(null)}
+            onSuccess={() => {
+                setReviewModalData(null);
+                fetchBookings();
+            }}
+        />
+      )}
     </div>
   );
 };
