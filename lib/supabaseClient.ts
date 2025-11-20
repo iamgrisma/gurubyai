@@ -12,5 +12,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
     'Supabase credentials missing. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment.'
   );
 }
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+
