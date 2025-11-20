@@ -4,8 +4,9 @@ import { AuthProvider, useAuth } from './features/auth/AuthProvider';
 import { PublicHeader } from './components/shared/PublicHeader';
 import { LandingPage } from './features/public/LandingPage';
 import { LoginPage } from './features/auth/LoginPage';
-// Ensure this import points to the new correct location with a relative path
 import { ClientDashboard } from './features/client/ClientDashboard';
+import { ServiceSelection } from './features/booking/ServiceSelection';
+import { GurubaSelection } from './features/booking/GurubaSelection';
 
 // Layout that includes the Header
 const PublicLayout = () => {
@@ -52,11 +53,24 @@ const App: React.FC = () => {
             path="/client"
             element={
               <ProtectedRoute>
-                <PublicLayout /> {/* Reusing PublicLayout for dashboard for now */}
+                <PublicLayout />
               </ProtectedRoute>
             }
           >
             <Route index element={<ClientDashboard />} />
+          </Route>
+
+          {/* Booking Flow Routes */}
+          <Route
+            path="/book"
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+             <Route index element={<ServiceSelection />} />
+             <Route path=":serviceId" element={<GurubaSelection />} />
           </Route>
           
           {/* Fallback */}

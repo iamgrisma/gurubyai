@@ -1,9 +1,9 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { Service } from '../../types';
-import { Calendar, Star, ShieldCheck } from 'lucide-react';
+import { Calendar, Star, ShieldCheck, Database, CheckCircle, XCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 // Mock Data (Display only until DB is connected to UI)
 const SERVICES: Service[] = [
@@ -34,6 +34,47 @@ const SERVICES: Service[] = [
 ];
 
 export const LandingPage: React.FC = () => {
+  const [dbStatus, setDbStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [errorDetails, setErrorDetails] = useState<string>('');
+
+  const checkConnection = async () => {
+    setDbStatus('loading');
+    setStatusMessage('Pinging Supabase...');
+    setErrorDetails('');
+
+    try {
+      // 1. Check Basic Connection by fetching 1 row
+      // Using 'head: true' is a lightweight way to check permissions and existence
+      const { data, error, count } = await supabase
+        .from('services')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) throw error;
+
+      setDbStatus('success');
+      setStatusMessage(`Connected ✅ (Found ${count ?? 0} services)`);
+    } catch (err: any) {
+      console.error('Connection check failed:', err);
+      setDbStatus('error');
+      
+      // Diagnose the error
+      if (err.message === 'Failed to fetch') {
+        setStatusMessage('Network Error ❌');
+        setErrorDetails('Could not reach Supabase. Check your internet connection or if the URL is blocked by an ad-blocker.');
+      } else if (err.code === 'PGRST301' || err.message.includes('JWT')) {
+        setStatusMessage('Auth Error ❌');
+        setErrorDetails('The API Key or Token is invalid/expired.');
+      } else if (err.code === '42P01') {
+        setStatusMessage('Missing Table ❌');
+        setErrorDetails("The 'services' table does not exist. Did you run the Seed SQL?");
+      } else {
+        setStatusMessage('Connection Failed ❌');
+        setErrorDetails(`${err.message} (Code: ${err.code || 'N/A'})`);
+      }
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Hero Section */}
@@ -49,8 +90,8 @@ export const LandingPage: React.FC = () => {
             <Link to="/register">
               <Button size="lg" className="px-8">Get Started</Button>
             </Link>
-            <Link to="/services">
-              <Button variant="outline" size="lg">View Services</Button>
+            <Link to="/book">
+              <Button variant="outline" size="lg">Book a Service</Button>
             </Link>
           </div>
         </div>
@@ -106,10 +147,63 @@ export const LandingPage: React.FC = () => {
                     <span className="text-sm font-medium text-stone-500">{service.duration_minutes} mins</span>
                     <span className="text-lg font-bold text-saffron-600">${service.base_price}</span>
                   </div>
-                  <Button className="mt-4 w-full" variant="outline">Book Now</Button>
+                  <Link to="/book">
+                    <Button className="mt-4 w-full" variant="outline">Book Now</Button>
+                  </Link>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Developer Tools / Connection Check */}
+      <section className="py-12 bg-stone-900 text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h3 className="text-xl font-bold mb-6 flex items-center justify-center gap-2">
+            <Database className="h-5 w-5" />
+            System Status
+          </h3>
+          
+          <div className="flex flex-col items-center justify-center gap-4 max-w-md mx-auto">
+            <Button 
+              variant="secondary" 
+              onClick={checkConnection}
+              isLoading={dbStatus === 'loading'}
+              className="w-full sm:w-auto min-w-[200px]"
+            >
+              {dbStatus === 'idle' && 'Test Database Connection'}
+              {dbStatus === 'loading' && 'Connecting...'}
+              {dbStatus === 'success' && 'Test Again'}
+              {dbStatus === 'error' && 'Retry Connection'}
+            </Button>
+
+            {dbStatus !== 'idle' && (
+              <div className={`w-full p-4 rounded-lg border text-left ${
+                dbStatus === 'success' 
+                  ? 'bg-green-900/30 border-green-700 text-green-400' 
+                  : dbStatus === 'error' 
+                    ? 'bg-red-900/30 border-red-700 text-red-400'
+                    : 'bg-stone-800 border-stone-700 text-stone-400'
+              }`}>
+                <div className="flex items-center gap-2 mb-1">
+                  {dbStatus === 'success' && <CheckCircle className="h-5 w-5 shrink-0" />}
+                  {dbStatus === 'error' && <XCircle className="h-5 w-5 shrink-0" />}
+                  {dbStatus === 'loading' && <RefreshCw className="h-5 w-5 animate-spin shrink-0" />}
+                  <span className="font-bold text-lg">{statusMessage}</span>
+                </div>
+                {errorDetails && (
+                    <div className="mt-2 text-sm text-red-200 bg-red-950/50 p-2 rounded flex gap-2 items-start">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <p>{errorDetails}</p>
+                    </div>
+                )}
+              </div>
+            )}
+            
+            <p className="mt-4 text-xs text-stone-500">
+              This checks if the application can read from the 'services' table in Supabase.
+            </p>
           </div>
         </div>
       </section>

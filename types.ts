@@ -25,6 +25,12 @@ export interface Guruba {
   rating: number;
   location: string;
   specialties: string[];
+  // Joined data from profiles table
+  profiles?: {
+    full_name: string;
+    gotra_id: string;
+    avatar_url?: string;
+  };
 }
 
 export interface Booking {

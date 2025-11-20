@@ -1,0 +1,136 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient';
+import { Service, Guruba } from '../../types';
+import { Button } from '../../components/ui/Button';
+import { BookingModal } from './BookingModal';
+import { Star, MapPin, Award } from 'lucide-react';
+
+export const GurubaSelection: React.FC = () => {
+  const { serviceId } = useParams<{ serviceId: string }>();
+  const navigate = useNavigate();
+  
+  const [service, setService] = useState<Service | null>(null);
+  const [gurubas, setGurubas] = useState<Guruba[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedGuruba, setSelectedGuruba] = useState<Guruba | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!serviceId) return;
+
+      // 1. Fetch Service Details
+      const { data: serviceData } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', serviceId)
+        .single();
+      
+      setService(serviceData);
+
+      // 2. Fetch Gurubas with their Profile details
+      // We filter logically in JS because 'specialties' is an array
+      const { data: gurubaData, error } = await supabase
+        .from('gurubas')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            gotra_id,
+            avatar_url
+          )
+        `);
+
+      if (gurubaData && serviceData) {
+        // Filter: Does the Guruba specialize in this service?
+        const relevantGurubas = gurubaData.filter((g: any) => 
+            g.specialties && Array.isArray(g.specialties) && g.specialties.includes(serviceData.title)
+        );
+        setGurubas(relevantGurubas);
+      }
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [serviceId]);
+
+  if (loading) return <div className="flex h-screen items-center justify-center">Loading Gurubas...</div>;
+  if (!service) return <div className="p-8 text-center">Service not found.</div>;
+
+  return (
+    <div className="min-h-screen bg-stone-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/book')} className="mb-4">
+            ← Back to Services
+          </Button>
+          <h1 className="text-3xl font-bold text-stone-900">Select a Guruba</h1>
+          <p className="mt-2 text-stone-600">
+            Who should perform <strong>{service.title}</strong> for you?
+          </p>
+        </div>
+
+        {gurubas.length === 0 ? (
+          <div className="rounded-lg bg-yellow-50 p-4 text-yellow-800 border border-yellow-200">
+            No Gurubas currently listed for this specific service.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {gurubas.map((guruba) => (
+              <div 
+                key={guruba.id} 
+                className="flex flex-col md:flex-row rounded-xl bg-white p-6 shadow-sm border border-stone-200 transition-all hover:shadow-md items-start md:items-center gap-6"
+              >
+                <div className="h-16 w-16 flex-shrink-0 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-600 text-xl font-bold">
+                  {guruba.profiles?.full_name?.[0] || 'G'}
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-stone-900">{guruba.profiles?.full_name}</h3>
+                    <div className="flex items-center text-sm text-yellow-500 bg-yellow-50 px-2 py-0.5 rounded-full">
+                      <Star className="h-3 w-3 mr-1 fill-current" />
+                      {guruba.rating}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-1 flex flex-wrap gap-4 text-sm text-stone-500">
+                    <span className="flex items-center">
+                      <MapPin className="mr-1 h-3 w-3" /> {guruba.location}
+                    </span>
+                    <span className="flex items-center">
+                      <Award className="mr-1 h-3 w-3" /> {guruba.years_experience} Years Exp.
+                    </span>
+                  </div>
+                  
+                  <div className="mt-3 flex flex-wrap gap-2">
+                     {guruba.specialties.map(s => (
+                       <span key={s} className="px-2 py-1 bg-stone-100 text-stone-600 text-xs rounded-md">
+                         {s}
+                       </span>
+                     ))}
+                  </div>
+                  
+                  <p className="mt-3 text-sm text-stone-600 line-clamp-2">{guruba.bio}</p>
+                </div>
+
+                <Button onClick={() => setSelectedGuruba(guruba)}>
+                  Book Now
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Step 3: Modal */}
+        {selectedGuruba && (
+          <BookingModal
+            service={service}
+            guruba={selectedGuruba}
+            onClose={() => setSelectedGuruba(null)}
+          />
+        )}
+      </div>
+    </div>
+  );
+};

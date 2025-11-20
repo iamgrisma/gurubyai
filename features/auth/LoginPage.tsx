@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
+import { AlertTriangle, Database } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<React.ReactNode | null>(null);
   const navigate = useNavigate();
+
+  // Clear any stale sessions when the login page mounts
+  useEffect(() => {
+    const clearSession = async () => {
+      await supabase.auth.signOut();
+    };
+    clearSession();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,18 +25,69 @@ export const LoginPage: React.FC = () => {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const cleanEmail = email.trim();
+      const cleanPassword = password.trim();
+
+      // 1. Attempt Authentication (GoTrue)
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPassword,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
       
-      // Navigation is handled by AuthProvider state change usually, 
-      // but we can force it here for better UX feedback
-      navigate('/client'); 
+      if (data.user) {
+        // 2. Attempt Profile Fetch (PostgREST)
+        // We swallow errors here because the User IS authenticated.
+        try {
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', data.user.id)
+                .single();
+            
+            if (profileError) {
+                console.warn("Profile fetch warning (non-fatal):", profileError);
+            }
+        } catch (profileEx) {
+            console.warn("Profile fetch exception (non-fatal):", profileEx);
+        }
+
+        // 3. Success - Redirect
+        navigate('/client'); 
+      }
+
     } catch (err: any) {
-      setError(err.message);
+      console.error('Login error:', err);
+      const msg = err.message || 'An unexpected error occurred';
+      
+      // Detect the specific Schema Cache error
+      if (msg.toLowerCase().includes('querying schema') || err.code === 'PGRST301') {
+         setError(
+            <div className="text-left w-full">
+                <div className="flex items-center gap-2 font-bold text-red-800 mb-1">
+                   <Database className="h-4 w-4" />
+                   Database Sync Required
+                </div>
+                <p className="text-xs text-red-700 mb-2">
+                   The database has new tables that the API cannot see yet.
+                </p>
+                <p className="text-xs font-semibold text-stone-700 mb-1">Action Required:</p>
+                <p className="text-xs text-stone-600 mb-1">Run this SQL in Supabase:</p>
+                <code className="block bg-white border border-red-200 p-2 rounded text-xs font-mono text-red-600 select-all cursor-pointer hover:bg-red-50" onClick={(e) => {
+                   navigator.clipboard.writeText("NOTIFY pgrst, 'reload config';");
+                   (e.target as HTMLElement).innerText = "Copied to clipboard!";
+                   setTimeout(() => (e.target as HTMLElement).innerText = "NOTIFY pgrst, 'reload config';", 2000);
+                }}>
+                   NOTIFY pgrst, 'reload config';
+                </code>
+            </div>
+         );
+      } else if (msg.includes('Invalid login credentials')) {
+         setError('Incorrect email or password. Please check and try again.');
+      } else {
+         setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -54,7 +114,7 @@ export const LoginPage: React.FC = () => {
                 Sign in to your account
             </h2>
             <p className="mt-2 text-sm text-stone-600">
-                Or <Link to="/register" className="font-medium text-saffron-600 hover:text-saffron-500">start your 14-day free trial</Link>
+                Or <Link to="/register" className="font-medium text-saffron-600 hover:text-saffron-500">create a new account</Link>
             </p>
         </div>
 
@@ -91,7 +151,12 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <div className="flex items-start gap-3 text-red-600 text-sm bg-red-50 p-3 rounded border border-red-200">
+                <div className="mt-0.5 shrink-0">
+                  {typeof error !== 'string' ? null : <AlertTriangle className="h-5 w-5" />}
+                </div>
+                <div className="flex-1">{error}</div>
+            </div>
           )}
 
           <div>
@@ -121,6 +186,22 @@ export const LoginPage: React.FC = () => {
         >
             Sign in with Google
         </Button>
+        
+        <div className="mt-4 text-center text-xs text-stone-400 bg-stone-50 p-3 rounded border border-stone-200">
+           <p className="font-semibold mb-1">Demo Credentials (Click to Copy):</p>
+           <div className="space-y-1 cursor-pointer" title="Click to use these credentials">
+             <p onClick={() => { setEmail('admin@guruba.com'); setPassword('12345678'); }} className="hover:text-saffron-600 transition-colors">
+                Role: Admin — admin@guruba.com
+             </p>
+             <p onClick={() => { setEmail('guru@guruba.com'); setPassword('12345678'); }} className="hover:text-saffron-600 transition-colors">
+                Role: Guruba — guru@guruba.com
+             </p>
+             <p onClick={() => { setEmail('client@guruba.com'); setPassword('12345678'); }} className="hover:text-saffron-600 transition-colors">
+                Role: Client — client@guruba.com
+             </p>
+           </div>
+           <p className="mt-2 text-[10px] text-stone-300">Pass: 12345678</p>
+        </div>
       </div>
     </div>
   );

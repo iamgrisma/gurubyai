@@ -50,18 +50,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      // In a real app, fetch from 'profiles' table
-      // const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile from Supabase:', error.message);
+      } 
       
-      // Mocking profile for now since DB isn't live
-      const mockProfile: UserProfile = {
-        id: userId,
-        email: user?.email || '',
-        role: 'client', // Default to client for demo
-      };
-      setProfile(mockProfile);
+      if (data) {
+        setProfile(data as UserProfile);
+      }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Unexpected error fetching profile:', error);
     } finally {
       setLoading(false);
     }
@@ -69,6 +72,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setProfile(null);
+    setUser(null);
+    setSession(null);
   };
 
   return (
@@ -84,4 +90,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
