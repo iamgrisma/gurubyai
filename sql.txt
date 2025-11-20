@@ -237,15 +237,25 @@ for all using (auth.uid() = user_id);
 -- 9. TRIGGERS
 create or replace function public.handle_new_user() 
 returns trigger as $$
+declare
+  v_role text;
 begin
+  v_role := coalesce(new.raw_user_meta_data->>'role', 'client');
+  
   insert into public.profiles (id, email, full_name, role)
   values (
     new.id, 
     new.email, 
     coalesce(new.raw_user_meta_data->>'full_name', 'New User'),
-    coalesce(new.raw_user_meta_data->>'role', 'client')
+    v_role
   )
   on conflict (id) do nothing;
+
+  if v_role = 'guruba' then
+    insert into public.gurubas (user_id) values (new.id)
+    on conflict do nothing;
+  end if;
+
   return new;
 end;
 $$ language plpgsql security definer;

@@ -57,13 +57,27 @@ export const GurubaDashboard: React.FC = () => {
     
     try {
         // 1. Get Guruba Profile
-        const { data: gurubaData, error: gurubaError } = await supabase
+        let { data: gurubaData, error: gurubaError } = await supabase
             .from('gurubas')
             .select('*')
             .eq('user_id', user?.id)
-            .single();
+            .maybeSingle(); // Use maybeSingle to avoid error on 0 rows immediately
+
+        // Auto-provision if missing
+        if (!gurubaData && (!gurubaError || gurubaError.code === 'PGRST116')) {
+             const { data: newGuruba, error: createError } = await supabase
+                .from('gurubas')
+                .insert([{ user_id: user?.id }])
+                .select()
+                .single();
+             
+             if (createError) throw createError;
+             gurubaData = newGuruba;
+             gurubaError = null;
+        }
 
         if (gurubaError) throw new Error("Could not find Guruba profile.");
+        
         setGuruba(gurubaData);
         setBio(gurubaData.bio || '');
         setSpecialties(gurubaData.specialties?.join(', ') || '');
