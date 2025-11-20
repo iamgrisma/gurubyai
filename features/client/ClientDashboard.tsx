@@ -10,7 +10,7 @@ import { Booking, Transaction, Notification, Gotra } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
   LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera,
-  MessageSquare, CheckCircle, Receipt, Home, PlusCircle, Menu, X
+  MessageSquare, CheckCircle, Receipt, Home, PlusCircle, Menu, X, HelpCircle
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
@@ -205,11 +205,30 @@ export const ClientDashboard: React.FC = () => {
     }
   };
 
+  const handleBookingNegotiation = async (bookingId: string, action: 'accept' | 'decline', proposedTime?: string) => {
+      try {
+          if (action === 'accept') {
+              if (!proposedTime) return;
+              await supabase.from('bookings').update({ 
+                  status: 'confirmed',
+                  scheduled_at: proposedTime
+              }).eq('id', bookingId);
+              setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'confirmed', scheduled_at: proposedTime } : b));
+          } else {
+              await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+              setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b));
+          }
+      } catch(e) {
+          alert("Action failed");
+      }
+  };
+
   const getStatusColor = (status: string) => {
       switch(status) {
           case 'confirmed': return 'bg-green-100 text-green-800 ring-green-600/20';
           case 'completed': return 'bg-blue-100 text-blue-800 ring-blue-600/20';
           case 'cancelled': return 'bg-red-100 text-red-800 ring-red-600/20';
+          case 'awaiting_client_confirmation': return 'bg-purple-100 text-purple-800 ring-purple-600/20';
           default: return 'bg-yellow-100 text-yellow-800 ring-yellow-600/20';
       }
   };
@@ -222,6 +241,7 @@ export const ClientDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
         case 'overview':
+            const actionRequiredBookings = bookings.filter(b => b.status === 'awaiting_client_confirmation');
             return (
                 <div className="space-y-8 animate-in fade-in duration-500">
                     {/* Hero Welcome */}
@@ -238,6 +258,36 @@ export const ClientDashboard: React.FC = () => {
                         {/* Decorative circles */}
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
                     </div>
+                    
+                    {/* Action Required Section */}
+                    {actionRequiredBookings.length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 animate-in slide-in-from-top-2">
+                            <h3 className="font-bold text-purple-900 text-lg mb-4 flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5" /> Action Required
+                            </h3>
+                            <div className="grid gap-4">
+                                {actionRequiredBookings.map(b => (
+                                    <div key={b.id} className="bg-white p-4 rounded-xl shadow-sm border border-purple-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                                                <Clock className="h-6 w-6" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-stone-900">{b.services?.title}</p>
+                                                <p className="text-sm text-stone-600">
+                                                    Guruba proposed a new time: <span className="font-bold text-purple-700">{b.proposed_time ? new Date(b.proposed_time).toLocaleString() : 'N/A'}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-3 w-full md:w-auto">
+                                            <Button onClick={() => handleBookingNegotiation(b.id, 'accept', b.proposed_time)} className="bg-green-600 hover:bg-green-700 w-full">Confirm Time</Button>
+                                            <Button onClick={() => handleBookingNegotiation(b.id, 'decline')} variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 w-full">Decline</Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Stats Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -321,7 +371,7 @@ export const ClientDashboard: React.FC = () => {
                                             </p>
                                         </div>
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ring-1 ring-inset ${getStatusColor(booking.status)}`}>
-                                            {booking.status}
+                                            {booking.status === 'awaiting_client_confirmation' ? 'Action Required' : booking.status}
                                         </span>
                                     </div>
                                     
@@ -336,11 +386,16 @@ export const ClientDashboard: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="text-xs text-stone-400 uppercase">Cost</p>
-                                            <p className="font-bold text-stone-900">Rs. {booking.services?.base_price}</p>
+                                            <p className="font-bold text-stone-900">Rs. {(booking.services?.base_price || 0).toLocaleString()}</p>
                                         </div>
                                     </div>
 
                                     <div className="flex gap-3 justify-end">
+                                        {booking.status === 'awaiting_client_confirmation' && (
+                                            <Button size="sm" onClick={() => handleBookingNegotiation(booking.id, 'accept', booking.proposed_time)} className="bg-green-600 hover:bg-green-700">
+                                                Confirm New Time
+                                            </Button>
+                                        )}
                                         {booking.status === 'completed' && !booking.is_reviewed && (
                                             <Button size="sm" onClick={() => setReviewModalData({ id: booking.id, gurubaId: booking.guruba_id, gurubaName: booking.gurubas?.profiles?.full_name || '' })}>
                                                 Write Review
@@ -411,7 +466,7 @@ export const ClientDashboard: React.FC = () => {
                                         <tr key={t.id} className="border-b border-stone-100 last:border-0">
                                             <td className="px-6 py-4 text-stone-500">{new Date(t.created_at).toLocaleDateString()}</td>
                                             <td className="px-6 py-4 font-medium">{t.description}</td>
-                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}Rs. {t.amount}</td>
+                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}Rs. {t.amount.toLocaleString()}</td>
                                         </tr>
                                     ))
                                 )}

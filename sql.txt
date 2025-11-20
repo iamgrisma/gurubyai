@@ -195,9 +195,31 @@ create table if not exists public.bookings (
   guruba_id uuid references public.gurubas(id) not null,
   service_id uuid references public.services(id) not null,
   scheduled_at timestamp with time zone not null,
-  status text check (status in ('pending', 'confirmed', 'completed', 'cancelled')) default 'pending',
+  status text check (status in ('pending', 'confirmed', 'completed', 'cancelled', 'awaiting_client_confirmation')) default 'pending',
+  proposed_time timestamp with time zone,
+  confirmation_deadline timestamp with time zone,
+  platform_fee integer default 100,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Update schema for new columns
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_name = 'bookings' and column_name = 'proposed_time') then
+    alter table public.bookings add column proposed_time timestamp with time zone;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'bookings' and column_name = 'confirmation_deadline') then
+    alter table public.bookings add column confirmation_deadline timestamp with time zone;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'bookings' and column_name = 'platform_fee') then
+    alter table public.bookings add column platform_fee integer default 100;
+  end if;
+  -- Update check constraint for status if possible (Postgres check constraints are immutable, usually need drop/add)
+  -- For simplicity in this context, we assume the check constraint allows new text or is removed/replaced manually if needed.
+  -- In a real migration, we would drop constraint and add new one.
+  alter table public.bookings drop constraint if exists bookings_status_check;
+  alter table public.bookings add constraint bookings_status_check check (status in ('pending', 'confirmed', 'completed', 'cancelled', 'awaiting_client_confirmation'));
+end $$;
 
 -- RLS for Bookings
 alter table public.bookings enable row level security;
@@ -229,6 +251,11 @@ using (
     select user_id from public.gurubas where id = bookings.guruba_id
   )
 );
+
+drop policy if exists "Users can update own bookings" on public.bookings;
+create policy "Users can update own bookings" 
+on public.bookings for update 
+using ( auth.uid() = user_id );
 
 drop policy if exists "Admins can manage bookings" on public.bookings;
 create policy "Admins can manage bookings" 
@@ -317,8 +344,17 @@ create table if not exists public.messages (
   receiver_id uuid references public.profiles(id) not null,
   content text not null,
   is_read boolean default false,
+  retention_hours integer,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Add column if exists
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'retention_hours') then
+    alter table public.messages add column retention_hours integer;
+  end if;
+end $$;
 
 alter table public.messages enable row level security;
 
@@ -331,6 +367,11 @@ drop policy if exists "Users can send messages" on public.messages;
 create policy "Users can send messages" 
 on public.messages for insert 
 with check ( auth.uid() = sender_id );
+
+drop policy if exists "System can send messages" on public.messages;
+create policy "System can send messages"
+on public.messages for insert
+with check ( true ); -- Allow triggers to insert messages
 
 -- 10. GOTRAS TABLE
 create table if not exists public.gotras (
@@ -396,7 +437,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- Trigger 2: Notification Generator for Bookings
+-- Trigger 2: Notification & Auto-Message Generator for Bookings
 create or replace function public.handle_booking_notification() 
 returns trigger as $$
 declare
@@ -411,13 +452,22 @@ begin
   select full_name into v_client_name from public.profiles where id = NEW.user_id;
   select full_name into v_guruba_name from public.profiles where id = v_guruba_user_id;
 
-  -- 2. INSERT: New Booking Request -> Notify Guruba
+  -- 2. INSERT: New Booking Request
   if (TG_OP = 'INSERT') then
+    -- Notify Guruba
     insert into public.notifications (user_id, title, message)
     values (
       v_guruba_user_id, 
       'New Booking Request', 
       'New request for ' || v_service_title || ' from ' || coalesce(v_client_name, 'a client')
+    );
+    -- Chat Message: Client -> Guruba
+    insert into public.messages (sender_id, receiver_id, content, created_at)
+    values (
+       NEW.user_id,
+       v_guruba_user_id,
+       'Namaste, I have requested a booking for ' || v_service_title || '. Please review.',
+       now()
     );
   end if;
 
@@ -432,14 +482,39 @@ begin
         'Booking Confirmed', 
         'Your request for ' || v_service_title || ' has been confirmed by ' || coalesce(v_guruba_name, 'the Guruba')
       );
+       -- Chat Message: Guruba -> Client
+       insert into public.messages (sender_id, receiver_id, content, created_at)
+       values (
+          v_guruba_user_id,
+          NEW.user_id,
+          'I have confirmed your booking for ' || v_service_title || '. Looking forward to it.',
+          now()
+       );
+    end if;
+
+    -- Proposed Time -> Notify Client
+    if (NEW.status = 'awaiting_client_confirmation') then
+      insert into public.notifications (user_id, title, message)
+      values (
+        NEW.user_id, 
+        'Time Change Proposed', 
+        'Guruba has proposed a new time for ' || v_service_title || '. Please accept within 1 hour.'
+      );
+      -- Chat Message: Guruba -> Client
+       insert into public.messages (sender_id, receiver_id, content, created_at)
+       values (
+          v_guruba_user_id,
+          NEW.user_id,
+          'I am available, but I propose a slight time change to: ' || NEW.proposed_time || '. Please confirm if this works.',
+          now()
+       );
     end if;
 
     -- Cancelled -> Notify Both (Generic)
     if (NEW.status = 'cancelled') then
-      -- Notify Client
       insert into public.notifications (user_id, title, message)
       values (NEW.user_id, 'Booking Cancelled', 'The booking for ' || v_service_title || ' has been cancelled.');
-      -- Notify Guruba
+      
       insert into public.notifications (user_id, title, message)
       values (v_guruba_user_id, 'Booking Cancelled', 'The booking for ' || v_service_title || ' has been cancelled.');
     end if;

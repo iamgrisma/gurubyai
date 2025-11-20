@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
 import { Message } from '../../types';
-import { Send, User, MoreVertical, CheckCheck, MessageSquare } from 'lucide-react';
+import { Send, User, MoreVertical, CheckCheck, MessageSquare, Clock, EyeOff } from 'lucide-react';
 
 interface ChatInterfaceProps {
   defaultReceiverId?: string;
@@ -16,6 +16,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [retentionHours, setRetentionHours] = useState<number | undefined>(undefined); // Vanish Mode
+  const [showRetentionMenu, setShowRetentionMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -124,14 +126,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
           receiver_id: receiverId,
           content: msgContent,
           is_read: false,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          retention_hours: retentionHours
       };
       setMessages(prev => [...prev, optimisticMsg]);
 
       const { error } = await supabase.from('messages').insert({
           sender_id: user.id,
           receiver_id: receiverId,
-          content: msgContent
+          content: msgContent,
+          retention_hours: retentionHours
       });
 
       if (error) {
@@ -142,6 +146,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   };
 
   const getActiveUser = () => conversations.find(c => c.id === activeConversation);
+
+  const isMessageExpired = (msg: Message) => {
+      if (!msg.retention_hours) return false;
+      const created = new Date(msg.created_at).getTime();
+      const now = new Date().getTime();
+      const expiryTime = created + (msg.retention_hours * 60 * 60 * 1000);
+      return now > expiryTime;
+  };
+
+  const filteredMessages = messages.filter(m => !isMessageExpired(m));
 
   if (loading) return <div className="p-8 text-center text-stone-500">Loading chats...</div>;
 
@@ -185,7 +199,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div className="flex-1 flex flex-col bg-white relative">
             {activeConversation && getActiveUser() ? (
                 <>
                     <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-white z-10 shadow-sm">
@@ -198,11 +212,42 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                  <p className="text-xs text-green-600 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-600"></span> Online</p>
                              </div>
                         </div>
-                        <button className="text-stone-400 hover:text-stone-600"><MoreVertical className="h-5 w-5" /></button>
+                        
+                        {/* Vanish Mode Settings */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setShowRetentionMenu(!showRetentionMenu)}
+                                className={`p-2 rounded-full transition-colors ${retentionHours ? 'bg-red-50 text-red-600' : 'hover:bg-stone-100 text-stone-400'}`}
+                                title="Vanish Mode / Message Retention"
+                            >
+                                {retentionHours ? <EyeOff className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                            </button>
+                            {showRetentionMenu && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-20">
+                                    <p className="px-4 py-2 text-xs font-bold text-stone-400 uppercase">Auto-Delete After</p>
+                                    {[1, 3, 6, 12, 24, 48, 120].map(h => (
+                                        <button 
+                                            key={h}
+                                            onClick={() => { setRetentionHours(h); setShowRetentionMenu(false); }}
+                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-stone-50 ${retentionHours === h ? 'text-saffron-600 font-bold' : 'text-stone-700'}`}
+                                        >
+                                            {h >= 24 ? `${h/24} Days` : `${h} Hours`}
+                                        </button>
+                                    ))}
+                                    <div className="border-t border-stone-100 my-1"></div>
+                                    <button 
+                                        onClick={() => { setRetentionHours(undefined); setShowRetentionMenu(false); }}
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 text-stone-500"
+                                    >
+                                        Off (Keep Forever)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-stone-50/50">
-                        {messages.map((msg, idx) => {
+                        {filteredMessages.map((msg, idx) => {
                             const isMe = msg.sender_id === user?.id;
                             return (
                                 <div key={msg.id || idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -211,6 +256,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                     }`}>
                                         <p className="text-sm leading-relaxed">{msg.content}</p>
                                         <div className={`text-[10px] mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-saffron-200' : 'text-stone-400'}`}>
+                                            {msg.retention_hours && <EyeOff className="h-3 w-3 mr-1" />}
                                             {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                             {isMe && (
                                                 <CheckCheck className={`h-3 w-3 ${msg.is_read ? 'text-blue-300' : 'opacity-70'}`} />
@@ -224,6 +270,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                     </div>
 
                     <div className="p-4 bg-white border-t border-stone-100">
+                        {retentionHours && (
+                            <div className="mb-2 text-xs text-center text-red-500 bg-red-50 p-1 rounded">
+                                Vanish Mode On: Messages auto-delete after {retentionHours >= 24 ? `${retentionHours/24} days` : `${retentionHours} hours`}
+                            </div>
+                        )}
                         <form onSubmit={sendMessage} className="flex items-center gap-2">
                             <input 
                                 type="text" 

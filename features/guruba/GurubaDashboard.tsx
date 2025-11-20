@@ -8,7 +8,7 @@ import { ChatInterface } from '../messages/ChatInterface';
 import { 
     Calendar, Clock, DollarSign, MapPin, Star, Zap, RefreshCw, AlertCircle, Save, Check, 
     LayoutDashboard, ListChecks, User, LogOut, XCircle, CheckCircle, Settings, MessageSquare, BarChart3,
-    Briefcase, Users, BookOpen, Plus, Trash2, PlusCircle, Video, Menu, X
+    Briefcase, Users, BookOpen, Plus, Trash2, PlusCircle, Video, Menu, X, Edit3
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -123,6 +123,11 @@ export const GurubaDashboard: React.FC = () => {
   // Schedule Edit State
   const [schedule, setSchedule] = useState<{ [key: number]: { start: string, end: string, enabled: boolean } }>({});
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [busyMode, setBusyMode] = useState(false); // UI toggle for "Select Busy Hour" vs "Select Available Hour"
+
+  // Negotiation State
+  const [proposingBookingId, setProposingBookingId] = useState<string | null>(null);
+  const [proposedTime, setProposedTime] = useState('');
 
   // Profile Edit
   const [bio, setBio] = useState('');
@@ -188,7 +193,7 @@ export const GurubaDashboard: React.FC = () => {
             const found = availData?.find(a => a.day_of_week === index);
             initialSchedule[index] = found 
                 ? { start: found.start_time.slice(0, 5), end: found.end_time.slice(0, 5), enabled: true }
-                : { start: '09:00', end: '17:00', enabled: false };
+                : { start: '05:00', end: '21:00', enabled: true }; // Default 5am-9pm enabled
         });
         setSchedule(initialSchedule);
 
@@ -213,6 +218,25 @@ export const GurubaDashboard: React.FC = () => {
           setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: action } : b));
       } catch (e) {
           alert("Action failed");
+      }
+  };
+
+  const handleProposeTime = async (bookingId: string) => {
+      if (!proposedTime) return;
+      // TODO: Add validation for +/- 5 hours logic here
+      try {
+          const confirmationDeadline = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+          await supabase.from('bookings').update({ 
+              status: 'awaiting_client_confirmation',
+              proposed_time: proposedTime,
+              confirmation_deadline: confirmationDeadline
+          }).eq('id', bookingId);
+          
+          setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'awaiting_client_confirmation', proposed_time: proposedTime } : b));
+          setProposingBookingId(null);
+          setProposedTime('');
+      } catch(e) {
+          alert("Failed to propose time.");
       }
   };
 
@@ -402,7 +426,7 @@ export const GurubaDashboard: React.FC = () => {
               return (
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                       <h2 className="text-2xl font-bold text-stone-900">Booking Requests</h2>
-                      {bookings.filter(b => b.status === 'pending').length === 0 ? (
+                      {bookings.filter(b => b.status === 'pending' || b.status === 'awaiting_client_confirmation').length === 0 ? (
                           <div className="bg-stone-50 rounded-2xl p-16 text-center border border-stone-200 border-dashed">
                               <ListChecks className="h-12 w-12 mx-auto text-stone-300 mb-4" />
                               <h3 className="text-lg font-medium text-stone-900">No Pending Requests</h3>
@@ -410,12 +434,14 @@ export const GurubaDashboard: React.FC = () => {
                           </div>
                       ) : (
                           <div className="grid gap-6">
-                              {bookings.filter(b => b.status === 'pending').map(b => (
+                              {bookings.filter(b => b.status === 'pending' || b.status === 'awaiting_client_confirmation').map(b => (
                                   <div key={b.id} className="bg-white rounded-2xl border border-stone-200 shadow-md p-6 hover:shadow-lg transition-shadow">
                                       <div className="flex flex-col md:flex-row justify-between gap-8">
                                           <div className="flex-1">
                                               <div className="flex items-center gap-3 mb-4">
-                                                  <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-sm shadow-blue-200">New Request</span>
+                                                  <span className={`text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-sm ${b.status === 'pending' ? 'bg-blue-600 shadow-blue-200' : 'bg-purple-600 shadow-purple-200'}`}>
+                                                      {b.status === 'pending' ? 'New Request' : 'Negotiating Time'}
+                                                  </span>
                                                   <span className="text-sm text-stone-500 font-medium">{new Date(b.created_at).toLocaleDateString()}</span>
                                               </div>
                                               <h3 className="text-2xl font-bold text-stone-900 mb-2">{b.services?.title}</h3>
@@ -431,19 +457,49 @@ export const GurubaDashboard: React.FC = () => {
                                                           <Clock className="h-4 w-4 text-stone-400" /> {new Date(b.scheduled_at).toLocaleString()}
                                                       </p>
                                                       <p className="text-stone-600 flex items-center gap-2">
-                                                          <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">Rs. {b.services?.base_price}</span>
+                                                          <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">Rs. {(b.services?.base_price || 0).toLocaleString()}</span>
                                                       </p>
                                                   </div>
                                               </div>
                                           </div>
-                                          <div className="flex flex-col justify-center gap-3 min-w-[180px]">
-                                              <Button onClick={() => handleBookingAction(b.id, 'confirmed')} className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-base shadow-lg shadow-green-900/10">
-                                                  <CheckCircle className="h-5 w-5 mr-2" /> Accept
-                                              </Button>
-                                              <Button variant="outline" onClick={() => handleBookingAction(b.id, 'cancelled')} className="w-full border-red-200 text-red-600 hover:bg-red-50 py-3">
-                                                  <XCircle className="h-5 w-5 mr-2" /> Decline
-                                              </Button>
-                                          </div>
+                                          
+                                          {b.status === 'pending' ? (
+                                              <div className="flex flex-col justify-center gap-3 min-w-[180px]">
+                                                  <Button onClick={() => handleBookingAction(b.id, 'confirmed')} className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-base shadow-lg shadow-green-900/10">
+                                                      <CheckCircle className="h-5 w-5 mr-2" /> Accept
+                                                  </Button>
+                                                  
+                                                  {proposingBookingId === b.id ? (
+                                                      <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg animate-in fade-in">
+                                                          <label className="text-xs font-bold text-stone-500 mb-1 block">Proposed Time</label>
+                                                          <input 
+                                                              type="datetime-local" 
+                                                              className="w-full text-sm border rounded p-1 mb-2"
+                                                              value={proposedTime}
+                                                              onChange={e => setProposedTime(e.target.value)}
+                                                          />
+                                                          <div className="flex gap-2">
+                                                              <Button size="sm" onClick={() => handleProposeTime(b.id)} className="flex-1 text-xs">Send</Button>
+                                                              <Button size="sm" variant="outline" onClick={() => setProposingBookingId(null)} className="flex-1 text-xs">Cancel</Button>
+                                                          </div>
+                                                      </div>
+                                                  ) : (
+                                                      <Button variant="secondary" onClick={() => setProposingBookingId(b.id)} className="w-full">
+                                                          <Edit3 className="h-4 w-4 mr-2" /> Propose Time
+                                                      </Button>
+                                                  )}
+
+                                                  <Button variant="outline" onClick={() => handleBookingAction(b.id, 'cancelled')} className="w-full border-red-200 text-red-600 hover:bg-red-50 py-3">
+                                                      <XCircle className="h-5 w-5 mr-2" /> Decline
+                                                  </Button>
+                                              </div>
+                                          ) : (
+                                              <div className="flex flex-col justify-center items-center min-w-[180px] bg-stone-50 rounded-xl p-4 text-center border border-stone-200 border-dashed">
+                                                  <Clock className="h-8 w-8 text-saffron-400 mb-2" />
+                                                  <p className="text-sm font-medium text-stone-600">Awaiting Client Confirmation</p>
+                                                  <p className="text-xs text-stone-400 mt-1">Proposed: {b.proposed_time ? new Date(b.proposed_time).toLocaleString() : 'N/A'}</p>
+                                              </div>
+                                          )}
                                       </div>
                                   </div>
                               ))}
@@ -463,12 +519,20 @@ export const GurubaDashboard: React.FC = () => {
           case 'schedule':
               return (
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                      <div className="flex justify-between items-center">
-                          <h2 className="text-2xl font-bold text-stone-900">Availability Settings</h2>
+                      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                          <div>
+                              <h2 className="text-2xl font-bold text-stone-900">Availability Settings</h2>
+                              <p className="text-sm text-stone-500">Default availability is 05:00 AM - 09:00 PM. Adjust specific days below.</p>
+                          </div>
+                          <div className="flex items-center gap-3 bg-white p-1 rounded-lg border border-stone-200 shadow-sm">
+                              <button onClick={() => setBusyMode(false)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!busyMode ? 'bg-saffron-100 text-saffron-800' : 'text-stone-500 hover:bg-stone-50'}`}>Set Working Hours</button>
+                              <button onClick={() => setBusyMode(true)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${busyMode ? 'bg-red-100 text-red-800' : 'text-stone-500 hover:bg-stone-50'}`}>Set Busy/Off</button>
+                          </div>
                           <Button onClick={saveSchedule} isLoading={savingSchedule} className="gap-2">
                               <Save className="h-4 w-4" /> Save Changes
                           </Button>
                       </div>
+                      
                       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8 space-y-4">
                           {DAYS_OF_WEEK.map((day, idx) => (
                               <div key={day} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-colors ${schedule[idx]?.enabled ? 'bg-white border-stone-200' : 'bg-stone-50 border-stone-100 opacity-60'}`}>
@@ -506,7 +570,7 @@ export const GurubaDashboard: React.FC = () => {
                                           </div>
                                       </div>
                                   ) : (
-                                      <span className="text-sm font-bold text-stone-400 bg-stone-100 px-3 py-1 rounded-full uppercase tracking-wide">Day Off</span>
+                                      <span className="text-sm font-bold text-stone-400 bg-stone-100 px-3 py-1 rounded-full uppercase tracking-wide">Day Off / Busy</span>
                                   )}
                               </div>
                           ))}
@@ -600,7 +664,7 @@ export const GurubaDashboard: React.FC = () => {
                                                </div>
                                            </td>
                                            <td className="px-6 py-4 text-center font-medium">{client.booking_count}</td>
-                                           <td className="px-6 py-4 text-right font-bold text-green-600">Rs. {client.total_spend}</td>
+                                           <td className="px-6 py-4 text-right font-bold text-green-600">Rs. {client.total_spend.toLocaleString()}</td>
                                            <td className="px-6 py-4 text-right text-stone-500">{new Date(client.last_booking).toLocaleDateString()}</td>
                                        </tr>
                                    ))}

@@ -80,11 +80,17 @@ export interface Booking {
   guruba_id: string;
   service_id: string;
   scheduled_at: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_client_confirmation';
   is_reviewed?: boolean;
   services?: Service;
   gurubas?: Guruba;
   profiles?: UserProfile; // The client profile
+  
+  // Negotiation fields
+  proposed_time?: string;
+  confirmation_deadline?: string;
+  platform_fee?: number;
+  
   created_at: string;
 }
 
@@ -113,6 +119,7 @@ export interface Message {
   receiver_id: string;
   content: string;
   is_read: boolean;
+  retention_hours?: number; // Vanish mode
   created_at: string;
   sender?: UserProfile; // Joined
 }

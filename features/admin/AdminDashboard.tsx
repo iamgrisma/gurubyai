@@ -129,8 +129,8 @@ export const AdminDashboard: React.FC = () => {
           const payload = {
               title: serviceForm.title,
               description: serviceForm.description,
-              base_price: serviceForm.base_price,
-              duration_minutes: serviceForm.duration_minutes,
+              base_price: serviceForm.base_price || 0, // Safety check
+              duration_minutes: serviceForm.duration_minutes || 0, // Safety check
               image_url: serviceForm.image_url,
               category: serviceForm.category,
               is_featured: serviceForm.is_featured,
@@ -719,7 +719,7 @@ export const AdminDashboard: React.FC = () => {
                                     type="number" 
                                     className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
                                     value={serviceForm.base_price} 
-                                    onChange={e => setServiceForm({...serviceForm, base_price: parseInt(e.target.value)})} 
+                                    onChange={e => setServiceForm({...serviceForm, base_price: parseInt(e.target.value) || 0})} 
                                     required 
                                 />
                             </div>
@@ -729,7 +729,7 @@ export const AdminDashboard: React.FC = () => {
                                     type="number" 
                                     className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
                                     value={serviceForm.duration_minutes} 
-                                    onChange={e => setServiceForm({...serviceForm, duration_minutes: parseInt(e.target.value)})} 
+                                    onChange={e => setServiceForm({...serviceForm, duration_minutes: parseInt(e.target.value) || 0})} 
                                     required 
                                 />
                             </div>

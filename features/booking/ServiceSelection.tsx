@@ -112,7 +112,7 @@ export const ServiceSelection: React.FC = () => {
                     <div className="flex justify-between items-start mb-2">
                     <h3 className="text-lg font-bold text-stone-900">{service.title}</h3>
                     <span className="inline-flex items-center rounded-full bg-saffron-50 px-2 py-1 text-xs font-medium text-saffron-700">
-                        Rs. {service.base_price.toLocaleString()}
+                        Rs. {(service.base_price || 0).toLocaleString()}
                     </span>
                     </div>
                     <p className="mt-2 text-sm text-stone-500 flex-1 line-clamp-2">{service.description}</p>

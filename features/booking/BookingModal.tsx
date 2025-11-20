@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba } from '../../types';
 import { Button } from '../../components/ui/Button';
-import { Calendar, Clock, AlertTriangle, CheckCircle, X, MapPin, Info } from 'lucide-react';
+import { Calendar, Clock, AlertTriangle, CheckCircle, X, MapPin, Info, CreditCard } from 'lucide-react';
 
 interface BookingModalProps {
   service: Service;
@@ -30,6 +30,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
   // Derived Data
   const userGotra = profile?.gotra_id;
   const gurubaGotra = guruba.profiles?.gotra_id;
+  const PLATFORM_FEE = 100;
 
   const isNA = (g?: string) => !g || g.toLowerCase() === 'not applicable' || g.toLowerCase() === 'n/a';
   
@@ -144,7 +145,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
         guruba_id: guruba.id,
         service_id: service.id,
         scheduled_at: scheduledAt,
-        status: 'pending'
+        status: 'pending',
+        platform_fee: PLATFORM_FEE
       });
 
       if (dbError) throw dbError;
@@ -181,8 +183,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
                                 <h4 className="text-lg font-bold text-stone-900">{service.title}</h4>
                                 <p className="text-sm text-stone-500 line-clamp-2">{service.description}</p>
                                 <div className="mt-1 flex items-center gap-4 text-sm font-medium text-stone-700">
-                                    <span>Rs. {service.base_price}</span>
-                                    <span>•</span>
                                     <span>{service.duration_minutes} mins</span>
                                 </div>
                             </div>
@@ -202,6 +202,34 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
                                 </p>
                                 <p className="text-xs text-stone-400 mt-1">Gotra: {guruba.profiles?.gotra_id || 'Not Listed'}</p>
                             </div>
+                        </div>
+                    </div>
+                    
+                    {/* Pricing Breakdown */}
+                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                        <h3 className="text-sm font-bold text-stone-900 mb-3">Payment Summary</h3>
+                        <div className="space-y-2 text-sm">
+                             <div className="flex justify-between text-stone-600">
+                                 <span>Service Base Price</span>
+                                 <span>Rs. {service.base_price}</span>
+                             </div>
+                             <div className="flex justify-between text-stone-900 font-medium">
+                                 <span>Booking Platform Fee</span>
+                                 <span>Rs. {PLATFORM_FEE}</span>
+                             </div>
+                             <div className="h-px bg-stone-200 my-2"></div>
+                             <div className="flex justify-between text-lg font-bold text-stone-900">
+                                 <span>Total Payable Now</span>
+                                 <span>Rs. {PLATFORM_FEE}</span>
+                             </div>
+                             <div className="mt-3 text-xs bg-yellow-50 text-yellow-800 p-2 rounded border border-yellow-100 flex items-start gap-2">
+                                 <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                                 <p>
+                                     <strong>Note:</strong> The Rs. {PLATFORM_FEE} is a fixed platform fee. 
+                                     <br/>
+                                     <strong>Guru Dakshina</strong> (Rs. {service.base_price} or voluntary amount) is paid directly to the Guruba after the service.
+                                 </p>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -302,9 +330,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
                 form="booking-form"
                 isLoading={loading}
                 disabled={(isGotraConflict && !gotraOverride) || !selectedTime}
-                className="px-8"
+                className="px-8 gap-2"
             >
-                Confirm Booking
+                <CreditCard className="h-4 w-4" />
+                Pay Rs. {PLATFORM_FEE} & Book
             </Button>
         </div>
       </div>
