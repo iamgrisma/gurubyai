@@ -118,7 +118,8 @@ export const GurubaSelection: React.FC = () => {
             .eq('day_of_week', dayOfWeek);
           
           if (data) {
-              const availableIds = new Set(data.map(d => d.guruba_id));
+              // Explicitly cast mapped array to strings for Set<string>
+              const availableIds = new Set<string>(data.map((d: any) => d.guruba_id));
               setAvailableGurubaIds(availableIds);
           }
       };

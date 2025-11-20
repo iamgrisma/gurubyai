@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthProvider';
+import { NotificationBell } from '../../features/notifications/NotificationBell';
 import { Button } from '../ui/Button';
 import { Menu, X, User, LogOut } from 'lucide-react';
 
@@ -47,6 +49,7 @@ export const PublicHeader: React.FC = () => {
             <div className="flex items-center gap-2">
               {session ? (
                 <div className="flex items-center gap-4">
+                  <NotificationBell />
                   <Link to={getDashboardPath()}>
                     <Button variant="ghost" size="sm" className="gap-2">
                       <User className="h-4 w-4" />
@@ -94,6 +97,10 @@ export const PublicHeader: React.FC = () => {
             <div className="h-px bg-stone-200 my-2" />
             {session ? (
               <>
+                 <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-stone-500">Alerts</span>
+                    <NotificationBell />
+                 </div>
                  <Link to={getDashboardPath()} onClick={() => setIsMenuOpen(false)}>
                     <Button className="w-full justify-start" variant="ghost">Dashboard</Button>
                  </Link>
