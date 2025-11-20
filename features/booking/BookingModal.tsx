@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba } from '../../types';
 import { Button } from '../../components/ui/Button';
-import { Calendar, Clock, AlertTriangle, CheckCircle, X, MapPin } from 'lucide-react';
+import { Calendar, Clock, AlertTriangle, CheckCircle, X, MapPin, Info } from 'lucide-react';
 
 interface BookingModalProps {
   service: Service;
@@ -18,26 +18,125 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, onC
   const navigate = useNavigate();
   
   const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Derived Data
   const userGotra = profile?.gotra_id;
   const gurubaGotra = guruba.profiles?.gotra_id;
-  
-  // Gotra Check Logic
   const isGotraConflict = userGotra && gurubaGotra && userGotra.toLowerCase() === gurubaGotra.toLowerCase();
+
+  useEffect(() => {
+    if (date && guruba.id) {
+        fetchAvailabilityForDate(date);
+    } else {
+        setAvailableSlots([]);
+    }
+  }, [date, guruba.id]);
+
+  const fetchAvailabilityForDate = async (selectedDateStr: string) => {
+      setLoadingSlots(true);
+      setAvailableSlots([]);
+      setSelectedTime('');
+      
+      try {
+        const selectedDate = new Date(selectedDateStr);
+        const dayOfWeek = selectedDate.getDay(); // 0 = Sunday
+
+        // 1. Fetch Guruba's configured schedule for this day of week
+        const { data: availData, error: availError } = await supabase
+            .from('guruba_availability')
+            .select('*')
+            .eq('guruba_id', guruba.id)
+            .eq('day_of_week', dayOfWeek)
+            .single();
+        
+        // If error or no data, it means not working this day
+        if (!availData) {
+            setLoadingSlots(false);
+            return; 
+        }
+
+        // 2. Fetch existing bookings for this date to check conflicts
+        // Range: selected date 00:00 to 23:59
+        const startOfDay = new Date(selectedDateStr);
+        startOfDay.setHours(0,0,0,0);
+        const endOfDay = new Date(selectedDateStr);
+        endOfDay.setHours(23,59,59,999);
+
+        const { data: existingBookings, error: bookingError } = await supabase
+            .from('bookings')
+            .select('scheduled_at, service_id, services(duration_minutes)')
+            .eq('guruba_id', guruba.id)
+            .gte('scheduled_at', startOfDay.toISOString())
+            .lte('scheduled_at', endOfDay.toISOString())
+            .neq('status', 'cancelled');
+
+        if (bookingError) throw bookingError;
+
+        // 3. Generate Slots
+        const slots: string[] = [];
+        
+        // Helper: Parse HH:MM:SS to minutes from midnight
+        const toMinutes = (timeStr: string) => {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        const workStart = toMinutes(availData.start_time);
+        const workEnd = toMinutes(availData.end_time);
+        const serviceDuration = service.duration_minutes;
+        
+        // Step: 30 minutes
+        const step = 30; 
+
+        // Prepare blocked ranges in minutes
+        const blockedRanges = existingBookings?.map((b: any) => {
+            const bookingDate = new Date(b.scheduled_at);
+            const startMins = bookingDate.getHours() * 60 + bookingDate.getMinutes();
+            const duration = b.services?.duration_minutes || 60;
+            return { start: startMins, end: startMins + duration };
+        }) || [];
+
+        for (let t = workStart; t + serviceDuration <= workEnd; t += step) {
+            const slotStart = t;
+            const slotEnd = t + serviceDuration;
+            
+            // Check collision
+            const isBlocked = blockedRanges.some(range => {
+                return (slotStart < range.end && slotEnd > range.start);
+            });
+
+            if (!isBlocked) {
+                // Convert back to HH:MM
+                const h = Math.floor(t / 60);
+                const m = t % 60;
+                const timeLabel = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                slots.push(timeLabel);
+            }
+        }
+
+        setAvailableSlots(slots);
+
+      } catch (err) {
+          console.error("Error calculating slots", err);
+      } finally {
+          setLoadingSlots(false);
+      }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !selectedTime) return;
     
     setLoading(true);
     setError(null);
 
-    // Construct a timestamp
-    const scheduledAt = new Date(`${date}T${time}`).toISOString();
+    const scheduledAt = new Date(`${date}T${selectedTime}`).toISOString();
 
     try {
       const { error: dbError } = await supabase.from('bookings').insert({
@@ -144,18 +243,37 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, onC
                                     />
                                 </div>
                             </div>
+                            
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-stone-700">Select Time</label>
-                                <div className="relative">
-                                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
-                                    <input
-                                        type="time"
-                                        required
-                                        className="w-full rounded-md border border-stone-300 pl-9 py-2 text-sm focus:border-saffron-500 focus:ring-1 focus:ring-saffron-500"
-                                        value={time}
-                                        onChange={(e) => setTime(e.target.value)}
-                                    />
-                                </div>
+                                <label className="text-sm font-medium text-stone-700">Available Time Slots</label>
+                                {loadingSlots ? (
+                                    <div className="text-sm text-stone-500 animate-pulse">Looking for open slots...</div>
+                                ) : !date ? (
+                                    <div className="text-sm text-stone-400 flex items-center gap-2">
+                                        <Info className="h-4 w-4" /> Please select a date first.
+                                    </div>
+                                ) : availableSlots.length === 0 ? (
+                                    <div className="text-sm text-red-500 bg-red-50 p-2 rounded border border-red-100">
+                                        No available slots on this date. Please try another day.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                                        {availableSlots.map(slot => (
+                                            <button
+                                                key={slot}
+                                                type="button"
+                                                onClick={() => setSelectedTime(slot)}
+                                                className={`px-2 py-2 text-xs font-medium rounded-md border transition-all ${
+                                                    selectedTime === slot 
+                                                    ? 'bg-saffron-600 text-white border-saffron-600 ring-2 ring-saffron-200' 
+                                                    : 'bg-white text-stone-700 border-stone-200 hover:border-saffron-400 hover:text-saffron-600'
+                                                }`}
+                                            >
+                                                {slot}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -172,7 +290,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, onC
                 type="submit" 
                 form="booking-form"
                 isLoading={loading}
-                disabled={!!isGotraConflict}
+                disabled={!!isGotraConflict || !selectedTime}
                 className="px-8"
             >
                 Confirm Booking

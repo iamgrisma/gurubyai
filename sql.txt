@@ -81,7 +81,35 @@ create policy "Gurubas can update own details"
 on public.gurubas for update 
 using ( auth.uid() = user_id );
 
--- 4. BOOKINGS TABLE
+-- 4. GURUBA AVAILABILITY TABLE
+create table if not exists public.guruba_availability (
+  id uuid default uuid_generate_v4() primary key,
+  guruba_id uuid references public.gurubas(id) on delete cascade not null,
+  day_of_week integer not null check (day_of_week between 0 and 6), -- 0=Sunday
+  start_time time not null,
+  end_time time not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(guruba_id, day_of_week) -- One schedule per day per guruba for now
+);
+
+-- RLS for Availability
+alter table public.guruba_availability enable row level security;
+
+drop policy if exists "Availability is viewable by everyone" on public.guruba_availability;
+create policy "Availability is viewable by everyone" 
+on public.guruba_availability for select 
+using ( true );
+
+drop policy if exists "Gurubas manage own availability" on public.guruba_availability;
+create policy "Gurubas manage own availability" 
+on public.guruba_availability for all 
+using ( 
+  auth.uid() in (
+    select user_id from public.gurubas where id = guruba_availability.guruba_id
+  )
+);
+
+-- 5. BOOKINGS TABLE
 create table if not exists public.bookings (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id) not null,
@@ -114,7 +142,7 @@ create policy "Users can create bookings"
 on public.bookings for insert 
 with check ( auth.uid() = user_id );
 
--- 5. REVIEWS TABLE
+-- 6. REVIEWS TABLE
 create table if not exists public.reviews (
   id uuid default uuid_generate_v4() primary key,
   booking_id uuid references public.bookings(id) not null,
@@ -139,8 +167,7 @@ create policy "Users can create reviews for their bookings"
 on public.reviews for insert 
 with check ( auth.uid() = user_id );
 
--- 6. TRIGGERS (CRITICAL FOR SIGN UP)
--- Function to handle new user signup automatically
+-- 7. TRIGGERS
 create or replace function public.handle_new_user() 
 returns trigger as $$
 begin
@@ -156,13 +183,12 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Trigger setup
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 7. SEED DATA (Idempotent)
+-- 8. SEED DATA
 insert into public.services (title, description, duration_minutes, base_price, image_url)
 values 
   ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu.', 90, 51, 'https://picsum.photos/400/300?random=1'),
@@ -170,5 +196,4 @@ values
   ('Vivah Sanskar', 'Complete Vedic wedding ceremony.', 240, 501, 'https://picsum.photos/400/300?random=3')
 on conflict do nothing;
 
--- Refresh Schema Cache (Fixes "Database error querying schema")
 NOTIFY pgrst, 'reload config';

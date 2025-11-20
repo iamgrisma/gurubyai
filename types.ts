@@ -48,6 +48,14 @@ export interface Guruba {
   };
 }
 
+export interface Availability {
+  id?: string;
+  guruba_id: string;
+  day_of_week: number; // 0 = Sunday, 1 = Monday, etc.
+  start_time: string; // HH:mm:ss
+  end_time: string;   // HH:mm:ss
+}
+
 export interface Booking {
   id: string;
   user_id: string;

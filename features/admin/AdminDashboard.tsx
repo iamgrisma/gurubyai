@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
-import { Users, BookOpen, Settings, Activity, RefreshCw, AlertCircle, Search, Save, Check } from 'lucide-react';
+import { Users, BookOpen, Settings, Activity, RefreshCw, AlertCircle, Search, Key, Mail, CheckCircle } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const { profile, user } = useAuth();
@@ -11,7 +11,9 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [userList, setUserList] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSystemStats();
@@ -75,6 +77,43 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handlePasswordReset = async (email: string, userId: string) => {
+    setActionLoadingId(userId);
+    setActionMessage(null);
+    try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + '/#/login',
+        });
+
+        if (error) throw error;
+        setActionMessage({ type: 'success', text: `Password reset email sent to ${email}` });
+    } catch (e: any) {
+        setActionMessage({ type: 'error', text: e.message });
+    } finally {
+        setActionLoadingId(null);
+    }
+  };
+
+  const handleMagicLink = async (email: string, userId: string) => {
+    setActionLoadingId(userId);
+    setActionMessage(null);
+    try {
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                emailRedirectTo: window.location.origin + '/#/client',
+            }
+        });
+
+        if (error) throw error;
+        setActionMessage({ type: 'success', text: `Magic login link sent to ${email}` });
+    } catch (e: any) {
+        setActionMessage({ type: 'error', text: e.message });
+    } finally {
+        setActionLoadingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-stone-100 p-8">
       <div className="mx-auto max-w-7xl">
@@ -97,6 +136,15 @@ export const AdminDashboard: React.FC = () => {
           <div className="mb-6 rounded-md bg-red-50 p-4 text-red-800 border border-red-200 flex items-center gap-2">
              <AlertCircle className="h-5 w-5" />
              <span>{error}</span>
+          </div>
+        )}
+
+        {actionMessage && (
+          <div className={`mb-6 rounded-md p-4 border flex items-center gap-2 ${
+              actionMessage.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'
+          }`}>
+             {actionMessage.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+             <span>{actionMessage.text}</span>
           </div>
         )}
 
@@ -139,7 +187,7 @@ export const AdminDashboard: React.FC = () => {
         {/* User Management Section */}
         <div className="bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
             <div className="p-6 border-b border-stone-200 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-stone-900">User Role Management</h2>
+                <h2 className="text-lg font-bold text-stone-900">User Role & Recovery Management</h2>
                 <div className="relative hidden md:block">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
                     <input 
@@ -155,8 +203,8 @@ export const AdminDashboard: React.FC = () => {
                         <tr>
                             <th className="px-6 py-3">User</th>
                             <th className="px-6 py-3">Email</th>
-                            <th className="px-6 py-3">Joined</th>
                             <th className="px-6 py-3">Role</th>
+                            <th className="px-6 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -175,12 +223,12 @@ export const AdminDashboard: React.FC = () => {
                                         <div className="h-8 w-8 bg-stone-100 rounded-full flex items-center justify-center text-xs font-bold text-stone-600">
                                             {u.full_name?.[0]?.toUpperCase() || 'U'}
                                         </div>
-                                        {u.full_name || 'Unnamed User'}
+                                        <div className="flex flex-col">
+                                            <span>{u.full_name || 'Unnamed User'}</span>
+                                            <span className="text-xs text-stone-400">{new Date(u.created_at).toLocaleDateString()}</span>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-stone-600">{u.email}</td>
-                                    <td className="px-6 py-4 text-stone-500">
-                                        {new Date(u.created_at).toLocaleDateString()}
-                                    </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <select 
@@ -198,6 +246,30 @@ export const AdminDashboard: React.FC = () => {
                                                 <option value="admin">Admin</option>
                                             </select>
                                             {updatingId === u.id && <RefreshCw className="h-4 w-4 animate-spin text-stone-400" />}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm"
+                                                disabled={actionLoadingId === u.id} 
+                                                onClick={() => handlePasswordReset(u.email, u.id)}
+                                                title="Send Password Reset Email"
+                                                className="px-2"
+                                            >
+                                                <Key className="h-4 w-4 text-stone-500" />
+                                            </Button>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                disabled={actionLoadingId === u.id}
+                                                onClick={() => handleMagicLink(u.email, u.id)}
+                                                title="Send One-Time Magic Link"
+                                                className="px-2"
+                                            >
+                                                <Mail className="h-4 w-4 text-stone-500" />
+                                            </Button>
                                         </div>
                                     </td>
                                 </tr>
