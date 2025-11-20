@@ -10,7 +10,7 @@ import { Booking, Transaction, Notification } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
   LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera,
-  MessageSquare, CheckCircle, Receipt
+  MessageSquare, CheckCircle, Receipt, Home
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
@@ -397,7 +397,7 @@ export const ClientDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 flex">
+    <div className="min-h-screen bg-stone-50 flex font-sans">
       {/* Sidebar */}
       <aside className="w-72 bg-white border-r border-stone-200 hidden lg:flex flex-col sticky top-16 h-[calc(100vh-4rem)] shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20">
          <div className="p-6">

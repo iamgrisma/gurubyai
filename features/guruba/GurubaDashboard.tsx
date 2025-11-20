@@ -78,6 +78,10 @@ export const GurubaDashboard: React.FC = () => {
              throw gurubaError;
         }
         
+        if (gurubaData) {
+            gurubaData.email = user?.email;
+        }
+        
         setGuruba(gurubaData);
         setBio(gurubaData.bio || '');
         setSpecialties(gurubaData.specialties?.join(', ') || '');
@@ -415,9 +419,10 @@ export const GurubaDashboard: React.FC = () => {
                     <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md">
                         {profile?.full_name?.[0] || 'G'}
                     </div>
-                    <div>
-                        <p className="font-bold text-stone-900 text-sm">{profile?.full_name}</p>
-                        <p className="text-xs text-stone-500 font-medium">Verified Guruba</p>
+                    <div className="overflow-hidden">
+                        <p className="font-bold text-stone-900 text-sm truncate">{profile?.full_name}</p>
+                        {profile?.email && <p className="text-xs text-stone-500 truncate">{profile.email}</p>}
+                        <p className="text-xs text-saffron-600 font-medium">Verified Guruba</p>
                     </div>
                 </div>
             </div>

@@ -47,6 +47,7 @@ export interface Guruba {
   specialties: string[];
   is_verified?: boolean;
   languages?: string[];
+  email?: string;
   // Joined data from profiles table
   profiles?: {
     full_name: string;

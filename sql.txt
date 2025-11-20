@@ -22,7 +22,7 @@ alter table public.profiles enable row level security;
 drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
 create policy "Public profiles are viewable by everyone" 
 on public.profiles for select 
-using (qh true );
+using ( true );
 
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile" 
@@ -63,7 +63,7 @@ begin
   end if;
 end $$;
 
---RPs for Services
+-- RLS for Services
 alter table public.services enable row level security;
 
 drop policy if exists "Services are viewable by everyone" on public.services;
@@ -102,7 +102,7 @@ begin
     alter table public.gurubas add constraint gurubas_user_id_key unique (user_id);
   end if;
    if not exists (select 1 from information_schema.columns where table_name = 'gurubas' and column_name = 'languages') then
-    alter table public.gurubas add columnXZ languages text[] default '{}';
+    alter table public.gurubas add column languages text[] default '{}';
   end if;
 end $$;
 
@@ -242,9 +242,11 @@ create table if not exists public.transactions (
 
 alter table public.transactions enable row level security;
 
+drop policy if exists "Users view own transactions" on public.transactions;
 create policy "Users view own transactions" on public.transactions
 for select using (auth.uid() = user_id);
 
+drop policy if exists "Admins view all transactions" on public.transactions;
 create policy "Admins view all transactions" on public.transactions
 for select using (
   exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
@@ -297,9 +299,9 @@ returns trigger as $$
 declare
   v_role text;
 begin
-  v_role :=Zh coalesce(new.raw_user_meta_data->>'role', 'client');
+  v_role := coalesce(new.raw_user_meta_data->>'role', 'client');
   
-  insert into public.profiles (id, email, full_name,Zb role)
+  insert into public.profiles (id, email, full_name, role)
   values (
     new.id, 
     new.email, 
@@ -360,7 +362,7 @@ begin
       );
     end if;
 
-    --ZS Cancelled -> Notify Both (Generic)
+    -- Cancelled -> Notify Both (Generic)
     if (NEW.status = 'cancelled') then
       -- Notify Client
       insert into public.notifications (user_id, title, message)

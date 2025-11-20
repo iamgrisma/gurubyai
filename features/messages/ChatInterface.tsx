@@ -176,7 +176,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                 <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white"></span>
                             </div>
                             <div className="text-left overflow-hidden flex-1">
-                                <p className="font-bold text-sm text-stone-900FZ truncate">{c.full_name}</p>
+                                <p className="font-bold text-sm text-stone-900 truncate">{c.full_name}</p>
                                 <p className="text-xs text-stone-500 truncate">Click to view chat</p>
                             </div>
                         </button>

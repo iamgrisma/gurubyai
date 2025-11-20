@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { Service } from '../../types';
 import { 
     Users, BookOpen, Settings, Activity, RefreshCw, AlertCircle, Search, Key, Mail, CheckCircle,
-    LayoutDashboard, Layers, DollarSign, X, Plus, Edit, Trash
+    LayoutDashboard, Layers, DollarSign, X, Plus, Edit, Trash, Star
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
@@ -40,7 +40,8 @@ export const AdminDashboard: React.FC = () => {
     base_price: 0, 
     duration_minutes: 0, 
     image_url: '',
-    category: '' 
+    category: '',
+    is_featured: false
   });
 
   useEffect(() => {
@@ -62,15 +63,17 @@ export const AdminDashboard: React.FC = () => {
         setStats({ users: uCount || 0, gurubas: gCount || 0, bookings: bCount || 0, revenue });
 
         // Users (Fetch profiles joined with gurubas to see verify status)
-        const { data: userData } = await supabase
-            .from('profiles')
-            .select(`
-                *,
-                gurubas:id (is_verified)
-            `)
-            .order('created_at', { ascending: false })
-            .limit(50);
-        setUsers(userData || []);
+        // Using separate queries to avoid JOIN issues with postgrest sometimes
+        const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(50);
+        const { data: gurubas } = await supabase.from('gurubas').select('user_id, is_verified');
+        
+        // Merge manual
+        const mergedUsers = profiles?.map(p => ({
+            ...p,
+            gurubas: gurubas?.filter(g => g.user_id === p.id) || []
+        }));
+        
+        setUsers(mergedUsers || []);
 
         // Services
         const { data: serviceData } = await supabase.from('services').select('*').order('title');
@@ -101,23 +104,45 @@ export const AdminDashboard: React.FC = () => {
   const handleServiceSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
+          const payload = {
+              title: serviceForm.title,
+              description: serviceForm.description,
+              base_price: serviceForm.base_price,
+              duration_minutes: serviceForm.duration_minutes,
+              image_url: serviceForm.image_url,
+              category: serviceForm.category,
+              is_featured: serviceForm.is_featured
+          };
+
+          let error;
           if (editingService) {
-              await supabase.from('services').update(serviceForm).eq('id', editingService.id);
+              const res = await supabase.from('services').update(payload).eq('id', editingService.id);
+              error = res.error;
           } else {
-              await supabase.from('services').insert(serviceForm);
+              const res = await supabase.from('services').insert(payload);
+              error = res.error;
           }
+
+          if (error) throw error;
+
           setIsServiceModalOpen(false);
           setEditingService(null);
           fetchData();
-      } catch (e) {
-          alert("Failed to save service");
+      } catch (e: any) {
+          console.error("Service save error:", e);
+          alert("Failed to save service: " + e.message);
       }
   };
 
   const handleDeleteService = async (id: string) => {
       if (!confirm("Are you sure?")) return;
-      await supabase.from('services').delete().eq('id', id);
-      fetchData();
+      try {
+        const { error } = await supabase.from('services').delete().eq('id', id);
+        if (error) throw error;
+        fetchData();
+      } catch (e: any) {
+        alert("Failed to delete service: " + e.message);
+      }
   };
 
   const openServiceModal = (service?: Service) => {
@@ -129,11 +154,20 @@ export const AdminDashboard: React.FC = () => {
               base_price: service.base_price, 
               duration_minutes: service.duration_minutes,
               image_url: service.image_url,
-              category: service.category || ''
+              category: service.category || '',
+              is_featured: service.is_featured || false
           });
       } else {
           setEditingService(null);
-          setServiceForm({ title: '', description: '', base_price: 0, duration_minutes: 0, image_url: '', category: '' });
+          setServiceForm({ 
+              title: '', 
+              description: '', 
+              base_price: 0, 
+              duration_minutes: 0, 
+              image_url: '', 
+              category: '',
+              is_featured: false 
+          });
       }
       setIsServiceModalOpen(true);
   };
@@ -143,7 +177,7 @@ export const AdminDashboard: React.FC = () => {
       switch(activeTab) {
           case 'overview':
               return (
-                  <div className="space-y-6">
+                  <div className="space-y-6 animate-in fade-in duration-300">
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                           <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
                               <h3 className="text-stone-500 text-sm font-medium">Total Revenue</h3>
@@ -176,7 +210,7 @@ export const AdminDashboard: React.FC = () => {
 
           case 'users':
               return (
-                  <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                  <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
                       <div className="p-4 border-b border-stone-200 flex justify-between items-center">
                           <h3 className="font-bold text-stone-900">User Management</h3>
                           <input type="text" placeholder="Search users..." className="border rounded-md px-3 py-1 text-sm" />
@@ -210,7 +244,7 @@ export const AdminDashboard: React.FC = () => {
                                               u.gurubas?.[0]?.is_verified ? (
                                                   <span className="text-green-600 flex items-center gap-1 text-xs font-bold"><CheckCircle className="h-3 w-3" /> Verified</span>
                                               ) : (
-                                                  <button onClick={() => handleVerifyGuruba(u.id, true)} className="text-blue-600 hover:underline text-xs">Approve Verification</button>
+                                                  <button onClick={() => handleVerifyGuruba(u.id, true)} className="text-blue-600 hover:underline text-xs bg-blue-50 px-2 py-1 rounded border border-blue-200">Approve Verification</button>
                                               )
                                           ) : (
                                               <span className="text-stone-300 text-xs">N/A</span>
@@ -228,7 +262,7 @@ export const AdminDashboard: React.FC = () => {
 
           case 'services':
               return (
-                  <div className="space-y-6">
+                  <div className="space-y-6 animate-in fade-in duration-300">
                       <div className="flex justify-between items-center">
                           <h2 className="text-xl font-bold text-stone-900">Service Catalog</h2>
                           <Button onClick={() => openServiceModal()}><Plus className="h-4 w-4 mr-2" /> Add Service</Button>
@@ -236,18 +270,23 @@ export const AdminDashboard: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {services.map(service => (
                               <div key={service.id} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden group">
-                                  <div className="h-32 bg-stone-200 relative">
+                                  <div className="h-32 bg-stone-200Ql relative">
                                       <img src={service.image_url} className="h-full w-full object-cover" />
                                       <div className="absolute top-2 left-2 bg-white/90 text-stone-800 text-xs px-2 py-1 rounded font-bold">
                                           {service.category || 'General'}
                                       </div>
+                                      {service.is_featured && (
+                                          <div className="absolute top-2 right-2 bg-saffron-500 text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1">
+                                              <Star className="h-3 w-3 fill-current" /> Featured
+                                          </div>
+                                      )}
                                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                           <button onClick={() => openServiceModal(service)} className="p-2 bg-white rounded-full hover:scale-110 transition-transform"><Edit className="h-4 w-4" /></button>
                                           <button onClick={() => handleDeleteService(service.id)} className="p-2 bg-white rounded-full text-red-600 hover:scale-110 transition-transform"><Trash className="h-4 w-4" /></button>
                                       </div>
                                   </div>
                                   <div className="p-4">
-                                      <h3 className="font-bold text-stone-900">{service.title}</h3>
+                                      <h3 className="font-bold text-stone-900 line-clamp-1">{service.title}</h3>
                                       <div className="flex justify-between mt-2 text-sm">
                                           <span className="text-stone-500">{service.duration_minutes} mins</span>
                                           <span className="font-bold text-saffron-600">${service.base_price}</span>
@@ -261,7 +300,7 @@ export const AdminDashboard: React.FC = () => {
           
           case 'financials':
               return (
-                  <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-12 text-center">
+                  <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-12 text-center animate-in fade-in duration-300">
                       <DollarSign className="h-12 w-12 text-stone-300 mx-auto mb-4" />
                       <h3 className="text-lg font-bold text-stone-900">Financial Reporting</h3>
                       <p className="text-stone-500">Transaction logs and export features would go here.</p>
@@ -300,55 +339,91 @@ export const AdminDashboard: React.FC = () => {
         {isServiceModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                    <h3 className="text-lg font-bold mb-4">{editingService ? 'Edit Service' : 'New Service'}</h3>
+                    <div className="flex justify-between items-center mb-4">
+                         <h3 className="text-lg font-bold">{editingService ? 'Edit Service' : 'New Service'}</h3>
+                         <button onClick={() => setIsServiceModalOpen(false)}><X className="h-5 w-5 text-stone-400" /></button>
+                    </div>
                     <form onSubmit={handleServiceSubmit} className="space-y-4">
-                        <input 
-                            placeholder="Title" 
-                            className="w-full border p-2 rounded" 
-                            value={serviceForm.title} 
-                            onChange={e => setServiceForm({...serviceForm, title: e.target.value})} 
-                            required 
-                        />
-                        <input 
-                            placeholder="Category (e.g. Pujas, Sanskaras, Astrology)" 
-                            className="w-full border p-2 rounded" 
-                            value={serviceForm.category} 
-                            onChange={e => setServiceForm({...serviceForm, category: e.target.value})} 
-                        />
-                        <textarea 
-                            placeholder="Description" 
-                            className="w-full border p-2 rounded" 
-                            value={serviceForm.description} 
-                            onChange={e => setServiceForm({...serviceForm, description: e.target.value})} 
-                            required 
-                        />
-                        <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Service Title</label>
                             <input 
-                                type="number" 
-                                placeholder="Price ($)" 
-                                className="w-full border p-2 rounded" 
-                                value={serviceForm.base_price} 
-                                onChange={e => setServiceForm({...serviceForm, base_price: parseInt(e.target.value)})} 
-                                required 
-                            />
-                            <input 
-                                type="number" 
-                                placeholder="Duration (min)" 
-                                className="w-full border p-2 rounded" 
-                                value={serviceForm.duration_minutes} 
-                                onChange={e => setServiceForm({...serviceForm, duration_minutes: parseInt(e.target.value)})} 
+                                placeholder="e.g. Satyanarayan Puja" 
+                                className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
+                                value={serviceForm.title} 
+                                onChange={e => setServiceForm({...serviceForm, title: e.target.value})} 
                                 required 
                             />
                         </div>
-                        <input 
-                            placeholder="Image URL" 
-                            className="w-full border p-2 rounded" 
-                            value={serviceForm.image_url} 
-                            onChange={e => setServiceForm({...serviceForm, image_url: e.target.value})} 
-                        />
-                        <div className="flex justify-end gap-2 mt-4">
+                        
+                        <div>
+                             <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Category</label>
+                             <input 
+                                placeholder="e.g. Pujas, Sanskaras, Astrology" 
+                                className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
+                                value={serviceForm.category} 
+                                onChange={e => setServiceForm({...serviceForm, category: e.target.value})} 
+                            />
+                        </div>
+
+                        <div>
+                             <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Description</label>
+                             <textarea 
+                                placeholder="Describe the ritual..." 
+                                className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
+                                value={serviceForm.description} 
+                                onChange={e => setServiceForm({...serviceForm, description: e.target.value})} 
+                                required 
+                                rows={3}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Price ($)</label>
+                                <input 
+                                    type="number" 
+                                    className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
+                                    value={serviceForm.base_price} 
+                                    onChange={e => setServiceForm({...serviceForm, base_price: parseInt(e.target.value)})} 
+                                    required 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Duration (min)</label>
+                                <input 
+                                    type="number" 
+                                    className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
+                                    value={serviceForm.duration_minutes} 
+                                    onChange={e => setServiceForm({...serviceForm, duration_minutes: parseInt(e.target.value)})} 
+                                    required 
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                             <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Image URL</label>
+                             <input 
+                                placeholder="https://..." 
+                                className="w-full border border-stone-300 p-2 rounded focus:ring-2 focus:ring-saffron-500 outline-none" 
+                                value={serviceForm.image_url} 
+                                onChange={e => setServiceForm({...serviceForm, image_url: e.target.value})} 
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2">
+                            <input 
+                                type="checkbox" 
+                                id="is_featured"
+                                className="h-4 w-4 rounded border-stone-300 text-saffron-600 focus:ring-saffron-500"
+                                checked={serviceForm.is_featured}
+                                onChange={e => setServiceForm({...serviceForm, is_featured: e.target.checked})}
+                            />
+                            <label htmlFor="is_featured" className="text-sm font-medium text-stone-700">Feature on Homepage</label>
+                        </div>
+
+                        <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-stone-100">
                             <Button type="button" variant="ghost" onClick={() => setIsServiceModalOpen(false)}>Cancel</Button>
-                            <Button type="submit">Save</Button>
+                            <Button type="submit">Save Service</Button>
                         </div>
                     </form>
                 </div>

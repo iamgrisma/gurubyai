@@ -92,19 +92,20 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-500 via-red-500 to-purple-600 px-4 py-12 sm:px-6 lg:px-8 animate-gradient-x">
+      <div className="w-full max-w-md space-y-8 bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-white/20">
         <div className="text-center">
-            <div className="mx-auto h-12 w-12 rounded bg-saffron-500 flex items-center justify-center text-white font-bold text-2xl">
+            <div className="mx-auto h-14 w-14 rounded-xl bg-gradient-to-br from-saffron-500 to-orange-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-saffron-500/30 transform -rotate-3">
                 G
             </div>
-            <h2 className="mt-6 text-3xl font-bold tracking-tight text-stone-900">
-                Sign in to your account
+            <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-stone-900">
+                Welcome Back
             </h2>
+            <p className="mt-2 text-sm text-stone-500">Sign in to continue your journey</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="-space-y-px rounded-md shadow-sm">
+          <div className="-space-y-px rounded-lg shadow-sm bg-stone-800 p-1">
             <div>
               <label htmlFor="email-address" className="sr-only">Email address</label>
               <input
@@ -113,12 +114,13 @@ export const LoginPage: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="relative block w-full rounded-t-md border-0 py-1.5 text-stone-900 ring-1 ring-inset ring-stone-300 placeholder:text-stone-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-saffron-600 sm:text-sm sm:leading-6 px-3"
+                className="relative block w-full rounded-t-md border-0 bg-stone-800 py-3 text-white placeholder:text-stone-500 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-saffron-500 sm:text-sm sm:leading-6 px-4 transition-all"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
+            <div className="h-px bg-stone-700 mx-4"></div>
             <div>
               <label htmlFor="password" className="sr-only">Password</label>
               <input
@@ -127,7 +129,7 @@ export const LoginPage: React.FC = () => {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="relative block w-full rounded-b-md border-0 py-1.5 text-stone-900 ring-1 ring-inset ring-stone-300 placeholder:text-stone-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-saffron-600 sm:text-sm sm:leading-6 px-3"
+                className="relative block w-full rounded-b-md border-0 bg-stone-800 py-3 text-white placeholder:text-stone-500 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-saffron-500 sm:text-sm sm:leading-6 px-4 transition-all"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -136,7 +138,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {successMessage && (
-            <div className="flex items-start gap-3 text-green-700 text-sm bg-green-50 p-3 rounded border border-green-200">
+            <div className="flex items-start gap-3 text-green-700 text-sm bg-green-50 p-3 rounded-lg border border-green-200 animate-in fade-in slide-in-from-top-2">
                 <div className="mt-0.5 shrink-0">
                   <CheckCircle className="h-5 w-5" />
                 </div>
@@ -145,7 +147,7 @@ export const LoginPage: React.FC = () => {
           )}
 
           {error && (
-            <div className="flex items-start gap-3 text-red-600 text-sm bg-red-50 p-3 rounded border border-red-200">
+            <div className="flex items-start gap-3 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200 animate-in fade-in slide-in-from-top-2">
                 <div className="mt-0.5 shrink-0">
                   {typeof error !== 'string' ? null : <AlertTriangle className="h-5 w-5" />}
                 </div>
@@ -156,7 +158,7 @@ export const LoginPage: React.FC = () => {
           <div>
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-gradient-to-r from-saffron-600 to-orange-600 hover:from-saffron-700 hover:to-orange-700 text-white font-bold py-3 rounded-lg shadow-lg shadow-saffron-500/25 transform transition-all active:scale-95"
               isLoading={loading}
             >
               Sign in
@@ -164,18 +166,18 @@ export const LoginPage: React.FC = () => {
           </div>
         </form>
 
-        <div className="relative">
+        <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-stone-300" />
+                <div className="w-full border-t border-stone-200" />
             </div>
             <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-stone-500">Don't have an account?</span>
+                <span className="bg-white px-4 text-stone-500 font-medium">Don't have an account?</span>
             </div>
         </div>
         
         <Link to="/register">
-            <Button variant="outline" className="w-full">
-                Create Account
+            <Button variant="outline" className="w-full border-2 border-stone-100 hover:border-saffron-200 hover:bg-saffron-50 text-stone-600 font-semibold py-2.5 rounded-lg transition-all">
+                Create Free Account
             </Button>
         </Link>
       </div>
