@@ -1,11 +1,5 @@
 {
   "name": "guruba-connect",
-  "compatibility_date": "2024-09-23",
-  "assets": {
-    "binding": "ASSETS",
-    "directory": "./dist"
-  },
-  "observability": {
-    "enabled": true
-  }
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2024-09-23"
 }
