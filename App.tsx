@@ -4,7 +4,10 @@ import { AuthProvider, useAuth } from './features/auth/AuthProvider';
 import { PublicHeader } from './components/shared/PublicHeader';
 import { LandingPage } from './features/public/LandingPage';
 import { LoginPage } from './features/auth/LoginPage';
+import { RegisterPage } from './features/auth/RegisterPage';
 import { ClientDashboard } from './features/client/ClientDashboard';
+import { GurubaDashboard } from './features/guruba/GurubaDashboard';
+import { AdminDashboard } from './features/admin/AdminDashboard';
 import { ServiceSelection } from './features/booking/ServiceSelection';
 import { GurubaSelection } from './features/booking/GurubaSelection';
 
@@ -24,8 +27,8 @@ const PublicLayout = () => {
 };
 
 // Route guard for authenticated users
-const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
-  const { session, loading } = useAuth();
+const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: string[] }) => {
+  const { session, loading, profile } = useAuth();
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-saffron-600">Loading...</div>;
@@ -33,6 +36,14 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
 
   if (!session) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Simple role based access control
+  if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
+      // Redirect to their appropriate dashboard if they try to access a wrong route
+      if (profile.role === 'admin') return <Navigate to="/admin" replace />;
+      if (profile.role === 'guruba') return <Navigate to="/guruba" replace />;
+      return <Navigate to="/client" replace />;
   }
 
   return <>{children}</>;
@@ -46,13 +57,14 @@ const App: React.FC = () => {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            {/* Add Register, Services, etc. here */}
+            <Route path="/register" element={<RegisterPage />} />
           </Route>
 
+          {/* Client Routes */}
           <Route
             path="/client"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['client', 'admin']}>
                 <PublicLayout />
               </ProtectedRoute>
             }
@@ -60,11 +72,35 @@ const App: React.FC = () => {
             <Route index element={<ClientDashboard />} />
           </Route>
 
-          {/* Booking Flow Routes */}
+          {/* Guruba Routes */}
+          <Route
+            path="/guruba"
+            element={
+              <ProtectedRoute allowedRoles={['guruba', 'admin']}>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+             <Route index element={<GurubaDashboard />} />
+          </Route>
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+             <Route index element={<AdminDashboard />} />
+          </Route>
+
+          {/* Booking Flow Routes (Ideally for Clients, but open for now) */}
           <Route
             path="/book"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['client', 'admin']}>
                 <PublicLayout />
               </ProtectedRoute>
             }

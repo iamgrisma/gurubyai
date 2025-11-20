@@ -3,14 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
-import { Calendar, Clock, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, MapPin, AlertCircle, RefreshCw, Save, X } from 'lucide-react';
 
 export const ClientDashboard: React.FC = () => {
-  const { profile, user } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Edit Profile State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    full_name: '',
+    phone: '',
+    gotra_id: ''
+  });
 
   // Fallback for display name if profile failed to load during login
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
@@ -24,9 +33,8 @@ export const ClientDashboard: React.FC = () => {
   const fetchBookings = async () => {
     setLoading(true);
     setFetchError(null);
+    
     try {
-      // Fetch bookings and join with Service details and Guruba details
-      // Note: For Guruba name, we join bookings -> gurubas -> profiles
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -47,14 +55,49 @@ export const ClientDashboard: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error fetching bookings:', err);
-      let msg = err.message;
-      // Friendly message for the specific schema cache error
-      if (msg?.toLowerCase().includes('querying schema')) {
-        msg = 'System Database Initializing. Please wait 30s and click Retry.';
-      }
-      setFetchError(msg || 'Failed to load bookings');
+      setFetchError('Failed to load bookings. Please verify your connection and try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    setProfileForm({
+      full_name: profile?.full_name || '',
+      phone: profile?.phone || '',
+      gotra_id: profile?.gotra_id || ''
+    });
+    setIsEditingProfile(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingProfile(false);
+    setFetchError(null);
+  };
+
+  const handleSaveProfile = async () => {
+    setUpdateLoading(true);
+    setFetchError(null);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: profileForm.full_name,
+          phone: profileForm.phone,
+          gotra_id: profileForm.gotra_id
+        })
+        .eq('id', user?.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+      setIsEditingProfile(false);
+    } catch (err: any) {
+      console.error("Profile update failed:", err);
+      setFetchError(err.message || "Failed to update profile details.");
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -79,7 +122,9 @@ export const ClientDashboard: React.FC = () => {
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-stone-900">Welcome back, {displayName}</h1>
+            <h1 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
+                Welcome back, {displayName}
+            </h1>
             <p className="text-stone-600">Manage your upcoming rituals and profile.</p>
           </div>
           <Button onClick={() => navigate('/book')}>Book New Service</Button>
@@ -87,10 +132,10 @@ export const ClientDashboard: React.FC = () => {
 
         {/* Error Alert */}
         {fetchError && (
-          <div className="mb-6 rounded-md bg-red-50 p-4 text-red-700 border border-red-200 flex items-center justify-between">
+          <div className="mb-6 rounded-md bg-red-50 p-4 text-red-800 border border-red-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5" />
-              <span>System Notice: {fetchError}</span>
+              <span>{fetchError}</span>
             </div>
             <Button size="sm" variant="outline" onClick={fetchBookings} className="bg-white border-red-200 text-red-700 hover:bg-red-50">
               <RefreshCw className="h-4 w-4 mr-2" /> Retry
@@ -140,7 +185,7 @@ export const ClientDashboard: React.FC = () => {
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                        booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        booking.status === 'completed' ? 'bg-stone-100 text-stone-800' :
                         'bg-yellow-100 text-yellow-800'
                       }`}>
                         {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
@@ -167,26 +212,75 @@ export const ClientDashboard: React.FC = () => {
           {/* Right Column: Profile & Stats */}
           <div className="md:col-span-4 space-y-6">
              <div className="rounded-lg bg-white p-6 shadow border border-stone-200">
-                <h3 className="font-semibold text-stone-900 mb-4">My Profile</h3>
-                <div className="space-y-3 text-sm">
-                    <div className="flex justify-between py-2 border-b border-stone-100">
-                        <span className="text-stone-500">Full Name:</span>
-                        <span className="font-medium text-right">{profile?.full_name || 'Not Set'}</span>
+                <h3 className="font-semibold text-stone-900 mb-4 flex items-center justify-between">
+                  My Profile
+                  {isEditingProfile && <span className="text-xs font-normal text-stone-500">Editing</span>}
+                </h3>
+                
+                {isEditingProfile ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-stone-500 mb-1">Full Name</label>
+                      <input 
+                        type="text"
+                        value={profileForm.full_name}
+                        onChange={(e) => setProfileForm({...profileForm, full_name: e.target.value})}
+                        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-saffron-500 focus:ring-1 focus:ring-saffron-500"
+                        placeholder="Your Name"
+                      />
                     </div>
-                    <div className="flex justify-between py-2 border-b border-stone-100">
-                        <span className="text-stone-500">Email:</span>
-                        <span className="font-medium text-right truncate max-w-[180px]" title={user?.email}>{user?.email}</span>
+                    <div>
+                      <label className="block text-xs font-medium text-stone-500 mb-1">Phone Number</label>
+                      <input 
+                        type="tel"
+                        value={profileForm.phone}
+                        onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-saffron-500 focus:ring-1 focus:ring-saffron-500"
+                        placeholder="555-0123"
+                      />
                     </div>
-                    <div className="flex justify-between py-2 border-b border-stone-100">
-                        <span className="text-stone-500">Phone:</span>
-                        <span className="font-medium text-right">{profile?.phone || 'Not Set'}</span>
+                    <div>
+                      <label className="block text-xs font-medium text-stone-500 mb-1">Gotra</label>
+                      <input 
+                        type="text"
+                        value={profileForm.gotra_id}
+                        onChange={(e) => setProfileForm({...profileForm, gotra_id: e.target.value})}
+                        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-saffron-500 focus:ring-1 focus:ring-saffron-500"
+                        placeholder="e.g. Kashyap"
+                      />
                     </div>
-                    <div className="flex justify-between py-2">
-                        <span className="text-stone-500">Gotra:</span>
-                        <span className="font-medium text-right text-saffron-700">{profile?.gotra_id || 'Not Set'}</span>
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" onClick={handleSaveProfile} isLoading={updateLoading} className="flex-1">
+                        <Save className="h-3 w-3 mr-1" /> Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleCancelEdit} disabled={updateLoading} className="flex-1">
+                         <X className="h-3 w-3 mr-1" /> Cancel
+                      </Button>
                     </div>
-                </div>
-                <Button variant="outline" size="sm" className="mt-6 w-full">Edit Profile</Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-3 text-sm">
+                        <div className="flex justify-between py-2 border-b border-stone-100">
+                            <span className="text-stone-500">Full Name:</span>
+                            <span className="font-medium text-right">{profile?.full_name || 'Not Set'}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-stone-100">
+                            <span className="text-stone-500">Email:</span>
+                            <span className="font-medium text-right truncate max-w-[180px]" title={user?.email}>{user?.email}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-stone-100">
+                            <span className="text-stone-500">Phone:</span>
+                            <span className="font-medium text-right">{profile?.phone || 'Not Set'}</span>
+                        </div>
+                        <div className="flex justify-between py-2">
+                            <span className="text-stone-500">Gotra:</span>
+                            <span className="font-medium text-right text-saffron-700">{profile?.gotra_id || 'Not Set'}</span>
+                        </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="mt-6 w-full" onClick={handleEditClick}>Edit Profile</Button>
+                  </>
+                )}
              </div>
           </div>
 

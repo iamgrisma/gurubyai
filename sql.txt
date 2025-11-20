@@ -1,0 +1,149 @@
+
+-- Enable UUID extension
+create extension if not exists "uuid-ossp";
+
+-- 1. PROFILES TABLE
+create table if not exists public.profiles (
+  id uuid references auth.users on delete cascade not null primary key,
+  email text unique not null,
+  full_name text,
+  role text check (role in ('client', 'guruba', 'admin')) default 'client',
+  phone text,
+  gotra_id text,
+  avatar_url text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS for Profiles
+alter table public.profiles enable row level security;
+
+drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
+create policy "Public profiles are viewable by everyone" 
+on public.profiles for select 
+using ( true );
+
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile" 
+on public.profiles for update 
+using ( auth.uid() = id );
+
+drop policy if exists "Admins can update any profile" on public.profiles;
+create policy "Admins can update any profile" 
+on public.profiles for update 
+using ( 
+  exists (
+    select 1 from public.profiles 
+    where id = auth.uid() and role = 'admin'
+  )
+);
+
+-- 2. SERVICES TABLE
+create table if not exists public.services (
+  id uuid default uuid_generate_v4() primary key,
+  title text not null,
+  description text,
+  duration_minutes integer,
+  base_price integer,
+  image_url text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS for Services
+alter table public.services enable row level security;
+
+drop policy if exists "Services are viewable by everyone" on public.services;
+create policy "Services are viewable by everyone" 
+on public.services for select 
+using ( true );
+
+-- 3. GURUBAS TABLE
+create table if not exists public.gurubas (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  bio text,
+  years_experience integer default 0,
+  rating numeric(2,1) default 5.0,
+  location text,
+  specialties text[] default '{}',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS for Gurubas
+alter table public.gurubas enable row level security;
+
+drop policy if exists "Gurubas are viewable by everyone" on public.gurubas;
+create policy "Gurubas are viewable by everyone" 
+on public.gurubas for select 
+using ( true );
+
+drop policy if exists "Gurubas can update own details" on public.gurubas;
+create policy "Gurubas can update own details" 
+on public.gurubas for update 
+using ( auth.uid() = user_id );
+
+-- 4. BOOKINGS TABLE
+create table if not exists public.bookings (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) not null,
+  guruba_id uuid references public.gurubas(id) not null,
+  service_id uuid references public.services(id) not null,
+  scheduled_at timestamp with time zone not null,
+  status text check (status in ('pending', 'confirmed', 'completed', 'cancelled')) default 'pending',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS for Bookings
+alter table public.bookings enable row level security;
+
+drop policy if exists "Users can view own bookings" on public.bookings;
+create policy "Users can view own bookings" 
+on public.bookings for select 
+using ( auth.uid() = user_id );
+
+drop policy if exists "Gurubas can view assigned bookings" on public.bookings;
+create policy "Gurubas can view assigned bookings" 
+on public.bookings for select 
+using ( 
+  auth.uid() in (
+    select user_id from public.gurubas where id = bookings.guruba_id
+  )
+);
+
+drop policy if exists "Users can create bookings" on public.bookings;
+create policy "Users can create bookings" 
+on public.bookings for insert 
+with check ( auth.uid() = user_id );
+
+-- 5. TRIGGERS (CRITICAL FOR SIGN UP)
+-- Function to handle new user signup automatically
+create or replace function public.handle_new_user() 
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, full_name, role)
+  values (
+    new.id, 
+    new.email, 
+    coalesce(new.raw_user_meta_data->>'full_name', 'New User'),
+    coalesce(new.raw_user_meta_data->>'role', 'client')
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger setup
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- 6. SEED DATA (Idempotent)
+insert into public.services (title, description, duration_minutes, base_price, image_url)
+values 
+  ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu.', 90, 51, 'https://picsum.photos/400/300?random=1'),
+  ('Griha Pravesh', 'House warming ceremony to purify the home.', 180, 101, 'https://picsum.photos/400/300?random=2'),
+  ('Vivah Sanskar', 'Complete Vedic wedding ceremony.', 240, 501, 'https://picsum.photos/400/300?random=3')
+on conflict do nothing;
+
+-- Refresh Schema Cache (Fixes "Database error querying schema")
+NOTIFY pgrst, 'reload config';

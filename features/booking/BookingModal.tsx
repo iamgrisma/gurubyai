@@ -26,10 +26,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, onC
   const gurubaGotra = guruba.profiles?.gotra_id;
   
   // Gotra Check Logic
-  // In many traditions, user and priest (if performing specific rituals) should not overlap 
-  // OR if it's a marriage context, they shouldn't be same. 
-  // For general rituals, this check might be informational or strict based on requirement.
-  // Implementing Strict Check: If Same -> Warning/Block.
   const isGotraConflict = userGotra && gurubaGotra && userGotra.toLowerCase() === gurubaGotra.toLowerCase();
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { BookingModal } from './BookingModal';
-import { Star, MapPin, Award } from 'lucide-react';
+import { Star, MapPin, Award, User } from 'lucide-react';
 
 export const GurubaSelection: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -18,37 +18,45 @@ export const GurubaSelection: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!serviceId) return;
+      setLoading(true);
 
-      // 1. Fetch Service Details
-      const { data: serviceData } = await supabase
-        .from('services')
-        .select('*')
-        .eq('id', serviceId)
-        .single();
-      
-      setService(serviceData);
+      try {
+        // 1. Fetch Service Details
+        const { data: dbService, error: serviceError } = await supabase
+            .from('services')
+            .select('*')
+            .eq('id', serviceId)
+            .single();
+        
+        if (serviceError) throw serviceError;
+        setService(dbService);
 
-      // 2. Fetch Gurubas with their Profile details
-      // We filter logically in JS because 'specialties' is an array
-      const { data: gurubaData, error } = await supabase
-        .from('gurubas')
-        .select(`
-          *,
-          profiles:user_id (
-            full_name,
-            gotra_id,
-            avatar_url
-          )
-        `);
+        // 2. Fetch Gurubas
+        const { data: gurubaData, error: gurubaError } = await supabase
+            .from('gurubas')
+            .select(`
+            *,
+            profiles:user_id (
+                full_name,
+                gotra_id,
+                avatar_url
+            )
+            `);
 
-      if (gurubaData && serviceData) {
-        // Filter: Does the Guruba specialize in this service?
-        const relevantGurubas = gurubaData.filter((g: any) => 
-            g.specialties && Array.isArray(g.specialties) && g.specialties.includes(serviceData.title)
-        );
-        setGurubas(relevantGurubas);
+        if (gurubaError) throw gurubaError;
+
+        if (gurubaData && dbService) {
+            // Filter: Does the Guruba specialize in this service?
+            const relevantGurubas = gurubaData.filter((g: any) => 
+                g.specialties && Array.isArray(g.specialties) && g.specialties.includes(dbService.title)
+            );
+            setGurubas(relevantGurubas);
+        }
+      } catch (e) {
+          console.error("Error fetching booking data:", e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchData();
@@ -81,8 +89,12 @@ export const GurubaSelection: React.FC = () => {
                 key={guruba.id} 
                 className="flex flex-col md:flex-row rounded-xl bg-white p-6 shadow-sm border border-stone-200 transition-all hover:shadow-md items-start md:items-center gap-6"
               >
-                <div className="h-16 w-16 flex-shrink-0 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-600 text-xl font-bold">
-                  {guruba.profiles?.full_name?.[0] || 'G'}
+                <div className="h-16 w-16 flex-shrink-0 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-600 text-xl font-bold overflow-hidden">
+                  {guruba.profiles?.avatar_url ? (
+                      <img src={guruba.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                      <User className="h-8 w-8" />
+                  )}
                 </div>
                 
                 <div className="flex-1">

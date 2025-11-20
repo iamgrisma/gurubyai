@@ -24,11 +24,7 @@ export const ServiceSelection: React.FC = () => {
         }
       } catch (err: any) {
         console.error("Error fetching services:", err);
-        let msg = err.message;
-        if (msg?.includes('querying schema')) {
-            msg = 'Database Schema Error: Please run the fix_database_error.sql script in Supabase.';
-        }
-        setError(msg);
+        setError("Failed to load services.");
       } finally {
         setLoading(false);
       }
@@ -49,18 +45,15 @@ export const ServiceSelection: React.FC = () => {
         </div>
 
         {error && (
-            <div className="mb-8 mx-auto max-w-2xl bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                    <h3 className="font-medium text-red-900">Failed to load services</h3>
-                    <p className="text-sm text-red-700 mt-1">{error}</p>
-                </div>
+            <div className="mb-6 mx-auto max-w-2xl bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-sm text-red-800">
+                 <AlertTriangle className="h-4 w-4" />
+                 <span>{error}</span>
             </div>
         )}
 
-        {!error && services.length === 0 ? (
+        {services.length === 0 && !error ? (
             <div className="text-center text-stone-500 mt-12">
-                <p>No services found. Please ensure database is seeded and RLS policies allow read access.</p>
+                <p>No services found in the catalog.</p>
             </div>
         ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
