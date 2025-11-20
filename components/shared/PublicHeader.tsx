@@ -1,19 +1,21 @@
+// components/shared/PublicHeader.tsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthProvider';
 import { NotificationBell } from '../../features/notifications/NotificationBell';
 import { Button } from '../ui/Button';
-import { Menu, X, User, LogOut } from 'lucide-react';
+import { Menu, X, User, LogOut, Coins } from 'lucide-react';
 
 export const PublicHeader: React.FC = () => {
   const { session, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    setIsMenuOpen(false);
+    navigate('/login');
   };
 
   // Helper to determine dashboard path
@@ -25,58 +27,71 @@ export const PublicHeader: React.FC = () => {
     }
   };
 
+  const isClient = profile?.role === 'client';
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-stone-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+    <header className="sticky top-0 z-50 w-full border-b border-stone-200 bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 transition-all">
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center gap-2">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded bg-saffron-500 flex items-center justify-center text-white font-bold">
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-saffron-500 to-orange-600 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform">
                 G
               </div>
-              <span className="text-xl font-bold text-stone-900">Guruba</span>
+              <span className="text-xl font-bold text-stone-900 tracking-tight">Guruba</span>
             </Link>
           </div>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-sm font-medium text-stone-600 hover:text-saffron-600">
+            <Link to="/" className="text-sm font-medium text-stone-600 hover:text-saffron-600 transition-colors">
               Services
             </Link>
-            <Link to="/gurubas" className="text-sm font-medium text-stone-600 hover:text-saffron-600">
+            <Link to="/gurubas" className="text-sm font-medium text-stone-600 hover:text-saffron-600 transition-colors">
               Find a Guruba
             </Link>
-            <div className="flex items-center gap-2">
-              {session ? (
-                <div className="flex items-center gap-4">
-                  <NotificationBell />
-                  <Link to={getDashboardPath()}>
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      <User className="h-4 w-4" />
-                      Dashboard
-                    </Button>
-                  </Link>
-                  <Button variant="outline" size="sm" onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
+            
+            <div className="h-6 w-px bg-stone-200 mx-2"></div>
+
+            {session ? (
+              <div className="flex items-center gap-4">
+                {/* Credit Balance (Client Only) */}
+                {isClient && (
+                    <div className="flex items-center gap-1.5 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-100">
+                        <Coins className="h-4 w-4 text-saffron-500" />
+                        <span className="text-xs font-bold text-stone-700">{profile?.credits || 0} CR</span>
+                    </div>
+                )}
+
+                <NotificationBell />
+                
+                <Link to={getDashboardPath()}>
+                  <Button variant="ghost" size="sm" className="gap-2 hover:bg-stone-100">
+                    <User className="h-4 w-4" />
+                    Dashboard
                   </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link to="/login">
-                    <Button variant="ghost" size="sm">Log In</Button>
-                  </Link>
-                  <Link to="/register">
-                    <Button variant="primary" size="sm">Sign Up</Button>
-                  </Link>
-                </div>
-              )}
-            </div>
+                </Link>
+                <Button variant="outline" size="sm" onClick={handleSignOut} className="border-stone-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link to="/login">
+                  <Button variant="ghost" size="sm" className="text-stone-600">Log In</Button>
+                </Link>
+                <Link to="/register">
+                  <Button variant="primary" size="sm" className="shadow-lg shadow-saffron-500/20">Sign Up</Button>
+                </Link>
+              </div>
+            )}
           </nav>
 
           {/* Mobile Menu Toggle */}
           <button
-            className="md:hidden p-2"
+            className="md:hidden p-2 text-stone-600 hover:bg-stone-100 rounded-md"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -86,37 +101,47 @@ export const PublicHeader: React.FC = () => {
 
       {/* Mobile Nav */}
       {isMenuOpen && (
-        <div className="md:hidden border-t border-stone-200 bg-white p-4">
+        <div className="md:hidden border-t border-stone-200 bg-white p-4 shadow-xl animate-in slide-in-from-top-5 absolute w-full">
           <div className="flex flex-col gap-4">
-            <Link to="/" className="text-base font-medium" onClick={() => setIsMenuOpen(false)}>
+            <Link to="/" className="text-base font-medium text-stone-700 p-2 rounded hover:bg-stone-50" onClick={() => setIsMenuOpen(false)}>
               Services
             </Link>
-            <Link to="/gurubas" className="text-base font-medium" onClick={() => setIsMenuOpen(false)}>
+            <Link to="/gurubas" className="text-base font-medium text-stone-700 p-2 rounded hover:bg-stone-50" onClick={() => setIsMenuOpen(false)}>
               Find a Guruba
             </Link>
-            <div className="h-px bg-stone-200 my-2" />
+            
+            <div className="h-px bg-stone-200 my-1" />
+            
             {session ? (
               <>
-                 <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-stone-500">Alerts</span>
+                 <div className="flex items-center justify-between px-2">
+                    <span className="text-sm font-bold text-stone-500">Notifications</span>
                     <NotificationBell />
                  </div>
+                 {isClient && (
+                     <div className="flex items-center justify-between px-2 py-2 bg-stone-50 rounded-lg">
+                         <span className="text-sm font-medium text-stone-600">Your Balance</span>
+                         <span className="font-bold text-saffron-600 flex items-center gap-1"><Coins className="h-4 w-4"/> {profile?.credits || 0}</span>
+                     </div>
+                 )}
                  <Link to={getDashboardPath()} onClick={() => setIsMenuOpen(false)}>
-                    <Button className="w-full justify-start" variant="ghost">Dashboard</Button>
+                    <Button className="w-full justify-start gap-2" variant="ghost">
+                        <User className="h-4 w-4" /> Dashboard
+                    </Button>
                  </Link>
-                <Button variant="outline" className="w-full justify-start" onClick={() => { handleSignOut(); setIsMenuOpen(false); }}>
-                  Sign Out
+                <Button variant="outline" className="w-full justify-start gap-2 text-red-600 border-red-100 hover:bg-red-50" onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4" /> Sign Out
                 </Button>
               </>
             ) : (
-              <>
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full">Log In</Button>
+                  <Button variant="ghost" className="w-full border border-stone-200">Log In</Button>
                 </Link>
                 <Link to="/register" onClick={() => setIsMenuOpen(false)}>
                   <Button variant="primary" className="w-full">Sign Up</Button>
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>

@@ -1,7 +1,11 @@
+// features/auth/AuthProvider.tsx
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { UserProfile } from '../../types';
+import { useProfile } from '../../hooks/queries';
 
 interface AuthContextType {
   session: Session | null;
@@ -16,81 +20,42 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
 
+  // 1. Handle Session
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setSession(session);
-        setUser(session.user);
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
+      setSession(session);
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
     });
 
     // Listen for changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setSession(session);
-        setUser(session.user);
-        fetchProfile(session.user.id);
-      } else {
-        // Only clear if we are not in a fallback mode (checking if session is null is enough usually)
-        // But if we manually set a fallback session, we don't want this listener to clear it immediately
-        // unless it's an explicit sign out. For now, we let standard behavior rule.
-        // If we use loginWithFallback, we might need to unsubscribe or ignore this.
-        // However, for simplicity, we assume loginWithFallback is used when Supabase is broken
-        // so this listener likely won't fire 'SIGNED_IN' events anyway.
-        
-        // If we successfully logged in via fallback, we don't want to clear it here
-        // We rely on the fact that fallback login won't trigger this event.
-        if (!user?.id.startsWith('mock-')) {
-           setSession(null);
-           setUser(null);
-           setProfile(null);
-           setLoading(false);
-        }
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Ignore updates if we are in a mock session
+      if (user?.id.startsWith('mock-')) return;
+
+      setSession(session);
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [user?.id]);
 
-  const fetchProfile = async (userId: string) => {
-    if (userId.startsWith('mock-')) return; // Don't fetch for mock users
+  // 2. Fetch Profile via React Query
+  // This automatically handles caching, refetching, and loading states
+  const { data: profile, isLoading: profileLoading, refetch } = useProfile(user?.id);
 
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile from Supabase:', error.message);
-      } 
-      
-      if (data) {
-        setProfile(data as UserProfile);
-      }
-    } catch (error) {
-      console.error('Unexpected error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Combined loading state
+  const loading = authLoading || (!!user && profileLoading);
 
   const refreshProfile = async () => {
-    if (user?.id) {
-      await fetchProfile(user.id);
-    }
+    await refetch();
   };
 
   const loginWithFallback = async (email: string, role: 'client' | 'guruba' | 'admin') => {
@@ -126,13 +91,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: role,
       phone: '555-0000',
       gotra_id: role === 'guruba' ? 'Bharadwaj' : 'Kashyap',
-      avatar_url: role === 'guruba' ? 'https://ui-avatars.com/api/?name=Pandit+Ji&background=f57c00&color=fff' : undefined
+      avatar_url: role === 'guruba' ? 'https://ui-avatars.com/api/?name=Pandit+Ji&background=f57c00&color=fff' : undefined,
+      credits: 100, // Default credits for mock user
+      city: 'Kathmandu'
     };
+
+    // Manually seed the React Query cache
+    queryClient.setQueryData(['profile', mockId], mockProfile);
 
     setSession(mockSession);
     setUser(mockUser);
-    setProfile(mockProfile);
-    setLoading(false);
+    setAuthLoading(false);
   };
 
   const signOut = async () => {
@@ -140,14 +109,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user?.id.startsWith('mock-')) {
         setSession(null);
         setUser(null);
-        setProfile(null);
+        queryClient.removeQueries(); // Clear cache
         return;
     }
+    
     await supabase.auth.signOut();
+    queryClient.removeQueries(); // Clear cache on sign out
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, signOut, loginWithFallback, refreshProfile }}>
+    <AuthContext.Provider value={{ 
+        session, 
+        user, 
+        profile: profile || null, // Ensure undefined becomes null for consistency
+        loading, 
+        signOut, 
+        loginWithFallback, 
+        refreshProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );

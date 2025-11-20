@@ -1,46 +1,32 @@
+// features/booking/ServiceSelection.tsx
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabaseClient';
+import { useServices } from '../../hooks/queries';
 import { Service } from '../../types';
 import { Button } from '../../components/ui/Button';
-import { Clock, ArrowRight, AlertTriangle, Tag } from 'lucide-react';
+import { Clock, ArrowRight, AlertTriangle, Tag, RefreshCw } from 'lucide-react';
 
 export const ServiceSelection: React.FC = () => {
-  const [services, setServices] = useState<Service[]>([]);
+  // Use the custom hook for data fetching
+  const { data: services = [], isLoading, error } = useServices();
+  
   const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Update local state when data arrives
   useEffect(() => {
-    const fetchServices = async () => {
-      setError(null);
-      try {
-        const { data, error: dbError } = await supabase.from('services').select('*');
-        
-        if (dbError) throw dbError;
+    if (services.length > 0) {
+      setFilteredServices(services);
+      // Extract unique categories
+      const uniqueCats = ['All', ...new Set(services.map(s => s.category || 'General'))];
+      setCategories(uniqueCats as string[]);
+    }
+  }, [services]);
 
-        if (data) {
-          setServices(data);
-          setFilteredServices(data);
-          
-          // Extract unique categories
-          const uniqueCats = ['All', ...new Set(data.map(s => s.category || 'General'))];
-          setCategories(uniqueCats as string[]);
-        }
-      } catch (err: any) {
-        console.error("Error fetching services:", err);
-        setError("Failed to load services.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchServices();
-  }, []);
-
+  // Filter logic
   useEffect(() => {
     if (selectedCategory === 'All') {
       setFilteredServices(services);
@@ -49,8 +35,12 @@ export const ServiceSelection: React.FC = () => {
     }
   }, [selectedCategory, services]);
 
-  if (loading) {
-    return <div className="flex h-screen items-center justify-center text-saffron-600">Loading services...</div>;
+  if (isLoading) {
+    return (
+        <div className="flex h-screen items-center justify-center text-saffron-600">
+            <RefreshCw className="h-8 w-8 animate-spin" />
+        </div>
+    );
   }
 
   return (
@@ -64,7 +54,7 @@ export const ServiceSelection: React.FC = () => {
         {error && (
             <div className="mb-6 mx-auto max-w-2xl bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-sm text-red-800">
                  <AlertTriangle className="h-4 w-4" />
-                 <span>{error}</span>
+                 <span>Failed to load services. Please try again later.</span>
             </div>
         )}
 

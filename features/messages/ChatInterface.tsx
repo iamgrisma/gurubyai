@@ -1,9 +1,11 @@
+// features/messages/ChatInterface.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
-import { Message } from '../../types';
-import { Send, User, MoreVertical, CheckCheck, MessageSquare, Clock, EyeOff, Trash2 } from 'lucide-react';
+import { Message, UserProfile } from '../../types';
+import { Send, User, MoreVertical, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw } from 'lucide-react';
 
 interface ChatInterfaceProps {
   defaultReceiverId?: string;
@@ -11,158 +13,153 @@ interface ChatInterfaceProps {
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId }) => {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<any[]>([]);
+  const queryClient = useQueryClient();
   const [activeConversation, setActiveConversation] = useState<string | null>(defaultReceiverId || null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const [retentionHours, setRetentionHours] = useState<number | undefined>(120); // Vanish Mode (5 days default)
   const [showRetentionMenu, setShowRetentionMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // --- Query: Fetch Conversations ---
+  const { data: conversations = [], isLoading: conversationsLoading } = useQuery({
+      queryKey: ['conversations', user?.id],
+      queryFn: async () => {
+          if (!user) return [];
+          // Fetch distinct interactions
+          const { data: sent } = await supabase.from('messages').select('receiver_id').eq('sender_id', user.id);
+          const { data: received } = await supabase.from('messages').select('sender_id').eq('receiver_id', user.id);
+          
+          const ids = new Set([
+              ...(sent?.map(x => x.receiver_id) || []),
+              ...(received?.map(x => x.sender_id) || [])
+          ]);
+          if (defaultReceiverId) ids.add(defaultReceiverId);
+          
+          const uniqueIds = Array.from(ids);
+          if (uniqueIds.length === 0) return [];
+
+          const { data: profiles } = await supabase.from('profiles').select('*').in('id', uniqueIds);
+          return profiles as UserProfile[];
+      },
+      enabled: !!user
+  });
+
+  // Auto-select first conversation if none selected
   useEffect(() => {
-    if (user) {
-      fetchConversations();
-    }
-  }, [user]);
+      if (!activeConversation && conversations.length > 0) {
+          setActiveConversation(conversations[0].id);
+      }
+  }, [conversations, activeConversation]);
 
+  // --- Query: Fetch Messages for Active Conversation ---
+  const { data: messages = [] } = useQuery({
+      queryKey: ['messages', user?.id, activeConversation],
+      queryFn: async () => {
+          if (!user || !activeConversation) return [];
+          const { data } = await supabase
+            .from('messages')
+            .select('*')
+            .or(`and(sender_id.eq.${user.id},receiver_id.eq.${activeConversation}),and(sender_id.eq.${activeConversation},receiver_id.eq.${user.id})`)
+            .order('created_at', { ascending: true });
+            
+          // Sync retention settings from last message
+          if (data && data.length > 0) {
+              const lastMsg = data[data.length - 1];
+              setRetentionHours(lastMsg.retention_hours ?? 120);
+          }
+          return data as Message[];
+      },
+      enabled: !!user && !!activeConversation,
+      // Mark read side-effect could go here or in a separate mutation, 
+      // but for simplicity we rely on the user opening the chat to trigger a "mark read" visually or logic elsewhere.
+  });
+
+  // --- Realtime Subscription ---
   useEffect(() => {
-    if (activeConversation) {
-      fetchMessages(activeConversation);
-      // Realtime subscription
-      const channel = supabase
-        .channel('public:messages')
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'messages',
-            filter: `receiver_id=eq.${user?.id}`
-        }, (payload) => {
-             // If the message is from the person we are currently chatting with, append it
-             if (payload.new.sender_id === activeConversation) {
-                setMessages(prev => [...prev, payload.new as Message]);
-             }
-             // Always refresh conversations to update unread indicators or move thread to top
-             fetchConversations(); 
-        })
-        .subscribe();
+    if (!user || !activeConversation) return;
 
-      return () => { supabase.removeChannel(channel); }
-    }
-  }, [activeConversation]);
+    const channel = supabase
+      .channel(`chat:${activeConversation}`)
+      .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages'
+      }, (payload) => {
+           const newMsg = payload.new as Message;
+           // Check if this message belongs to the current conversation
+           if (
+               (newMsg.sender_id === user.id && newMsg.receiver_id === activeConversation) ||
+               (newMsg.sender_id === activeConversation && newMsg.receiver_id === user.id)
+           ) {
+               queryClient.setQueryData(['messages', user.id, activeConversation], (old: Message[] = []) => [...old, newMsg]);
+               // Scroll to bottom
+               setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+           }
+      })
+      .subscribe();
 
+    return () => { supabase.removeChannel(channel); };
+  }, [user, activeConversation, queryClient]);
+
+  // Scroll on load
   useEffect(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const fetchConversations = async () => {
-    if (!user) return;
+  // --- Mutation: Send Message ---
+  const sendMessageMutation = useMutation({
+      mutationFn: async () => {
+          if (!user || !activeConversation || !newMessage.trim()) return;
+          const { error } = await supabase.from('messages').insert({
+              sender_id: user.id,
+              receiver_id: activeConversation,
+              content: newMessage.trim(),
+              retention_hours: retentionHours
+          });
+          if (error) throw error;
+      },
+      onMutate: async () => {
+          const msgContent = newMessage.trim();
+          setNewMessage(''); // Clear input immediately
+          
+          // Optimistic Update
+          await queryClient.cancelQueries({ queryKey: ['messages', user?.id, activeConversation] });
+          const previousMessages = queryClient.getQueryData(['messages', user?.id, activeConversation]);
 
-    try {
-        // Fetch all unique interactions. 
-        const { data: sent } = await supabase.from('messages').select('receiver_id').eq('sender_id', user.id);
-        const { data: received } = await supabase.from('messages').select('sender_id').eq('receiver_id', user.id);
-        
-        const ids = new Set([
-            ...(sent?.map(x => x.receiver_id) || []),
-            ...(received?.map(x => x.sender_id) || [])
-        ]);
-        
-        if (defaultReceiverId) ids.add(defaultReceiverId);
+          const optimisticMsg: Message = {
+              id: 'temp-' + Date.now(),
+              sender_id: user!.id,
+              receiver_id: activeConversation!,
+              content: msgContent,
+              is_read: false,
+              created_at: new Date().toISOString(),
+              retention_hours: retentionHours
+          };
 
-        const uniqueIds = Array.from(ids);
+          queryClient.setQueryData(['messages', user?.id, activeConversation], (old: Message[] = []) => [...old, optimisticMsg]);
 
-        if (uniqueIds.length > 0) {
-            const { data: profiles } = await supabase.from('profiles').select('*').in('id', uniqueIds);
-            setConversations(profiles || []);
-            
-            if (!activeConversation && profiles && profiles.length > 0) {
-                setActiveConversation(profiles[0].id);
-            }
-        }
-    } catch (e) {
-        console.error(e);
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const fetchMessages = async (otherUserId: string) => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
-        .order('created_at', { ascending: true });
-      
-      setMessages(data || []);
-
-      // Sync retention settings from last message to simulate shared config
-      if (data && data.length > 0) {
-         const lastMsg = data[data.length - 1];
-         // If the last message had a specific retention, adopt it. Otherwise default to 5 days (120h).
-         setRetentionHours(lastMsg.retention_hours ?? 120);
-      }
-
-      // Mark messages as read
-      if (data && data.length > 0) {
-        const unreadIds = data
-            .filter((m: Message) => m.receiver_id === user.id && !m.is_read)
-            .map((m: Message) => m.id);
-            
-        if (unreadIds.length > 0) {
-            await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
-        }
-      }
-  };
-
-  const sendMessage = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!user || !activeConversation || !newMessage.trim()) return;
-
-      const msgContent = newMessage.trim();
-      const receiverId = activeConversation;
-      
-      setNewMessage('');
-
-      // Optimistic UI update
-      const optimisticMsg: Message = {
-          id: 'temp-' + Date.now(),
-          sender_id: user.id,
-          receiver_id: receiverId,
-          content: msgContent,
-          is_read: false,
-          created_at: new Date().toISOString(),
-          retention_hours: retentionHours
-      };
-      setMessages(prev => [...prev, optimisticMsg]);
-
-      const { error } = await supabase.from('messages').insert({
-          sender_id: user.id,
-          receiver_id: receiverId,
-          content: msgContent,
-          retention_hours: retentionHours
-      });
-
-      if (error) {
-          console.error("Send failed", error);
-          // Remove optimistic message on failure or show error
+          return { previousMessages };
+      },
+      onError: (err, vars, context) => {
+          queryClient.setQueryData(['messages', user?.id, activeConversation], context?.previousMessages);
           alert("Failed to send message");
+      },
+      onSettled: () => {
+          queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
       }
-  };
+  });
 
-  const deleteMessage = async (messageId: string) => {
-      // Optimistic UI update
-      setMessages(prev => prev.filter(m => m.id !== messageId));
-      
-      const { error } = await supabase.from('messages').delete().eq('id', messageId);
-      
-      if (error) {
-          console.error("Delete failed", error);
-          if (activeConversation) fetchMessages(activeConversation); // Revert on fail
+  // --- Mutation: Delete Message ---
+  const deleteMessageMutation = useMutation({
+      mutationFn: async (messageId: string) => {
+          const { error } = await supabase.from('messages').delete().eq('id', messageId);
+          if (error) throw error;
+      },
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
       }
-  };
+  });
 
   const getActiveUser = () => conversations.find(c => c.id === activeConversation);
 
@@ -176,7 +173,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
   const filteredMessages = messages.filter(m => !isMessageExpired(m));
 
-  if (loading) return <div className="p-8 text-center text-stone-500">Loading chats...</div>;
+  if (conversationsLoading) return <div className="flex h-[600px] items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-stone-400"/></div>;
 
   return (
     <div className="flex h-[600px] bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
@@ -224,10 +221,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                     <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-white z-10 shadow-sm">
                         <div className="flex items-center gap-3">
                              <div className="h-8 w-8 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden">
-                                {getActiveUser().avatar_url ? <img src={getActiveUser().avatar_url} className="h-full w-full object-cover" alt="" /> : <User className="h-4 w-4 text-stone-400" />}
+                                {getActiveUser()?.avatar_url ? <img src={getActiveUser()?.avatar_url} className="h-full w-full object-cover" alt="" /> : <User className="h-4 w-4 text-stone-400" />}
                              </div>
                              <div>
-                                 <p className="font-bold text-sm text-stone-900">{getActiveUser().full_name}</p>
+                                 <p className="font-bold text-sm text-stone-900">{getActiveUser()?.full_name}</p>
                                  <p className="text-xs text-green-600 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-600"></span> Online</p>
                              </div>
                         </div>
@@ -288,7 +285,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                         {/* Delete Button (Only for my messages) */}
                                         {isMe && !msg.id.startsWith('temp') && (
                                             <button 
-                                                onClick={() => deleteMessage(msg.id)}
+                                                onClick={() => deleteMessageMutation.mutate(msg.id)}
                                                 className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                                                 title="Delete Message"
                                             >
@@ -308,7 +305,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                 Vanish Mode On: Messages auto-delete after {retentionHours >= 24 ? `${retentionHours/24} days` : `${retentionHours} hours`}
                             </div>
                         )}
-                        <form onSubmit={sendMessage} className="flex items-center gap-2">
+                        <form onSubmit={(e) => sendMessageMutation.mutate(undefined, { onSuccess: () => {} })} className="flex items-center gap-2">
                             <input 
                                 type="text" 
                                 value={newMessage}
@@ -318,7 +315,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                             />
                             <button 
                                 type="submit" 
-                                disabled={!newMessage.trim()}
+                                disabled={!newMessage.trim() || sendMessageMutation.isPending}
                                 className="h-10 w-10 bg-saffron-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-saffron-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105"
                             >
                                 <Send className="h-4 w-4 ml-0.5" />

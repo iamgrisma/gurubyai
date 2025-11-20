@@ -1,3 +1,4 @@
+// features/booking/BookingModal.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -5,7 +6,8 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba } from '../../types';
 import { Button } from '../../components/ui/Button';
-import { Calendar, Clock, AlertTriangle, CheckCircle, X, MapPin, Info, CreditCard } from 'lucide-react';
+import { useProfile, useBookService } from '../../hooks/queries';
+import { Calendar, Clock, AlertTriangle, CheckCircle, X, MapPin, Info, CreditCard, Wallet } from 'lucide-react';
 
 interface BookingModalProps {
   service: Service;
@@ -15,22 +17,30 @@ interface BookingModalProps {
 }
 
 export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, initialDate, onClose }) => {
-  const { profile, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
+  // Hooks
+  const { data: profile } = useProfile(user?.id);
+  const bookService = useBookService();
+
+  // State
   const [date, setDate] = useState(initialDate || '');
   const [selectedTime, setSelectedTime] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [gotraOverride, setGotraOverride] = useState(false);
 
+  // Constants
+  const PLATFORM_FEE = 100; // 100 Credits
+  const userCredits = profile?.credits || 0;
+  const hasEnoughCredits = userCredits >= PLATFORM_FEE;
+
   // Derived Data
   const userGotra = profile?.gotra_id;
   const gurubaGotra = guruba.profiles?.gotra_id;
-  const PLATFORM_FEE = 100;
 
   const isNA = (g?: string) => !g || g.toLowerCase() === 'not applicable' || g.toLowerCase() === 'n/a';
   
@@ -57,34 +67,31 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
         const dayOfWeek = selectedDate.getDay(); // 0 = Sunday
 
         // 1. Fetch Guruba's configured schedule for this day of week
-        const { data: availData, error: availError } = await supabase
+        const { data: availData } = await supabase
             .from('guruba_availability')
             .select('*')
             .eq('guruba_id', guruba.id)
             .eq('day_of_week', dayOfWeek)
             .single();
         
-        // If error or no data, it means not working this day
         if (!availData) {
             setLoadingSlots(false);
             return; 
         }
 
-        // 2. Fetch existing bookings for this date to check conflicts
+        // 2. Fetch existing bookings
         const startOfDay = new Date(selectedDateStr);
         startOfDay.setHours(0,0,0,0);
         const endOfDay = new Date(selectedDateStr);
         endOfDay.setHours(23,59,59,999);
 
-        const { data: existingBookings, error: bookingError } = await supabase
+        const { data: existingBookings } = await supabase
             .from('bookings')
             .select('scheduled_at, service_id, services(duration_minutes)')
             .eq('guruba_id', guruba.id)
             .gte('scheduled_at', startOfDay.toISOString())
             .lte('scheduled_at', endOfDay.toISOString())
             .neq('status', 'cancelled');
-
-        if (bookingError) throw bookingError;
 
         // 3. Generate Slots
         const slots: string[] = [];
@@ -133,29 +140,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
     e.preventDefault();
     if (!user || !selectedTime) return;
     if (isGotraConflict && !gotraOverride) return;
+    if (!hasEnoughCredits) return;
 
-    setLoading(true);
     setError(null);
 
     const scheduledAt = new Date(`${date}T${selectedTime}`).toISOString();
 
     try {
-      const { error: dbError } = await supabase.from('bookings').insert({
+      await bookService.mutateAsync({
         user_id: user.id,
         guruba_id: guruba.id,
         service_id: service.id,
         scheduled_at: scheduledAt,
-        status: 'pending',
         platform_fee: PLATFORM_FEE
       });
-
-      if (dbError) throw dbError;
 
       onClose();
       navigate('/booking-success');
     } catch (err: any) {
       setError(err.message || "Failed to book service");
-      setLoading(false);
     }
   };
 
@@ -205,30 +208,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
                         </div>
                     </div>
                     
-                    {/* Pricing Breakdown */}
+                    {/* Pricing / Wallet Section */}
                     <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
-                        <h3 className="text-sm font-bold text-stone-900 mb-3">Payment Summary</h3>
+                        <h3 className="text-sm font-bold text-stone-900 mb-3 flex items-center gap-2">
+                            <Wallet className="h-4 w-4 text-stone-500" /> Payment Summary
+                        </h3>
                         <div className="space-y-2 text-sm">
                              <div className="flex justify-between text-stone-600">
-                                 <span>Service Base Price</span>
-                                 <span>Rs. {service.base_price}</span>
-                             </div>
-                             <div className="flex justify-between text-stone-900 font-medium">
-                                 <span>Booking Platform Fee</span>
-                                 <span>Rs. {PLATFORM_FEE}</span>
+                                 <span>Booking Fee (Credits)</span>
+                                 <span className="font-medium">{PLATFORM_FEE} Credits</span>
                              </div>
                              <div className="h-px bg-stone-200 my-2"></div>
-                             <div className="flex justify-between text-lg font-bold text-stone-900">
-                                 <span>Total Payable Now</span>
-                                 <span>Rs. {PLATFORM_FEE}</span>
+                             <div className="flex justify-between items-center">
+                                 <span className="text-stone-500">Your Balance</span>
+                                 <span className={`font-bold ${hasEnoughCredits ? 'text-green-600' : 'text-red-600'}`}>
+                                     {userCredits} Credits
+                                 </span>
                              </div>
-                             <div className="mt-3 text-xs bg-yellow-50 text-yellow-800 p-2 rounded border border-yellow-100 flex items-start gap-2">
-                                 <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                                 <p>
-                                     <strong>Note:</strong> The Rs. {PLATFORM_FEE} is a fixed platform fee. 
-                                     <br/>
-                                     <strong>Guru Dakshina</strong> (Rs. {service.base_price} or voluntary amount) is paid directly to the Guruba after the service.
-                                 </p>
+                             
+                             {!hasEnoughCredits && (
+                                 <div className="mt-3 text-xs bg-red-50 text-red-800 p-2 rounded border border-red-100 flex items-start gap-2">
+                                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                                     <p>
+                                         Insufficient credits. <a href="mailto:admin@gurubaconnect.com" className="underline font-bold">Contact Admin</a> to top up.
+                                     </p>
+                                 </div>
+                             )}
+
+                             <div className="mt-3 text-xs text-stone-400">
+                                 <strong>Note:</strong> Guru Dakshina (Rs. {service.base_price}) is separate and paid directly to the Guruba after the service.
                              </div>
                         </div>
                     </div>
@@ -328,12 +336,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
             <Button 
                 type="submit" 
                 form="booking-form"
-                isLoading={loading}
-                disabled={(isGotraConflict && !gotraOverride) || !selectedTime}
+                isLoading={bookService.isPending}
+                disabled={(isGotraConflict && !gotraOverride) || !selectedTime || !hasEnoughCredits}
                 className="px-8 gap-2"
             >
                 <CreditCard className="h-4 w-4" />
-                Pay Rs. {PLATFORM_FEE} & Book
+                {hasEnoughCredits ? `Pay ${PLATFORM_FEE} Credits & Book` : 'Insufficient Credits'}
             </Button>
         </div>
       </div>

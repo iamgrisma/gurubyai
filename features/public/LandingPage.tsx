@@ -1,10 +1,12 @@
+// features/public/LandingPage.tsx
 
 import React from 'react';
-import { Button } from '../../components/ui/Button';
 import { Link, useNavigate } from 'react-router-dom';
+import { useServices } from '../../hooks/queries';
+import { Button } from '../../components/ui/Button';
 import { 
-  Calendar, Star, ShieldCheck, ArrowRight, Users, Video, MessageSquare, CheckCircle, 
-  Sparkles, Smartphone, Globe, Clock, Heart
+  Calendar, ShieldCheck, ArrowRight, Video, MessageSquare, CheckCircle, 
+  Clock, Heart, RefreshCw
 } from 'lucide-react';
 
 const TESTIMONIALS = [
@@ -30,8 +32,8 @@ const FEATURES = [
   },
   { 
     icon: Video, 
-    title: 'E-Rituals (Live)', 
-    desc: 'Perform pujas remotely via video call if you are abroad or unable to gather physically.',
+    title: 'Online Rituals', 
+    desc: 'Perform pujas remotely via WhatsApp or Google Meet if you are abroad or unable to gather physically.',
     bg: 'bg-purple-100 text-purple-600',
     colSpan: 'md:col-span-1'
   },
@@ -46,6 +48,13 @@ const FEATURES = [
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  
+  // Fetch dynamic services
+  const { data: services = [], isLoading } = useServices();
+  
+  // Filter featured services (or take first 3 if none featured)
+  const featuredServices = services.filter(s => s.is_featured).slice(0, 3);
+  const displayServices = featuredServices.length > 0 ? featuredServices : services.slice(0, 3);
 
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans overflow-x-hidden">
@@ -118,7 +127,7 @@ export const LandingPage: React.FC = () => {
                  <div className="absolute bottom-12 right-12 bg-white/95 backdrop-blur p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/50 animate-bounce hidden md:block" style={{ animationDelay: '1s', animationDuration: '5s' }}>
                     <div className="flex items-center gap-4">
                        <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white shadow-md">
-                          <img src="https://randomuser.me/api/portraits/men/32.jpg" className="h-full w-full object-cover" />
+                          <img src="https://randomuser.me/api/portraits/men/32.jpg" className="h-full w-full object-cover" alt="Guruba" />
                        </div>
                        <div>
                           <p className="font-bold text-stone-900 text-sm">Pandit Ji is arriving</p>
@@ -167,30 +176,32 @@ export const LandingPage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-             {[
-               { title: 'Shree Satyanarayan Puja', price: '2,500', img: 'https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=800&auto=format&fit=crop', cat: 'Puja', time: '90 mins' },
-               { title: 'Rudri Puja', price: '5,000', img: 'https://images.unsplash.com/photo-1582880990674-2355959b2129?q=80&w=800&auto=format&fit=crop', cat: 'Ceremony', time: '3 Hours' },
-               { title: 'Bratabandha', price: '25,000', img: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop', cat: 'Sanskar', time: 'Full Day' },
-             ].map((service, i) => (
-               <div key={i} className="group relative rounded-3xl overflow-hidden shadow-lg cursor-pointer h-[400px]" onClick={() => navigate('/book')}>
-                  <img src={service.img} alt={service.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-8 flex flex-col justify-end text-white">
-                     <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-bold uppercase tracking-wider bg-white/20 backdrop-blur px-3 py-1 rounded-full">{service.cat}</span>
-                            <span className="text-xs font-medium flex items-center gap-1 opacity-80"><Clock className="h-3 w-3" /> {service.time}</span>
-                        </div>
-                        <h3 className="text-2xl font-bold mb-2">{service.title}</h3>
-                        <div className="flex items-center justify-between mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                            <p className="text-saffron-400 font-bold text-xl">From Rs. {service.price}</p>
-                            <span className="bg-white text-stone-900 p-2 rounded-full"><ArrowRight className="h-4 w-4" /></span>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-             ))}
-          </div>
+          {isLoading ? (
+              <div className="flex justify-center py-20">
+                  <RefreshCw className="h-8 w-8 animate-spin text-saffron-500" />
+              </div>
+          ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                 {displayServices.map((service) => (
+                   <div key={service.id} className="group relative rounded-3xl overflow-hidden shadow-lg cursor-pointer h-[400px]" onClick={() => navigate(`/services/${service.id}`)}>
+                      <img src={service.image_url} alt={service.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-8 flex flex-col justify-end text-white">
+                         <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs font-bold uppercase tracking-wider bg-white/20 backdrop-blur px-3 py-1 rounded-full">{service.category || 'General'}</span>
+                                <span className="text-xs font-medium flex items-center gap-1 opacity-80"><Clock className="h-3 w-3" /> {service.duration_minutes} mins</span>
+                            </div>
+                            <h3 className="text-2xl font-bold mb-2">{service.title}</h3>
+                            <div className="flex items-center justify-between mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                                <p className="text-saffron-400 font-bold text-xl">Rs. {service.base_price.toLocaleString()}</p>
+                                <span className="bg-white text-stone-900 p-2 rounded-full"><ArrowRight className="h-4 w-4" /></span>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+          )}
         </div>
       </section>
 

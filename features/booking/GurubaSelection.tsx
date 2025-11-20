@@ -1,140 +1,77 @@
+// features/booking/GurubaSelection.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
-import { Service, Guruba } from '../../types';
+import { Guruba } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { BookingModal } from './BookingModal';
-import { Star, MapPin, Award, User, ArrowLeft, Calendar, Filter, Info } from 'lucide-react';
-
-// Removed unused DAYS_MAP
+import { useService, useGurubas } from '../../hooks/queries';
+import { Star, MapPin, Award, User, ArrowLeft, Calendar, Filter, Info, RefreshCw } from 'lucide-react';
 
 export const GurubaSelection: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
   const navigate = useNavigate();
   
-  const [service, setService] = useState<Service | null>(null);
-  const [gurubas, setGurubas] = useState<Guruba[]>([]);
-  const [loading, setLoading] = useState(true);
+  // --- Queries ---
+  const { data: service, isLoading: serviceLoading } = useService(serviceId);
+  const { data: allGurubas = [], isLoading: gurubasLoading } = useGurubas();
+
+  // Local State
   const [selectedGuruba, setSelectedGuruba] = useState<Guruba | null>(null);
-  
-  // Availability Filtering
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [availableGurubaIds, setAvailableGurubaIds] = useState<Set<string>>(new Set());
-  const [filteringByDate, setFilteringByDate] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!serviceId) return;
-      setLoading(true);
-
-      try {
-        // 1. Fetch Service Details
-        const { data: dbService, error: serviceError } = await supabase
-            .from('services')
-            .select('*')
-            .eq('id', serviceId)
-            .single();
-        
-        if (serviceError) throw serviceError;
-        setService(dbService);
-
-        // 2. Fetch Gurubas
-        const { data: gurubaData, error: gurubaError } = await supabase
-            .from('gurubas')
-            .select(`
-            *,
-            profiles:user_id (
-                full_name,
-                gotra_id,
-                avatar_url
-            )
-            `);
-
-        if (gurubaError) throw gurubaError;
-
-        // 3. Fetch Review Stats manually
-        const { data: reviewData } = await supabase
-            .from('reviews')
-            .select('guruba_id, rating');
-
-        if (gurubaData && dbService) {
-            // Map reviews to gurubas
-            const gurubasWithRatings = gurubaData.map((g: any) => {
-                const gReviews = reviewData?.filter((r: any) => r.guruba_id === g.id) || [];
-                const avgRating = gReviews.length > 0 
-                    ? gReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / gReviews.length 
-                    : g.rating || 5.0;
-                
-                return {
-                    ...g,
-                    rating: parseFloat(avgRating.toFixed(1)),
-                    review_count: gReviews.length
-                };
-            });
-
-            // Filter: Does the Guruba specialize in this service?
-            // Relaxed matching: Checks against service Title OR Category
-            const relevantGurubas = gurubasWithRatings.filter((g: any) => {
-                if (!g.specialties || !Array.isArray(g.specialties)) return true; // Show all if no specialties listed (generalists)
-                if (g.specialties.length === 0) return true;
-
-                const serviceTerms = [dbService.title, dbService.category].filter(Boolean).map(t => t!.toLowerCase());
-                return g.specialties.some((s: string) => {
-                    const sLower = s.toLowerCase();
-                    return serviceTerms.some(term => sLower.includes(term) || term.includes(sLower));
-                });
-            });
-            
-            // Fallback if no one matches specifics, show all but maybe warn? For now, just showing matched or all if filtering is too strict.
-            // If strict filter returned 0, let's show all gurubas to prevent empty screen, but maybe sorted.
-            setGurubas(relevantGurubas.length > 0 ? relevantGurubas : gurubasWithRatings);
-        }
-      } catch (e) {
-          console.error("Error fetching booking data:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [serviceId]);
-
-  // Handle Date Filtering
-  useEffect(() => {
-      if (!selectedDate) {
-          setAvailableGurubaIds(new Set());
-          setFilteringByDate(false);
-          return;
-      }
-
-      const checkAvailability = async () => {
-          setFilteringByDate(true);
+  // --- Availability Query ---
+  // Only runs when a date is selected
+  const { data: availableGurubaIds = new Set<string>() } = useQuery({
+      queryKey: ['availableGurubas', selectedDate],
+      queryFn: async () => {
+          if (!selectedDate) return new Set<string>();
           const dayOfWeek = new Date(selectedDate).getDay();
           
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('guruba_availability')
             .select('guruba_id')
             .eq('day_of_week', dayOfWeek);
-          
-          if (data) {
-              // Explicitly cast mapped array to strings for Set<string>
-              const availableIds = new Set<string>(data.map((d: any) => d.guruba_id));
-              setAvailableGurubaIds(availableIds);
-          }
-      };
-      
-      checkAvailability();
-  }, [selectedDate]);
+            
+          return new Set<string>(data?.map((d: any) => d.guruba_id));
+      },
+      enabled: !!selectedDate
+  });
 
-  const getFilteredGurubas = () => {
-      if (!selectedDate) return gurubas;
-      return gurubas.filter(g => availableGurubaIds.has(g.id));
-  };
+  // --- Filter Logic ---
+  const filteredGurubas = React.useMemo(() => {
+      if (!service) return [];
 
-  const displayedGurubas = getFilteredGurubas();
+      // 1. Filter by Service Specialty
+      // Relaxed matching: Checks against service Title OR Category
+      let matches = allGurubas.filter(g => {
+          if (!g.specialties || g.specialties.length === 0) return true; // Generalists
+          const serviceTerms = [service.title, service.category].filter(Boolean).map(t => t!.toLowerCase());
+          return g.specialties.some(s => {
+              const sLower = s.toLowerCase();
+              return serviceTerms.some(term => sLower.includes(term) || term.includes(sLower));
+          });
+      });
 
-  if (loading) return <div className="flex h-screen items-center justify-center text-saffron-600">Loading Gurubas...</div>;
+      // 2. Filter by Date Availability
+      if (selectedDate) {
+          matches = matches.filter(g => availableGurubaIds.has(g.id));
+      }
+
+      return matches;
+  }, [allGurubas, service, selectedDate, availableGurubaIds]);
+
+
+  if (serviceLoading || gurubasLoading) {
+      return (
+        <div className="flex h-screen items-center justify-center text-saffron-600">
+            <RefreshCw className="h-8 w-8 animate-spin" />
+        </div>
+      );
+  }
+
   if (!service) return <div className="p-8 text-center">Service not found.</div>;
 
   return (
@@ -176,7 +113,7 @@ export const GurubaSelection: React.FC = () => {
             )}
         </div>
 
-        {displayedGurubas.length === 0 ? (
+        {filteredGurubas.length === 0 ? (
           <div className="rounded-lg bg-stone-100 p-8 text-center border border-stone-200">
             <div className="mx-auto h-12 w-12 bg-stone-200 rounded-full flex items-center justify-center mb-3">
                 <Info className="h-6 w-6 text-stone-400" />
@@ -190,7 +127,7 @@ export const GurubaSelection: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {displayedGurubas.map((guruba) => (
+            {filteredGurubas.map((guruba) => (
               <div 
                 key={guruba.id} 
                 className="flex flex-col md:flex-row rounded-xl bg-white p-6 shadow-sm border border-stone-200 transition-all hover:shadow-md items-start md:items-center gap-6"
@@ -226,8 +163,8 @@ export const GurubaSelection: React.FC = () => {
                   </div>
                   
                   <div className="mt-3 flex flex-wrap gap-2">
-                     {guruba.specialties?.slice(0, 4).map(s => (
-                       <span key={s} className="px-2 py-1 bg-stone-100 text-stone-600 text-xs rounded-md">
+                     {guruba.specialties?.slice(0, 4).map((s, i) => (
+                       <span key={i} className="px-2 py-1 bg-stone-100 text-stone-600 text-xs rounded-md">
                          {s}
                        </span>
                      ))}
