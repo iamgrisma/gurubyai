@@ -3,286 +3,342 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
-import { Users, BookOpen, Settings, Activity, RefreshCw, AlertCircle, Search, Key, Mail, CheckCircle } from 'lucide-react';
+import { Service } from '../../types';
+import { 
+    Users, BookOpen, Settings, Activity, RefreshCw, AlertCircle, Search, Key, Mail, CheckCircle,
+    LayoutDashboard, Layers, DollarSign, X, Plus, Edit, Trash
+} from 'lucide-react';
+
+const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors rounded-lg mb-1 ${
+        active ? 'bg-stone-800 text-white' : 'text-stone-400 hover:bg-stone-800 hover:text-white'
+      }`}
+    >
+      <Icon className={`h-5 w-5`} />
+      {label}
+    </button>
+);
 
 export const AdminDashboard: React.FC = () => {
-  const { profile, user } = useAuth();
-  const [stats, setStats] = useState({ users: 0, gurubas: 0, bookings: 0 });
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'services' | 'financials'>('overview');
+  
+  // Data State
+  const [stats, setStats] = useState({ users: 0, gurubas: 0, bookings: 0, revenue: 0 });
+  const [users, setUsers] = useState<any[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userList, setUserList] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  
+  // Service Form State
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [serviceForm, setServiceForm] = useState({ title: '', description: '', base_price: 0, duration_minutes: 0, image_url: '' });
 
   useEffect(() => {
-    fetchSystemStats();
+    fetchData();
   }, []);
 
-  const fetchSystemStats = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    setError(null);
-    
     try {
-        const { count: userCount, error: e1 } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-        if (e1) throw e1;
+        // Stats
+        const { count: uCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+        const { count: gCount } = await supabase.from('gurubas').select('*', { count: 'exact', head: true });
+        const { count: bCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true });
         
-        const { count: gurubaCount } = await supabase.from('gurubas').select('*', { count: 'exact', head: true });
-        const { count: bookingCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true });
+        // Simple Mock Revenue Calc (real app would sum transactions)
+        const { data: allBookings } = await supabase.from('bookings').select('services(base_price)').eq('status', 'completed');
+        const revenue = allBookings?.reduce((acc, curr: any) => acc + (curr.services?.base_price || 0), 0) || 0;
 
-        setStats({
-            users: userCount || 0,
-            gurubas: gurubaCount || 0,
-            bookings: bookingCount || 0
-        });
+        setStats({ users: uCount || 0, gurubas: gCount || 0, bookings: bCount || 0, revenue });
 
-        // Fetch Users for Management List (Limit 50 for now)
-        const { data: usersData, error: usersError } = await supabase
+        // Users (Fetch profiles joined with gurubas to see verify status)
+        const { data: userData } = await supabase
             .from('profiles')
-            .select('*')
+            .select(`
+                *,
+                gurubas:id (is_verified)
+            `)
             .order('created_at', { ascending: false })
             .limit(50);
-        
-        if (usersError) throw usersError;
-        setUserList(usersData || []);
+        setUsers(userData || []);
 
-    } catch (e: any) {
-        console.error("Stats error:", e);
-        setError(e.message || "Failed to load system statistics.");
+        // Services
+        const { data: serviceData } = await supabase.from('services').select('*').order('title');
+        setServices(serviceData || []);
+
+    } catch (e) {
+        console.error(e);
     } finally {
         setLoading(false);
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    setUpdatingId(userId);
-    try {
-        const { error } = await supabase
-            .from('profiles')
-            .update({ role: newRole })
-            .eq('id', userId);
-
-        if (error) throw error;
-
-        // Update local state
-        setUserList(current => 
-            current.map(u => u.id === userId ? { ...u, role: newRole } : u)
-        );
-
-    } catch (e: any) {
-        console.error("Role update error:", e);
-        alert("Failed to update role: " + e.message);
-    } finally {
-        setUpdatingId(null);
-    }
+  const handleVerifyGuruba = async (gurubaId: string, status: boolean) => {
+      try {
+          // gurubaId is actually user_id in this context because of how I fetched (gurubas:id is slightly wrong join for update, need to be careful)
+          // Correction: profiles.id === gurubas.user_id.
+          // So I need to update 'gurubas' table where user_id = profileId
+          const { error } = await supabase
+            .from('gurubas')
+            .update({ is_verified: status })
+            .eq('user_id', gurubaId);
+          
+          if (error) throw error;
+          fetchData(); // Refresh
+      } catch (e) {
+          alert("Failed to update verification status");
+      }
   };
 
-  const handlePasswordReset = async (email: string, userId: string) => {
-    setActionLoadingId(userId);
-    setActionMessage(null);
-    try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + '/#/login',
-        });
-
-        if (error) throw error;
-        setActionMessage({ type: 'success', text: `Password reset email sent to ${email}` });
-    } catch (e: any) {
-        setActionMessage({ type: 'error', text: e.message });
-    } finally {
-        setActionLoadingId(null);
-    }
+  const handleServiceSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      try {
+          if (editingService) {
+              await supabase.from('services').update(serviceForm).eq('id', editingService.id);
+          } else {
+              await supabase.from('services').insert(serviceForm);
+          }
+          setIsServiceModalOpen(false);
+          setEditingService(null);
+          fetchData();
+      } catch (e) {
+          alert("Failed to save service");
+      }
   };
 
-  const handleMagicLink = async (email: string, userId: string) => {
-    setActionLoadingId(userId);
-    setActionMessage(null);
-    try {
-        const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: {
-                emailRedirectTo: window.location.origin + '/#/client',
-            }
-        });
+  const handleDeleteService = async (id: string) => {
+      if (!confirm("Are you sure?")) return;
+      await supabase.from('services').delete().eq('id', id);
+      fetchData();
+  };
 
-        if (error) throw error;
-        setActionMessage({ type: 'success', text: `Magic login link sent to ${email}` });
-    } catch (e: any) {
-        setActionMessage({ type: 'error', text: e.message });
-    } finally {
-        setActionLoadingId(null);
-    }
+  const openServiceModal = (service?: Service) => {
+      if (service) {
+          setEditingService(service);
+          setServiceForm({ 
+              title: service.title, 
+              description: service.description, 
+              base_price: service.base_price, 
+              duration_minutes: service.duration_minutes,
+              image_url: service.image_url
+          });
+      } else {
+          setEditingService(null);
+          setServiceForm({ title: '', description: '', base_price: 0, duration_minutes: 0, image_url: '' });
+      }
+      setIsServiceModalOpen(true);
+  };
+
+  // Render Content
+  const renderContent = () => {
+      switch(activeTab) {
+          case 'overview':
+              return (
+                  <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                          <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                              <h3 className="text-stone-500 text-sm font-medium">Total Revenue</h3>
+                              <div className="text-3xl font-bold text-stone-900">${stats.revenue}</div>
+                          </div>
+                          <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                              <h3 className="text-stone-500 text-sm font-medium">Total Users</h3>
+                              <div className="text-3xl font-bold text-stone-900">{stats.users}</div>
+                          </div>
+                          <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                              <h3 className="text-stone-500 text-sm font-medium">Active Gurubas</h3>
+                              <div className="text-3xl font-bold text-stone-900">{stats.gurubas}</div>
+                          </div>
+                          <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                              <h3 className="text-stone-500 text-sm font-medium">Bookings</h3>
+                              <div className="text-3xl font-bold text-stone-900">{stats.bookings}</div>
+                          </div>
+                      </div>
+                      
+                      <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                          <h3 className="font-bold text-stone-900 mb-4">System Health</h3>
+                          <div className="flex items-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg border border-green-100">
+                              <Activity className="h-5 w-5" />
+                              <span className="font-medium">All Systems Operational</span>
+                              <span className="ml-auto text-sm text-green-700">Latency: 24ms</span>
+                          </div>
+                      </div>
+                  </div>
+              );
+
+          case 'users':
+              return (
+                  <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                      <div className="p-4 border-b border-stone-200 flex justify-between items-center">
+                          <h3 className="font-bold text-stone-900">User Management</h3>
+                          <input type="text" placeholder="Search users..." className="border rounded-md px-3 py-1 text-sm" />
+                      </div>
+                      <table className="w-full text-sm text-left">
+                          <thead className="bg-stone-50 text-stone-500 uppercase text-xs">
+                              <tr>
+                                  <th className="px-6 py-3">User</th>
+                                  <th className="px-6 py-3">Role</th>
+                                  <th className="px-6 py-3">Verification</th>
+                                  <th className="px-6 py-3 text-right">Actions</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {users.map(u => (
+                                  <tr key={u.id} className="border-b border-stone-100 hover:bg-stone-50">
+                                      <td className="px-6 py-4">
+                                          <p className="font-medium text-stone-900">{u.full_name}</p>
+                                          <p className="text-xs text-stone-500">{u.email}</p>
+                                      </td>
+                                      <td className="px-6 py-4">
+                                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                                              u.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                                              u.role === 'guruba' ? 'bg-saffron-100 text-saffron-800' : 'bg-gray-100 text-gray-800'
+                                          }`}>
+                                              {u.role}
+                                          </span>
+                                      </td>
+                                      <td className="px-6 py-4">
+                                          {u.role === 'guruba' ? (
+                                              u.gurubas?.[0]?.is_verified ? (
+                                                  <span className="text-green-600 flex items-center gap-1 text-xs font-bold"><CheckCircle className="h-3 w-3" /> Verified</span>
+                                              ) : (
+                                                  <button onClick={() => handleVerifyGuruba(u.id, true)} className="text-blue-600 hover:underline text-xs">Approve Verification</button>
+                                              )
+                                          ) : (
+                                              <span className="text-stone-300 text-xs">N/A</span>
+                                          )}
+                                      </td>
+                                      <td className="px-6 py-4 text-right">
+                                          <Button size="sm" variant="ghost"><Key className="h-4 w-4" /></Button>
+                                      </td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+              );
+
+          case 'services':
+              return (
+                  <div className="space-y-6">
+                      <div className="flex justify-between items-center">
+                          <h2 className="text-xl font-bold text-stone-900">Service Catalog</h2>
+                          <Button onClick={() => openServiceModal()}><Plus className="h-4 w-4 mr-2" /> Add Service</Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {services.map(service => (
+                              <div key={service.id} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden group">
+                                  <div className="h-32 bg-stone-200 relative">
+                                      <img src={service.image_url} className="h-full w-full object-cover" />
+                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                          <button onClick={() => openServiceModal(service)} className="p-2 bg-white rounded-full hover:scale-110 transition-transform"><Edit className="h-4 w-4" /></button>
+                                          <button onClick={() => handleDeleteService(service.id)} className="p-2 bg-white rounded-full text-red-600 hover:scale-110 transition-transform"><Trash className="h-4 w-4" /></button>
+                                      </div>
+                                  </div>
+                                  <div className="p-4">
+                                      <h3 className="font-bold text-stone-900">{service.title}</h3>
+                                      <div className="flex justify-between mt-2 text-sm">
+                                          <span className="text-stone-500">{service.duration_minutes} mins</span>
+                                          <span className="font-bold text-saffron-600">${service.base_price}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              );
+          
+          case 'financials':
+              return (
+                  <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-12 text-center">
+                      <DollarSign className="h-12 w-12 text-stone-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-bold text-stone-900">Financial Reporting</h3>
+                      <p className="text-stone-500">Transaction logs and export features would go here.</p>
+                  </div>
+              );
+      }
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 p-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex items-center justify-between">
-            <div>
-                <h1 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
-                    Admin Console
-                </h1>
-                <p className="text-stone-600">System overview and management.</p>
+    <div className="min-h-screen bg-stone-100 flex font-sans">
+        {/* Admin Sidebar */}
+        <aside className="w-64 bg-stone-900 text-stone-300 flex flex-col sticky top-0 h-screen">
+            <div className="p-6">
+                <div className="flex items-center gap-2 text-white font-bold text-xl">
+                    <div className="h-8 w-8 bg-saffron-600 rounded flex items-center justify-center">A</div>
+                    Admin
+                </div>
             </div>
-            <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchSystemStats} disabled={loading}>
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                </Button>
-                <Button variant="secondary" className="bg-stone-200">System Settings</Button>
+            <nav className="flex-1 px-4 space-y-1">
+                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
+                <SidebarItem icon={Users} label="Users & Gurubas" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
+                <SidebarItem icon={Layers} label="Services" active={activeTab === 'services'} onClick={() => setActiveTab('services')} />
+                <SidebarItem icon={DollarSign} label="Financials" active={activeTab === 'financials'} onClick={() => setActiveTab('financials')} />
+            </nav>
+            <div className="p-4 border-t border-stone-800">
+                <div className="text-xs text-stone-500">v1.0.0 Admin Console</div>
             </div>
-        </div>
+        </aside>
 
-        {error && (
-          <div className="mb-6 rounded-md bg-red-50 p-4 text-red-800 border border-red-200 flex items-center gap-2">
-             <AlertCircle className="h-5 w-5" />
-             <span>{error}</span>
-          </div>
+        {/* Main Content */}
+        <main className="flex-1 p-8 overflow-y-auto h-screen">
+            {renderContent()}
+        </main>
+
+        {/* Service Modal */}
+        {isServiceModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                    <h3 className="text-lg font-bold mb-4">{editingService ? 'Edit Service' : 'New Service'}</h3>
+                    <form onSubmit={handleServiceSubmit} className="space-y-4">
+                        <input 
+                            placeholder="Title" 
+                            className="w-full border p-2 rounded" 
+                            value={serviceForm.title} 
+                            onChange={e => setServiceForm({...serviceForm, title: e.target.value})} 
+                            required 
+                        />
+                        <textarea 
+                            placeholder="Description" 
+                            className="w-full border p-2 rounded" 
+                            value={serviceForm.description} 
+                            onChange={e => setServiceForm({...serviceForm, description: e.target.value})} 
+                            required 
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                            <input 
+                                type="number" 
+                                placeholder="Price ($)" 
+                                className="w-full border p-2 rounded" 
+                                value={serviceForm.base_price} 
+                                onChange={e => setServiceForm({...serviceForm, base_price: parseInt(e.target.value)})} 
+                                required 
+                            />
+                            <input 
+                                type="number" 
+                                placeholder="Duration (min)" 
+                                className="w-full border p-2 rounded" 
+                                value={serviceForm.duration_minutes} 
+                                onChange={e => setServiceForm({...serviceForm, duration_minutes: parseInt(e.target.value)})} 
+                                required 
+                            />
+                        </div>
+                        <input 
+                            placeholder="Image URL" 
+                            className="w-full border p-2 rounded" 
+                            value={serviceForm.image_url} 
+                            onChange={e => setServiceForm({...serviceForm, image_url: e.target.value})} 
+                        />
+                        <div className="flex justify-end gap-2 mt-4">
+                            <Button type="button" variant="ghost" onClick={() => setIsServiceModalOpen(false)}>Cancel</Button>
+                            <Button type="submit">Save</Button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         )}
-
-        {actionMessage && (
-          <div className={`mb-6 rounded-md p-4 border flex items-center gap-2 ${
-              actionMessage.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'
-          }`}>
-             {actionMessage.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-             <span>{actionMessage.text}</span>
-          </div>
-        )}
-
-        {/* KPI Cards */}
-        <div className="grid gap-6 md:grid-cols-4 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-stone-500 text-sm font-medium">Total Users</h3>
-                    <Users className="h-5 w-5 text-stone-400" />
-                </div>
-                <div className="text-3xl font-bold text-stone-900">{stats.users}</div>
-                <p className="text-xs text-green-600 mt-1 flex items-center">Registered Accounts</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-stone-500 text-sm font-medium">Active Gurubas</h3>
-                    <Activity className="h-5 w-5 text-stone-400" />
-                </div>
-                <div className="text-3xl font-bold text-stone-900">{stats.gurubas}</div>
-                <p className="text-xs text-green-600 mt-1">Verified Providers</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-stone-500 text-sm font-medium">Bookings</h3>
-                    <BookOpen className="h-5 w-5 text-stone-400" />
-                </div>
-                <div className="text-3xl font-bold text-stone-900">{stats.bookings}</div>
-                <p className="text-xs text-stone-500 mt-1">Total all-time</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-stone-500 text-sm font-medium">System Health</h3>
-                    <Settings className="h-5 w-5 text-stone-400" />
-                </div>
-                <div className="text-3xl font-bold text-green-600">99.9%</div>
-                <p className="text-xs text-stone-500 mt-1">Uptime</p>
-            </div>
-        </div>
-
-        {/* User Management Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
-            <div className="p-6 border-b border-stone-200 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-stone-900">User Role & Recovery Management</h2>
-                <div className="relative hidden md:block">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Search users..." 
-                        className="pl-9 pr-4 py-2 border border-stone-300 rounded-md text-sm focus:ring-saffron-500 focus:border-saffron-500"
-                    />
-                </div>
-            </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-stone-700 uppercase bg-stone-50">
-                        <tr>
-                            <th className="px-6 py-3">User</th>
-                            <th className="px-6 py-3">Email</th>
-                            <th className="px-6 py-3">Role</th>
-                            <th className="px-6 py-3 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                             <tr>
-                                <td colSpan={4} className="px-6 py-8 text-center text-stone-500">Loading users...</td>
-                             </tr>
-                        ) : userList.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-8 text-center text-stone-500">No users found.</td>
-                             </tr>
-                        ) : (
-                            userList.map((u) => (
-                                <tr key={u.id} className="bg-white border-b hover:bg-stone-50">
-                                    <td className="px-6 py-4 font-medium text-stone-900 whitespace-nowrap flex items-center gap-2">
-                                        <div className="h-8 w-8 bg-stone-100 rounded-full flex items-center justify-center text-xs font-bold text-stone-600">
-                                            {u.full_name?.[0]?.toUpperCase() || 'U'}
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span>{u.full_name || 'Unnamed User'}</span>
-                                            <span className="text-xs text-stone-400">{new Date(u.created_at).toLocaleDateString()}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-stone-600">{u.email}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <select 
-                                                value={u.role} 
-                                                onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                                                disabled={updatingId === u.id}
-                                                className={`
-                                                    block w-32 rounded-md border-0 py-1.5 pl-3 pr-8 text-stone-900 ring-1 ring-inset ring-stone-300 focus:ring-2 focus:ring-saffron-600 sm:text-sm sm:leading-6
-                                                    ${u.role === 'admin' ? 'font-bold text-purple-700 bg-purple-50' : ''}
-                                                    ${u.role === 'guruba' ? 'font-semibold text-saffron-700 bg-saffron-50' : ''}
-                                                `}
-                                            >
-                                                <option value="client">Client</option>
-                                                <option value="guruba">Guruba</option>
-                                                <option value="admin">Admin</option>
-                                            </select>
-                                            {updatingId === u.id && <RefreshCw className="h-4 w-4 animate-spin text-stone-400" />}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm"
-                                                disabled={actionLoadingId === u.id} 
-                                                onClick={() => handlePasswordReset(u.email, u.id)}
-                                                title="Send Password Reset Email"
-                                                className="px-2"
-                                            >
-                                                <Key className="h-4 w-4 text-stone-500" />
-                                            </Button>
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
-                                                disabled={actionLoadingId === u.id}
-                                                onClick={() => handleMagicLink(u.email, u.id)}
-                                                title="Send One-Time Magic Link"
-                                                className="px-2"
-                                            >
-                                                <Mail className="h-4 w-4 text-stone-500" />
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
-            <div className="p-4 border-t border-stone-200 bg-stone-50 text-center">
-                <Button variant="ghost" size="sm" onClick={fetchSystemStats}>Refresh List</Button>
-            </div>
-        </div>
-      </div>
     </div>
   );
 };

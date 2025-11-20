@@ -7,6 +7,7 @@ export interface UserProfile {
   phone?: string;
   gotra_id?: string;
   avatar_url?: string;
+  created_at?: string;
 }
 
 export interface Service {
@@ -40,11 +41,14 @@ export interface Guruba {
   review_count?: number;
   location: string;
   specialties: string[];
+  is_verified?: boolean;
   // Joined data from profiles table
   profiles?: {
     full_name: string;
     gotra_id: string;
     avatar_url?: string;
+    email?: string;
+    phone?: string;
   };
 }
 
@@ -63,5 +67,27 @@ export interface Booking {
   service_id: string;
   scheduled_at: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  is_reviewed?: boolean; // Helper to check if review exists
+  is_reviewed?: boolean;
+  services?: Service;
+  gurubas?: Guruba;
+  profiles?: UserProfile; // The client profile
+}
+
+export interface Transaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  description: string;
+  status: 'completed' | 'pending' | 'failed';
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
 }
