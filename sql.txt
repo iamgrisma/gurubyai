@@ -1,4 +1,3 @@
-
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
@@ -13,12 +12,12 @@ create table if not exists public.profiles (
   avatar_url text,
   city text,
   languages text[],
+  credits integer default 100, -- Added Credits System
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- RLS for Profiles
 alter table public.profiles enable row level security;
-
 drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
 create policy "Public profiles are viewable by everyone" 
 on public.profiles for select 
@@ -73,7 +72,6 @@ end $$;
 
 -- RLS for Services
 alter table public.services enable row level security;
-
 drop policy if exists "Services are viewable by everyone" on public.services;
 create policy "Services are viewable by everyone" 
 on public.services for select 
@@ -97,7 +95,7 @@ create table if not exists public.gurubas (
   years_experience integer default 0,
   rating numeric(2,1) default 5.0,
   location text,
-  specialties text[] default '{}', -- Legacy column, kept for simple searching
+  specialties text[] default '{}', 
   is_verified boolean default false,
   languages text[] default '{}',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -116,7 +114,6 @@ end $$;
 
 -- RLS for Gurubas
 alter table public.gurubas enable row level security;
-
 drop policy if exists "Gurubas are viewable by everyone" on public.gurubas;
 create policy "Gurubas are viewable by everyone" 
 on public.gurubas for select 
@@ -163,7 +160,6 @@ create policy "Gurubas manage own services" on public.guruba_services for all us
   (select auth.uid()) in (select user_id from public.gurubas where id = guruba_services.guruba_id)
 );
 
-
 -- 4. GURUBA AVAILABILITY TABLE
 create table if not exists public.guruba_availability (
   id uuid default uuid_generate_v4() primary key,
@@ -172,12 +168,11 @@ create table if not exists public.guruba_availability (
   start_time time not null,
   end_time time not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(guruba_id, day_of_week) -- One schedule per day per guruba for now
+  unique(guruba_id, day_of_week) 
 );
 
 -- RLS for Availability
 alter table public.guruba_availability enable row level security;
-
 drop policy if exists "Availability is viewable by everyone" on public.guruba_availability;
 create policy "Availability is viewable by everyone" 
 on public.guruba_availability for select 
@@ -203,6 +198,7 @@ create table if not exists public.bookings (
   proposed_time timestamp with time zone,
   confirmation_deadline timestamp with time zone,
   platform_fee integer default 100,
+  meeting_link text, -- Added Meeting Link
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -218,14 +214,16 @@ begin
   if not exists (select 1 from information_schema.columns where table_name = 'bookings' and column_name = 'platform_fee') then
     alter table public.bookings add column platform_fee integer default 100;
   end if;
-  -- Update check constraint for status if possible (Postgres check constraints are immutable, usually need drop/add)
+  if not exists (select 1 from information_schema.columns where table_name = 'bookings' and column_name = 'meeting_link') then
+    alter table public.bookings add column meeting_link text;
+  end if;
+  
   alter table public.bookings drop constraint if exists bookings_status_check;
   alter table public.bookings add constraint bookings_status_check check (status in ('pending', 'confirmed', 'completed', 'cancelled', 'awaiting_client_confirmation'));
 end $$;
 
 -- RLS for Bookings
 alter table public.bookings enable row level security;
-
 drop policy if exists "Users can view own bookings" on public.bookings;
 create policy "Users can view own bookings" 
 on public.bookings for select 
@@ -278,12 +276,11 @@ create table if not exists public.reviews (
   rating integer check (rating >= 1 and rating <= 5),
   comment text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(booking_id) -- One review per booking
+  unique(booking_id) 
 );
 
 -- RLS for Reviews
 alter table public.reviews enable row level security;
-
 drop policy if exists "Reviews are viewable by everyone" on public.reviews;
 create policy "Reviews are viewable by everyone" 
 on public.reviews for select 
@@ -294,7 +291,7 @@ create policy "Users can create reviews for their bookings"
 on public.reviews for insert 
 with check ( (select auth.uid()) = user_id );
 
--- 7. TRANSACTIONS TABLE (SaaS Feature)
+-- 7. TRANSACTIONS TABLE
 create table if not exists public.transactions (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id),
@@ -306,7 +303,6 @@ create table if not exists public.transactions (
 );
 
 alter table public.transactions enable row level security;
-
 drop policy if exists "Users view own transactions" on public.transactions;
 create policy "Users view own transactions" on public.transactions
 for select using ((select auth.uid()) = user_id);
@@ -317,7 +313,7 @@ for select using (
   exists (select 1 from public.profiles where id = (select auth.uid()) and role = 'admin')
 );
 
--- 8. NOTIFICATIONS TABLE (SaaS Feature)
+-- 8. NOTIFICATIONS TABLE
 create table if not exists public.notifications (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id),
@@ -328,7 +324,6 @@ create table if not exists public.notifications (
 );
 
 alter table public.notifications enable row level security;
-
 drop policy if exists "Users manage own notifications" on public.notifications;
 create policy "Users manage own notifications" on public.notifications
 for all using ((select auth.uid()) = user_id);
@@ -339,7 +334,7 @@ for all using (
   exists (select 1 from public.profiles where id = (select auth.uid()) and role = 'admin')
 );
 
--- 9. MESSAGES TABLE (New SaaS Feature)
+-- 9. MESSAGES TABLE
 create table if not exists public.messages (
   id uuid default uuid_generate_v4() primary key,
   sender_id uuid references public.profiles(id) not null,
@@ -359,7 +354,6 @@ begin
 end $$;
 
 alter table public.messages enable row level security;
-
 drop policy if exists "Users can view their own messages" on public.messages;
 create policy "Users can view their own messages" 
 on public.messages for select 
@@ -378,7 +372,7 @@ using ( (select auth.uid()) = sender_id );
 drop policy if exists "System can send messages" on public.messages;
 create policy "System can send messages"
 on public.messages for insert
-with check ( true ); -- Allow triggers to insert messages
+with check ( true );
 
 -- 10. GOTRAS TABLE
 create table if not exists public.gotras (
@@ -389,7 +383,6 @@ create table if not exists public.gotras (
 );
 
 alter table public.gotras enable row level security;
-
 drop policy if exists "Gotras are viewable by authenticated users" on public.gotras;
 create policy "Gotras are viewable by authenticated users" 
 on public.gotras for select 
@@ -410,7 +403,6 @@ using (
   )
 );
 
-
 -- 11. TRIGGERS
 
 -- Trigger 1: Create Profile on Auth Signup
@@ -421,18 +413,19 @@ declare
 begin
   v_role := coalesce(new.raw_user_meta_data->>'role', 'client');
   
-  insert into public.profiles (id, email, full_name, role)
+  insert into public.profiles (id, email, full_name, role, credits)
   values (
     new.id, 
     new.email, 
     coalesce(new.raw_user_meta_data->>'full_name', 'New User'),
-    v_role
+    v_role,
+    100 -- Default Free Credits
   )
   on conflict (id) do nothing;
 
   if v_role = 'guruba' then
     insert into public.gurubas (user_id) values (new.id)
-    on conflict (user_id) do nothing; 
+    on conflict (user_id) do nothing;
   end if;
 
   return new;
@@ -507,7 +500,7 @@ begin
         'Time Change Proposed', 
         'Guruba has proposed a new time for ' || v_service_title || '. Please accept within 1 hour.'
       );
-      -- Chat Message: Guruba -> Client
+       -- Chat Message: Guruba -> Client
        insert into public.messages (sender_id, receiver_id, content, created_at)
        values (
           v_guruba_user_id,
@@ -521,7 +514,6 @@ begin
     if (NEW.status = 'cancelled') then
       insert into public.notifications (user_id, title, message)
       values (NEW.user_id, 'Booking Cancelled', 'The booking for ' || v_service_title || ' has been cancelled.');
-      
       insert into public.notifications (user_id, title, message)
       values (v_guruba_user_id, 'Booking Cancelled', 'The booking for ' || v_service_title || ' has been cancelled.');
     end if;
@@ -565,9 +557,7 @@ create trigger on_guruba_service_change
   after insert or update or delete on public.guruba_services
   for each row execute procedure public.sync_specialties();
 
-
 -- 12. INDEXES FOR PERFORMANCE
--- Add indexes to Foreign Keys and frequently searched columns
 create index if not exists idx_services_category on public.services(category);
 create index if not exists idx_guruba_services_guruba_id on public.guruba_services(guruba_id);
 create index if not exists idx_guruba_services_service_id on public.guruba_services(service_id);
@@ -582,8 +572,8 @@ create index if not exists idx_notifications_user_id on public.notifications(use
 create index if not exists idx_messages_sender_id on public.messages(sender_id);
 create index if not exists idx_messages_receiver_id on public.messages(receiver_id);
 
--- 13. SEED DATA (Nepal Context)
--- Prices in NPR (approx)
+-- 13. SEED DATA
+-- Prices in NPR
 insert into public.services (title, description, duration_minutes, base_price, image_url, category, is_featured, is_online_enabled)
 values 
   ('Shree Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu for health and prosperity, often done on Purnima.', 90, 2500, 'https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=800&auto=format&fit=crop', 'Pujas', true, true),
@@ -594,7 +584,6 @@ values
   ('Rudri Puja', 'Worship of Lord Shiva with Rudra chanting, highly revered in Nepal.', 120, 3500, 'https://images.unsplash.com/photo-1564850058391-881b1d89a608?q=80&w=800&auto=format&fit=crop', 'Pujas', false, true)
 on conflict (title) do nothing;
 
--- Seed Gotras
 insert into public.gotras (name, status) values 
 ('Not Applicable', 'approved'),
 ('Bharadwaj', 'approved'),
@@ -609,3 +598,45 @@ insert into public.gotras (name, status) values
 ('Garga', 'approved'),
 ('Shandilya', 'approved')
 on conflict (name) do nothing;
+
+-- 14. RPC FUNCTIONS (New)
+-- Function to book service and deduct credits safely
+create or replace function public.book_service(
+  p_user_id uuid,
+  p_guruba_id uuid,
+  p_service_id uuid,
+  p_scheduled_at timestamp with time zone,
+  p_platform_fee integer
+)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_booking_id uuid;
+  v_current_credits integer;
+begin
+  -- 1. Check credits
+  select credits into v_current_credits from public.profiles where id = p_user_id;
+  
+  if v_current_credits < p_platform_fee then
+    raise exception 'Insufficient credits';
+  end if;
+
+  -- 2. Deduct credits
+  update public.profiles 
+  set credits = credits - p_platform_fee 
+  where id = p_user_id;
+
+  -- 3. Create booking
+  insert into public.bookings (user_id, guruba_id, service_id, scheduled_at, status, platform_fee)
+  values (p_user_id, p_guruba_id, p_service_id, p_scheduled_at, 'pending', p_platform_fee)
+  returning id into v_booking_id;
+
+  -- 4. Record transaction
+  insert into public.transactions (user_id, amount, type, description, status)
+  values (p_user_id, p_platform_fee, 'debit', 'Booking Fee for Service', 'completed');
+
+  return v_booking_id;
+end;
+$$;

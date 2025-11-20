@@ -1,14 +1,17 @@
+// features/guruba/GurubaDashboard.tsx
 
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
 import { Availability, Booking, Guruba, Service, Gotra, GurubaService } from '../../types';
 import { ChatInterface } from '../messages/ChatInterface';
+import { useBookings, useServices, useUpdateBookingStatus } from '../../hooks/queries';
 import { 
-    Calendar, Clock, DollarSign, MapPin, Star, Zap, RefreshCw, AlertCircle, Save, Check, 
-    LayoutDashboard, ListChecks, User, LogOut, XCircle, CheckCircle, Settings, MessageSquare, BarChart3,
-    Briefcase, Users, BookOpen, Plus, Trash2, PlusCircle, Video, Menu, X, Edit3
+    Calendar, Clock, DollarSign, MapPin, Star, RefreshCw, AlertCircle, Save, Check, 
+    LayoutDashboard, ListChecks, User, LogOut, CheckCircle, Settings, MessageSquare,
+    Briefcase, Users, BookOpen, PlusCircle, Video, Menu, X, Edit3, Link as LinkIcon
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -28,7 +31,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
     </button>
 );
 
-// Internal Gotra Select Component
+// Internal Gotra Select Component (kept same)
 const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
     const [gotras, setGotras] = useState<Gotra[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -55,7 +58,6 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
         try {
             const { error } = await supabase.from('gotras').insert({ name: searchTerm.trim(), status: 'pending' });
             if (error && error.code !== '23505') throw error;
-            
             onChange(searchTerm.trim());
             setShowDropdown(false);
             alert(`Requested to add '${searchTerm}'. Selected pending approval.`);
@@ -109,130 +111,124 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
 
 export const GurubaDashboard: React.FC = () => {
   const { profile, user, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  const [guruba, setGuruba] = useState<Guruba | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [availability, setAvailability] = useState<Availability[]>([]);
-  const [allServices, setAllServices] = useState<Service[]>([]);
-  const [myServices, setMyServices] = useState<GurubaService[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // --- Queries ---
+  
+  // 1. Fetch Current Guruba Profile
+  const { data: guruba, isLoading: gurubaLoading } = useQuery({
+    queryKey: ['gurubaProfile', user?.id],
+    queryFn: async () => {
+        if (!user?.id) return null;
+        const { data } = await supabase.from('gurubas').select('*, profiles:user_id(gotra_id)').eq('user_id', user.id).single();
+        return data as Guruba;
+    },
+    enabled: !!user?.id
+  });
+
+  // 2. Fetch Bookings
+  const { data: bookings = [], isLoading: bookingsLoading } = useBookings(user?.id, 'guruba');
+
+  // 3. Fetch All Services
+  const { data: allServices = [] } = useServices();
+
+  // 4. Fetch My Selected Services
+  const { data: myServices = [] } = useQuery({
+      queryKey: ['myServices', guruba?.id],
+      queryFn: async () => {
+          const { data } = await supabase.from('guruba_services').select('*').eq('guruba_id', guruba?.id);
+          return data as GurubaService[];
+      },
+      enabled: !!guruba?.id
+  });
+
+  // 5. Fetch Availability
+  const { data: availability = [] } = useQuery({
+      queryKey: ['availability', guruba?.id],
+      queryFn: async () => {
+          const { data } = await supabase.from('guruba_availability').select('*').eq('guruba_id', guruba?.id);
+          return data as Availability[];
+      },
+      enabled: !!guruba?.id
+  });
+
+  // --- Mutations ---
+  const updateStatusMutation = useUpdateBookingStatus();
   
   // Schedule Edit State
   const [schedule, setSchedule] = useState<{ [key: number]: { start: string, end: string, enabled: boolean } }>({});
-  const [savingSchedule, setSavingSchedule] = useState(false);
-  const [busyMode, setBusyMode] = useState(false); // UI toggle for "Select Busy Hour" vs "Select Available Hour"
+  const [busyMode, setBusyMode] = useState(false);
 
   // Negotiation State
   const [proposingBookingId, setProposingBookingId] = useState<string | null>(null);
   const [proposedTime, setProposedTime] = useState('');
 
+  // Link State
+  const [linkBookingId, setLinkBookingId] = useState<string | null>(null);
+  const [meetingLink, setMeetingLink] = useState('');
+
   // Profile Edit
   const [bio, setBio] = useState('');
   const [gotraId, setGotraId] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
+  // Sync Schedule state when availability loads
   useEffect(() => {
-    if (user) {
-        fetchData();
-    }
-  }, [user]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-        // 1. Fetch Guruba Profile
-        let { data: gurubaRows, error: gurubaError } = await supabase
-            .from('gurubas')
-            .select('*, profiles:user_id(gotra_id)')
-            .eq('user_id', user?.id);
-            
-        let gurubaData = gurubaRows?.[0];
-
-        // Auto-provision if missing
-        if ((!gurubaRows || gurubaRows.length === 0) && !gurubaError) {
-             const { data: newGuruba, error: createError } = await supabase.from('gurubas').insert([{ user_id: user?.id }]).select().single();
-             if (createError && createError.code !== '23505') throw createError;
-             if (createError && createError.code === '23505') {
-                  const { data: retry } = await supabase.from('gurubas').select('*, profiles:user_id(gotra_id)').eq('user_id', user?.id).single();
-                  gurubaData = retry;
-             } else {
-                  gurubaData = newGuruba;
-             }
-        } else if (gurubaError) {
-             throw gurubaError;
-        }
-        
-        if (gurubaData) {
-            gurubaData.email = user?.email;
-        }
-        
-        setGuruba(gurubaData);
-        setBio(gurubaData.bio || '');
-        setGotraId(gurubaData.profiles?.gotra_id || '');
-
-        // 2. Get Bookings
-        const { data: bookingData } = await supabase
-            .from('bookings')
-            .select(`*, services:service_id (title, base_price, duration_minutes), profiles:user_id (full_name, phone, email, avatar_url)`)
-            .eq('guruba_id', gurubaData.id)
-            .order('scheduled_at', { ascending: true });
-        
-        setBookings(bookingData || []);
-
-        // 3. Get Availability
-        const { data: availData } = await supabase.from('guruba_availability').select('*').eq('guruba_id', gurubaData.id);
-        setAvailability(availData || []);
-        
+    if (availability) {
         const initialSchedule: any = {};
         DAYS_OF_WEEK.forEach((_, index) => {
-            const found = availData?.find(a => a.day_of_week === index);
+            const found = availability?.find(a => a.day_of_week === index);
             initialSchedule[index] = found 
                 ? { start: found.start_time.slice(0, 5), end: found.end_time.slice(0, 5), enabled: true }
-                : { start: '05:00', end: '21:00', enabled: true }; // Default 5am-9pm enabled
+                : { start: '05:00', end: '21:00', enabled: true }; 
         });
         setSchedule(initialSchedule);
-
-        // 4. Get All Services & My Services
-        const { data: servicesData } = await supabase.from('services').select('*').order('title');
-        setAllServices(servicesData || []);
-
-        const { data: myServicesData } = await supabase.from('guruba_services').select('*').eq('guruba_id', gurubaData.id);
-        setMyServices(myServicesData || []);
-
-    } catch (e: any) {
-        console.error(e);
-        setError("Failed to load dashboard data.");
-    } finally {
-        setLoading(false);
     }
-  };
+  }, [availability]);
+
+  // Sync Profile state
+  useEffect(() => {
+      if (guruba) {
+          setBio(guruba.bio || '');
+          setGotraId(guruba.profiles?.gotra_id || '');
+      }
+  }, [guruba]);
 
   const handleBookingAction = async (bookingId: string, action: 'confirmed' | 'cancelled' | 'completed') => {
-      try {
-          await supabase.from('bookings').update({ status: action }).eq('id', bookingId);
-          setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: action } : b));
-      } catch (e) {
-          alert("Action failed");
+      updateStatusMutation.mutate({ id: bookingId, status: action });
+  };
+
+  const handleAddLink = async () => {
+      if (!linkBookingId || !meetingLink) return;
+      // Basic validation
+      if (!meetingLink.startsWith('http') && !meetingLink.startsWith('wa.me')) {
+          alert("Please enter a valid URL (starting with http://, https://, or wa.me/)");
+          return;
       }
+
+      updateStatusMutation.mutate({ id: linkBookingId, status: 'confirmed', meeting_link: meetingLink }, {
+          onSuccess: () => {
+              setLinkBookingId(null);
+              setMeetingLink('');
+              alert("Meeting link updated!");
+          }
+      });
   };
 
   const handleProposeTime = async (bookingId: string) => {
       if (!proposedTime) return;
-      // TODO: Add validation for +/- 5 hours logic here
       try {
-          const confirmationDeadline = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+          const confirmationDeadline = new Date(Date.now() + 60 * 60 * 1000).toISOString();
           await supabase.from('bookings').update({ 
               status: 'awaiting_client_confirmation',
               proposed_time: proposedTime,
               confirmation_deadline: confirmationDeadline
           }).eq('id', bookingId);
           
-          setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'awaiting_client_confirmation', proposed_time: proposedTime } : b));
+          queryClient.invalidateQueries({ queryKey: ['bookings'] });
           setProposingBookingId(null);
           setProposedTime('');
       } catch(e) {
@@ -257,6 +253,7 @@ export const GurubaDashboard: React.FC = () => {
                 };
             });
           if (rows.length > 0) await supabase.from('guruba_availability').insert(rows);
+          queryClient.invalidateQueries({ queryKey: ['availability'] });
           alert("Schedule updated!");
       } catch (e) { alert("Failed"); } finally { setSavingSchedule(false); }
   };
@@ -264,20 +261,17 @@ export const GurubaDashboard: React.FC = () => {
   const toggleService = async (serviceId: string, currentStatus: boolean) => {
       if (!guruba) return;
       if (currentStatus) {
-          // Remove
           await supabase.from('guruba_services').delete().match({ guruba_id: guruba.id, service_id: serviceId });
-          setMyServices(prev => prev.filter(s => s.service_id !== serviceId));
       } else {
-          // Add
           await supabase.from('guruba_services').insert({ guruba_id: guruba.id, service_id: serviceId, is_online: false });
-          setMyServices(prev => [...prev, { guruba_id: guruba.id, service_id: serviceId, is_online: false }]);
       }
+      queryClient.invalidateQueries({ queryKey: ['myServices'] });
   };
 
   const toggleOnlineService = async (serviceId: string, currentOnline: boolean) => {
        if (!guruba) return;
        await supabase.from('guruba_services').update({ is_online: !currentOnline }).match({ guruba_id: guruba.id, service_id: serviceId });
-       setMyServices(prev => prev.map(s => s.service_id === serviceId ? { ...s, is_online: !currentOnline } : s));
+       queryClient.invalidateQueries({ queryKey: ['myServices'] });
   };
 
   const saveProfile = async () => {
@@ -286,6 +280,7 @@ export const GurubaDashboard: React.FC = () => {
       try {
           await supabase.from('gurubas').update({ bio }).eq('id', guruba.id);
           await supabase.from('profiles').update({ gotra_id: gotraId }).eq('id', user?.id);
+          queryClient.invalidateQueries({ queryKey: ['gurubaProfile'] });
           alert("Profile updated!");
       } catch (e) { alert("Failed"); } finally { setSavingProfile(false); }
   };
@@ -294,7 +289,6 @@ export const GurubaDashboard: React.FC = () => {
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const earnings = bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.services?.base_price || 0), 0);
 
-  // CRM Helper
   const getUniqueClients = () => {
       const clients: {[key: string]: any} = {};
       bookings.forEach(b => {
@@ -322,6 +316,8 @@ export const GurubaDashboard: React.FC = () => {
       setActiveTab(tab);
       setIsMobileMenuOpen(false);
   };
+
+  const loading = gurubaLoading || bookingsLoading;
 
   const renderContent = () => {
       switch(activeTab) {
@@ -371,7 +367,7 @@ export const GurubaDashboard: React.FC = () => {
                           <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
                               <div className="flex justify-between items-center mb-6">
                                   <h3 className="font-bold text-lg text-stone-900">Upcoming Confirmed Rituals</h3>
-                                  <Button variant="ghost" size="sm">View Calendar</Button>
+                                  <Button variant="ghost" size="sm" onClick={() => setActiveTab('requests')}>View All</Button>
                               </div>
                               <div className="space-y-4">
                                   {bookings.filter(b => b.status === 'confirmed').length === 0 ? (
@@ -391,11 +387,21 @@ export const GurubaDashboard: React.FC = () => {
                                                           <span className="mx-1">•</span>
                                                           <User className="h-3 w-3" /> {b.profiles?.full_name}
                                                       </p>
+                                                      {b.meeting_link && (
+                                                          <a href={b.meeting_link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
+                                                              <Video className="h-3 w-3" /> Video Link Active
+                                                          </a>
+                                                      )}
                                                   </div>
                                               </div>
-                                              <Button size="sm" className="w-full sm:w-auto" onClick={() => handleBookingAction(b.id, 'completed')}>
-                                                  Mark Completed
-                                              </Button>
+                                              <div className="flex flex-col gap-2">
+                                                  <Button size="sm" className="w-full sm:w-auto" onClick={() => handleBookingAction(b.id, 'completed')}>
+                                                      Mark Completed
+                                                  </Button>
+                                                  <Button size="sm" variant="outline" className="w-full sm:w-auto text-xs" onClick={() => { setLinkBookingId(b.id); setMeetingLink(b.meeting_link || ''); }}>
+                                                      {b.meeting_link ? 'Edit Link' : 'Add Link'}
+                                                  </Button>
+                                              </div>
                                           </div>
                                       ))
                                   )}
@@ -425,8 +431,29 @@ export const GurubaDashboard: React.FC = () => {
           case 'requests':
               return (
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                      <h2 className="text-2xl font-bold text-stone-900">Booking Requests</h2>
-                      {bookings.filter(b => b.status === 'pending' || b.status === 'awaiting_client_confirmation').length === 0 ? (
+                      <h2 className="text-2xl font-bold text-stone-900">Booking Requests & Schedule</h2>
+                      
+                      {/* Add Meeting Link Modal */}
+                      {linkBookingId && (
+                          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                              <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+                                  <h3 className="text-lg font-bold mb-4">Add Video Meeting Link</h3>
+                                  <p className="text-sm text-stone-500 mb-4">Paste your Google Meet or WhatsApp link here. The client will see a "Join" button.</p>
+                                  <input 
+                                      className="w-full border rounded-lg p-3 mb-4" 
+                                      placeholder="https://meet.google.com/..." 
+                                      value={meetingLink}
+                                      onChange={(e) => setMeetingLink(e.target.value)}
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                      <Button variant="ghost" onClick={() => setLinkBookingId(null)}>Cancel</Button>
+                                      <Button onClick={handleAddLink}>Save Link</Button>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+
+                      {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length === 0 ? (
                           <div className="bg-stone-50 rounded-2xl p-16 text-center border border-stone-200 border-dashed">
                               <ListChecks className="h-12 w-12 mx-auto text-stone-300 mb-4" />
                               <h3 className="text-lg font-medium text-stone-900">No Pending Requests</h3>
@@ -434,13 +461,17 @@ export const GurubaDashboard: React.FC = () => {
                           </div>
                       ) : (
                           <div className="grid gap-6">
-                              {bookings.filter(b => b.status === 'pending' || b.status === 'awaiting_client_confirmation').map(b => (
+                              {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').map(b => (
                                   <div key={b.id} className="bg-white rounded-2xl border border-stone-200 shadow-md p-6 hover:shadow-lg transition-shadow">
                                       <div className="flex flex-col md:flex-row justify-between gap-8">
                                           <div className="flex-1">
                                               <div className="flex items-center gap-3 mb-4">
-                                                  <span className={`text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-sm ${b.status === 'pending' ? 'bg-blue-600 shadow-blue-200' : 'bg-purple-600 shadow-purple-200'}`}>
-                                                      {b.status === 'pending' ? 'New Request' : 'Negotiating Time'}
+                                                  <span className={`text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-sm ${
+                                                      b.status === 'pending' ? 'bg-blue-600 shadow-blue-200' : 
+                                                      b.status === 'confirmed' ? 'bg-green-600 shadow-green-200' :
+                                                      'bg-purple-600 shadow-purple-200'
+                                                  }`}>
+                                                      {b.status === 'pending' ? 'New Request' : b.status === 'confirmed' ? 'Confirmed' : 'Negotiating'}
                                                   </span>
                                                   <span className="text-sm text-stone-500 font-medium">{new Date(b.created_at).toLocaleDateString()}</span>
                                               </div>
@@ -450,7 +481,10 @@ export const GurubaDashboard: React.FC = () => {
                                                      <div className="h-8 w-8 rounded-full bg-stone-200 overflow-hidden">
                                                          <img src={b.profiles?.avatar_url || 'https://via.placeholder.com/40'} className="h-full w-full object-cover" />
                                                      </div>
-                                                     <p className="text-stone-900 font-bold">{b.profiles?.full_name}</p>
+                                                     <div className="flex-1">
+                                                         <p className="text-stone-900 font-bold">{b.profiles?.full_name}</p>
+                                                         {b.profiles?.phone && <p className="text-xs text-stone-500">{b.profiles.phone}</p>}
+                                                     </div>
                                                   </div>
                                                   <div className="grid grid-cols-2 gap-4 text-sm pt-2">
                                                       <p className="text-stone-600 flex items-center gap-2">
@@ -460,6 +494,15 @@ export const GurubaDashboard: React.FC = () => {
                                                           <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">Rs. {(b.services?.base_price || 0).toLocaleString()}</span>
                                                       </p>
                                                   </div>
+                                                  {b.status === 'confirmed' && (
+                                                      <div className="mt-2 pt-2 border-t border-stone-200 flex items-center gap-2">
+                                                          <Video className="h-4 w-4 text-blue-500" />
+                                                          <span className="text-sm text-stone-600">Link: {b.meeting_link ? <a href={b.meeting_link} className="text-blue-600 hover:underline" target="_blank">Open Link</a> : <span className="text-stone-400 italic">No link added</span>}</span>
+                                                          <button onClick={() => { setLinkBookingId(b.id); setMeetingLink(b.meeting_link || ''); }} className="ml-auto text-xs text-stone-500 hover:text-stone-900 border px-2 py-1 rounded">
+                                                              {b.meeting_link ? 'Edit' : 'Add'}
+                                                          </button>
+                                                      </div>
+                                                  )}
                                               </div>
                                           </div>
                                           
@@ -493,6 +536,15 @@ export const GurubaDashboard: React.FC = () => {
                                                       <XCircle className="h-5 w-5 mr-2" /> Decline
                                                   </Button>
                                               </div>
+                                          ) : b.status === 'confirmed' ? (
+                                              <div className="flex flex-col justify-center gap-3 min-w-[180px]">
+                                                  <Button onClick={() => handleBookingAction(b.id, 'completed')} className="w-full">
+                                                      Mark Completed
+                                                  </Button>
+                                                  <Button variant="outline" onClick={() => handleBookingAction(b.id, 'cancelled')} className="w-full text-red-600">
+                                                      Cancel Booking
+                                                  </Button>
+                                              </div>
                                           ) : (
                                               <div className="flex flex-col justify-center items-center min-w-[180px] bg-stone-50 rounded-xl p-4 text-center border border-stone-200 border-dashed">
                                                   <Clock className="h-8 w-8 text-saffron-400 mb-2" />
@@ -522,7 +574,7 @@ export const GurubaDashboard: React.FC = () => {
                       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                           <div>
                               <h2 className="text-2xl font-bold text-stone-900">Availability Settings</h2>
-                              <p className="text-sm text-stone-500">Default availability is 05:00 AM - 09:00 PM. Adjust specific days below.</p>
+                              <p className="text-sm text-stone-500">Default availability is 05:00 AM - 09:00 PM.</p>
                           </div>
                           <div className="flex items-center gap-3 bg-white p-1 rounded-lg border border-stone-200 shadow-sm">
                               <button onClick={() => setBusyMode(false)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!busyMode ? 'bg-saffron-100 text-saffron-800' : 'text-stone-500 hover:bg-stone-50'}`}>Set Working Hours</button>
@@ -582,7 +634,7 @@ export const GurubaDashboard: React.FC = () => {
               return (
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                       <h2 className="text-2xl font-bold text-stone-900 mb-2">My Services</h2>
-                      <p className="text-stone-600 mb-6">Select the rituals you are qualified to perform. You can also specify if you offer them online.</p>
+                      <p className="text-stone-600 mb-6">Select the rituals you are qualified to perform.</p>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {allServices.map(service => {
@@ -613,7 +665,6 @@ export const GurubaDashboard: React.FC = () => {
                                                 <span>•</span>
                                                 <span>{service.duration_minutes} min</span>
                                             </div>
-                                            {/* Online Toggle if Service Supports it */}
                                             {isActive && service.is_online_enabled && (
                                                 <div 
                                                     onClick={() => toggleOnlineService(service.id, isOnline)}
@@ -686,8 +737,6 @@ export const GurubaDashboard: React.FC = () => {
                               { title: "Satyanarayan Katha (Sanskrit)", type: "PDF", size: "2.4 MB" },
                               { title: "Swasthani Brata Katha (Nepali)", type: "PDF", size: "5.1 MB" },
                               { title: "Griha Pravesh Samagri Checklist", type: "List", size: "150 KB" },
-                              { title: "Vedic Mantras Audio Collection", type: "MP3", size: "45 MB" },
-                              { title: "Nepali Patro 2081", type: "PDF", size: "3.2 MB" },
                           ].map((res, i) => (
                               <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all group cursor-pointer">
                                   <div className="flex justify-between items-start mb-4">
@@ -718,11 +767,10 @@ export const GurubaDashboard: React.FC = () => {
                                       onChange={(e) => setBio(e.target.value)}
                                       rows={6}
                                       className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 text-base p-4"
-                                      placeholder="Describe your lineage (Gotra), vedic education (Gurukul), and experience performing rituals..."
+                                      placeholder="Describe your lineage (Gotra), vedic education (Gurukul), and experience..."
                                   />
                               </div>
                               
-                              {/* Gotra Select */}
                               <GotraSelect 
                                   value={gotraId}
                                   onChange={setGotraId}
@@ -816,10 +864,6 @@ export const GurubaDashboard: React.FC = () => {
             {loading ? (
                 <div className="flex items-center justify-center h-full text-saffron-600">
                     <RefreshCw className="h-8 w-8 animate-spin" />
-                </div>
-            ) : error ? (
-                <div className="text-red-600 bg-red-50 p-4 rounded-xl border border-red-100 flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5" /> {error}
                 </div>
             ) : (
                 renderContent()

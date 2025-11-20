@@ -6,10 +6,10 @@ import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
 import { ReviewModal } from './ReviewModal';
 import { ChatInterface } from '../messages/ChatInterface';
-import { Booking, Transaction, Gotra } from '../../types';
+import { Booking, Transaction } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
-  LayoutDashboard, CreditCard, User, LogOut, PlusCircle, Menu, X, Phone
+  LayoutDashboard, CreditCard, User, LogOut, Menu, X, Phone
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
@@ -27,91 +27,11 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   </button>
 );
 
-// Internal Gotra Select Component
-const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
-    const [gotras, setGotras] = useState<Gotra[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showDropdown, setShowDropdown] = useState(false);
-
-    useEffect(() => {
-        const fetchGotras = async () => {
-            const { data } = await supabase.from('gotras').select('*').eq('status', 'approved').order('name');
-            setGotras(data || []);
-        };
-        fetchGotras();
-    }, []);
-
-    useEffect(() => {
-        if (value && !searchTerm) {
-             setSearchTerm(value);
-        }
-    }, [value]);
-
-    const filtered = gotras.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    const handleRequestNew = async () => {
-        if (!searchTerm.trim()) return;
-        try {
-            const { error } = await supabase.from('gotras').insert({ name: searchTerm.trim(), status: 'pending' });
-            if (error && error.code !== '23505') throw error;
-            
-            onChange(searchTerm.trim());
-            setShowDropdown(false);
-            alert(`Requested to add '${searchTerm}'. It has been selected for your profile pending approval.`);
-        } catch (e) {
-            alert("Failed to request Gotra.");
-        }
-    };
-
-    return (
-        <div className="relative">
-            <label className="block text-sm font-medium text-stone-700 mb-1">Gotra</label>
-            <div className="relative">
-                <input 
-                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border"
-                    value={searchTerm}
-                    onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }}
-                    onFocus={() => setShowDropdown(true)}
-                    placeholder="Search or add Gotra..."
-                />
-                {showDropdown && searchTerm && (
-                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-stone-200 max-h-60 overflow-auto">
-                        {filtered.length > 0 ? (
-                            filtered.map(g => (
-                                <button
-                                    key={g.id}
-                                    className="w-full text-left px-4 py-2 hover:bg-stone-100 text-sm"
-                                    onClick={() => {
-                                        onChange(g.name);
-                                        setSearchTerm(g.name);
-                                        setShowDropdown(false);
-                                    }}
-                                >
-                                    {g.name}
-                                </button>
-                            ))
-                        ) : (
-                            <button
-                                className="w-full text-left px-4 py-2 hover:bg-stone-50 text-sm text-saffron-600 font-medium flex items-center gap-2"
-                                onClick={handleRequestNew}
-                            >
-                                <PlusCircle className="h-4 w-4" /> Request to add "{searchTerm}"
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
-            {showDropdown && <div className="fixed inset-0 z-0" onClick={() => setShowDropdown(false)}></div>}
-        </div>
-    );
-};
-
-
 export const ClientDashboard: React.FC = () => {
-  const { profile, user, refreshProfile, signOut } = useAuth();
+  const { profile, user, signOut } = useAuth();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'messages' | 'wallet' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'messages' | 'wallet'>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -119,15 +39,8 @@ export const ClientDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [reviewModalData, setReviewModalData] = useState<{id: string, gurubaId: string, gurubaName: string} | null>(null);
 
-  // Edit Profile State
-  const [profileForm, setProfileForm] = useState({
-    full_name: '',
-    phone: '',
-    gotra_id: '',
-    avatar_url: '',
-    city: ''
-  });
-  const [updateLoading, setUpdateLoading] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState<string>('');
+  const [topUpLoading, setTopUpLoading] = useState(false);
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
@@ -136,18 +49,6 @@ export const ClientDashboard: React.FC = () => {
       fetchDashboardData();
     }
   }, [user]);
-
-  useEffect(() => {
-    if (profile) {
-      setProfileForm({
-        full_name: profile.full_name || '',
-        phone: profile.phone || '',
-        gotra_id: profile.gotra_id || '',
-        avatar_url: profile.avatar_url || '',
-        city: profile.city || ''
-      });
-    }
-  }, [profile]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -179,8 +80,8 @@ export const ClientDashboard: React.FC = () => {
       })) as Booking[];
       setBookings(processedBookings || []);
 
-      // Transactions (Mocking some if empty for visual pop)
-      const { data: transData } = await supabase.from('transactions').select('*').eq('user_id', user?.id);
+      // Transactions
+      const { data: transData } = await supabase.from('transactions').select('*').eq('user_id', user?.id).order('created_at', { ascending: false });
       setTransactions(transData || []);
 
     } catch (err) {
@@ -190,17 +91,30 @@ export const ClientDashboard: React.FC = () => {
     }
   };
 
-  const handleSaveProfile = async () => {
-    setUpdateLoading(true);
+  const handleTopUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseInt(topUpAmount);
+    if (!amount || amount <= 0) return;
+    
+    setTopUpLoading(true);
     try {
-      const { error } = await supabase.from('profiles').update(profileForm).eq('id', user?.id);
-      if (error) throw error;
-      await refreshProfile();
-      alert("Profile updated successfully");
-    } catch (err) {
-      alert("Failed to update profile.");
+        const { error } = await supabase.rpc('top_up_wallet', {
+            p_user_id: user?.id,
+            p_amount: amount
+        });
+        if (error) throw error;
+        
+        setTopUpAmount('');
+        // refreshProfile is handled in AuthProvider but we want to see balance update
+        // Ideally we call refreshProfile() but it's not destructured. 
+        // For now, fetching dashboard data. Profile update happens via Auth context refresh or page reload.
+        // Let's just reload dashboard
+        await fetchDashboardData();
+        window.location.reload(); // Force refresh to get new balance in auth context
+    } catch (e: any) {
+        alert("Top-up failed: " + e.message);
     } finally {
-      setUpdateLoading(false);
+        setTopUpLoading(false);
     }
   };
 
@@ -208,7 +122,6 @@ export const ClientDashboard: React.FC = () => {
       try {
           if (action === 'accept') {
               if (!proposedTime) return;
-              // Safely handle parsing of proposedTime if it's null/undefined
               const date = new Date(proposedTime);
               if (isNaN(date.getTime())) return; 
 
@@ -252,17 +165,15 @@ export const ClientDashboard: React.FC = () => {
                         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                            <div>
                                <h2 className="text-3xl font-bold mb-2">Namaste, {displayName} 🙏</h2>
-                               <p className="text-stone-300 max-w-lg">Your spiritual journey continues. You have {bookings.filter(b => b.status === 'confirmed').length} upcoming rituals scheduled.</p>
+                               <p className="text-stone-300 max-w-lg">Balance: <span className="font-bold text-saffron-400">Rs. {(profile?.balance || 0).toLocaleString()}</span></p>
                            </div>
                            <Button onClick={() => navigate('/book')} className="bg-saffron-600 hover:bg-saffron-700 border-none shadow-lg shadow-saffron-900/20 py-3 px-6 text-base w-full md:w-auto">
                                Book New Service
                            </Button>
                         </div>
-                        {/* Decorative circles */}
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
                     </div>
                     
-                    {/* Action Required Section */}
                     {actionRequiredBookings.length > 0 && (
                         <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 animate-in slide-in-from-top-2">
                             <h3 className="font-bold text-purple-900 text-lg mb-4 flex items-center gap-2">
@@ -292,7 +203,6 @@ export const ClientDashboard: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Stats Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
                             <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center mb-4 text-blue-600">
@@ -302,24 +212,22 @@ export const ClientDashboard: React.FC = () => {
                             <div className="text-3xl font-bold text-stone-900">{bookings.length}</div>
                         </div>
                         <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
+                            <div className="h-10 w-10 bg-purple-50 rounded-full flex items-center justify-center mb-4 text-purple-600">
+                                <CreditCard className="h-5 w-5" />
+                            </div>
+                            <h3 className="text-stone-500 text-sm font-medium">Wallet Balance</h3>
+                            <div className="text-3xl font-bold text-stone-900">Rs. {(profile?.balance || 0).toLocaleString()}</div>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
                             <div className="h-10 w-10 bg-green-50 rounded-full flex items-center justify-center mb-4 text-green-600">
                                 <RefreshCw className="h-5 w-5" />
                             </div>
                             <h3 className="text-stone-500 text-sm font-medium">Completed Rituals</h3>
                             <div className="text-3xl font-bold text-stone-900">{bookings.filter(b => b.status === 'completed').length}</div>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
-                            <div className="h-10 w-10 bg-purple-50 rounded-full flex items-center justify-center mb-4 text-purple-600">
-                                <CreditCard className="h-5 w-5" />
-                            </div>
-                            <h3 className="text-stone-500 text-sm font-medium">Total Spent</h3>
-                            <div className="text-3xl font-bold text-stone-900">Rs. 0.00</div>
-                        </div>
                     </div>
 
-                    {/* Dashboard Main Content: Schedule + Profile Card */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Upcoming Bookings Column */}
                         <div className="lg:col-span-2">
                             <h3 className="text-xl font-bold text-stone-900 mb-4">Upcoming Schedule</h3>
                             {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length > 0 ? (
@@ -336,15 +244,6 @@ export const ClientDashboard: React.FC = () => {
                                                     <Clock className="h-3 w-3 ml-2" /> {new Date(booking.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                 </p>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="text-right hidden md:block">
-                                                    <p className="text-xs text-stone-400 uppercase font-semibold">Guruba</p>
-                                                    <p className="text-sm font-medium">{booking.gurubas?.profiles?.full_name}</p>
-                                                </div>
-                                                <div className="h-10 w-10 rounded-full bg-stone-200 overflow-hidden">
-                                                    <img src={booking.gurubas?.profiles?.avatar_url || 'https://via.placeholder.com/40'} className="h-full w-full object-cover" />
-                                                </div>
-                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -355,7 +254,6 @@ export const ClientDashboard: React.FC = () => {
                             )}
                         </div>
 
-                        {/* My Profile Summary Card */}
                         <div>
                             <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm h-full">
                                 <h3 className="font-bold text-lg text-stone-900 mb-4">My Profile</h3>
@@ -363,24 +261,20 @@ export const ClientDashboard: React.FC = () => {
                                     <div className="h-24 w-24 mx-auto bg-stone-100 rounded-full overflow-hidden mb-3 border-4 border-white shadow-md">
                                         {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : <User className="h-12 w-12 text-stone-300 m-6" />}
                                     </div>
-                                    <p className="font-bold text-stone-900 text-lg">{profileForm.full_name || 'Update Name'}</p>
+                                    <p className="font-bold text-stone-900 text-lg">{profile?.full_name || 'Update Name'}</p>
                                     <p className="text-sm text-stone-500">{user?.email}</p>
                                 </div>
                                 <div className="space-y-4 text-sm mb-8">
                                     <div className="flex justify-between items-center p-2 bg-stone-50 rounded-lg">
                                         <span className="text-stone-500 flex items-center gap-2"><Phone className="h-4 w-4"/> Phone</span>
-                                        <span className="font-medium text-stone-900">{profileForm.phone || 'N/A'}</span>
+                                        <span className="font-medium text-stone-900">{profile?.phone || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between items-center p-2 bg-stone-50 rounded-lg">
                                         <span className="text-stone-500 flex items-center gap-2"><User className="h-4 w-4"/> Gotra</span>
-                                        <span className="font-medium text-stone-900">{profileForm.gotra_id || 'N/A'}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center p-2 bg-stone-50 rounded-lg">
-                                        <span className="text-stone-500 flex items-center gap-2"><User className="h-4 w-4"/> City</span>
-                                        <span className="font-medium text-stone-900">{profileForm.city || 'N/A'}</span>
+                                        <span className="font-medium text-stone-900">{profile?.gotra_id || 'N/A'}</span>
                                     </div>
                                 </div>
-                                <Button variant="outline" className="w-full" onClick={() => setActiveTab('profile')}>
+                                <Button variant="outline" className="w-full" onClick={() => navigate('/client/profile')}>
                                     Edit Profile
                                 </Button>
                             </div>
@@ -459,24 +353,33 @@ export const ClientDashboard: React.FC = () => {
                 <div className="max-w-4xl space-y-8 animate-in slide-in-from-right-4 duration-300">
                     <h2 className="text-2xl font-bold text-stone-900">Wallet</h2>
                     {/* Credit Card Style */}
-                    <div className="w-full max-w-md h-56 bg-gradient-to-br from-stone-800 to-stone-950 rounded-3xl p-8 text-white shadow-2xl flex flex-col justify-between relative overflow-hidden">
-                        <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-                        <div className="flex justify-between items-start relative z-10">
-                            <span className="text-stone-400 font-medium tracking-wider">Guruba Balance</span>
-                            <CreditCard className="h-8 w-8 opacity-80" />
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div className="w-full h-56 bg-gradient-to-br from-stone-800 to-stone-950 rounded-3xl p-8 text-white shadow-2xl flex flex-col justify-between relative overflow-hidden">
+                            <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                            <div className="flex justify-between items-start relative z-10">
+                                <span className="text-stone-400 font-medium tracking-wider">Guruba Balance</span>
+                                <CreditCard className="h-8 w-8 opacity-80" />
+                            </div>
+                            <div className="relative z-10">
+                                <span className="text-4xl font-bold tracking-tight">Rs. {(profile?.balance || 0).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-end relative z-10">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-stone-400 uppercase mb-1">Holder</span>
+                                    <span className="font-medium tracking-wide uppercase">{displayName}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="relative z-10">
-                            <span className="text-4xl font-bold tracking-tight">Rs. 0.00</span>
-                        </div>
-                        <div className="flex justify-between items-end relative z-10">
-                             <div className="flex flex-col">
-                                 <span className="text-xs text-stone-400 uppercase mb-1">Holder</span>
-                                 <span className="font-medium tracking-wide uppercase">{displayName}</span>
-                             </div>
-                             <div className="flex flex-col items-end">
-                                 <span className="text-xs text-stone-400 uppercase mb-1">Expires</span>
-                                 <span className="font-medium tracking-wide">12/28</span>
-                             </div>
+
+                        <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm">
+                            <h3 className="font-bold text-stone-900 mb-4">Add Funds</h3>
+                            <form onSubmit={handleTopUp} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Amount (NPR)</label>
+                                    <input type="number" min="100" step="100" required className="w-full border rounded-xl p-3 text-lg" placeholder="e.g. 500" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} />
+                                </div>
+                                <Button type="submit" className="w-full py-3" isLoading={topUpLoading}>Top Up Wallet</Button>
+                            </form>
                         </div>
                     </div>
 
@@ -500,69 +403,12 @@ export const ClientDashboard: React.FC = () => {
                                         <tr key={t.id} className="border-b border-stone-100 last:border-0">
                                             <td className="px-6 py-4 text-stone-500">{new Date(t.created_at).toLocaleDateString()}</td>
                                             <td className="px-6 py-4 font-medium">{t.description}</td>
-                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}Rs. {(t.amount || 0).toLocaleString()}</td>
+                                            <td className={`px-6 py-4 text-right font-bold ${t.type === 'credit' ? 'text-green-600' : 'text-stone-900'}`}>{t.type === 'credit' ? '+' : '-'}Rs. {(t.amount || 0).toLocaleString()}</td>
                                         </tr>
                                     ))
                                 )}
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            );
-
-        case 'profile':
-            return (
-                <div className="max-w-2xl space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <h2 className="text-2xl font-bold text-stone-900">My Profile</h2>
-                    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8">
-                        <div className="flex items-center gap-6 mb-8">
-                            <div className="h-24 w-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden relative group cursor-pointer">
-                                {profileForm.avatar_url ? <img src={profileForm.avatar_url} className="h-full w-full object-cover" /> : <User className="h-10 w-10 text-stone-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-stone-900">{profileForm.full_name || 'Your Name'}</h3>
-                                <p className="text-stone-500">{user?.email}</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                            <div>
-                                <label className="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
-                                <input 
-                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
-                                    value={profileForm.full_name}
-                                    onChange={e => setProfileForm({...profileForm, full_name: e.target.value})}
-                                    placeholder="Enter your full name"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-stone-700 mb-1">Phone Number</label>
-                                <input 
-                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
-                                    value={profileForm.phone}
-                                    onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
-                                    placeholder="e.g. 9800000000"
-                                />
-                            </div>
-                            
-                            {/* Smart Gotra Select */}
-                            <GotraSelect 
-                                value={profileForm.gotra_id}
-                                onChange={(val) => setProfileForm({...profileForm, gotra_id: val})}
-                            />
-
-                            <div>
-                                <label className="block text-sm font-medium text-stone-700 mb-1">City</label>
-                                <input 
-                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
-                                    value={profileForm.city}
-                                    onChange={e => setProfileForm({...profileForm, city: e.target.value})}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end">
-                            <Button onClick={handleSaveProfile} isLoading={updateLoading}>Save Changes</Button>
-                        </div>
                     </div>
                 </div>
             );
@@ -608,7 +454,7 @@ export const ClientDashboard: React.FC = () => {
             <SidebarItem icon={Menu} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
             <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => handleTabChange('wallet')} />
             <div className="my-4 h-px bg-stone-100 mx-2" />
-            <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} />
+            <SidebarItem icon={User} label="My Profile" active={false} onClick={() => navigate('/client/profile')} />
          </nav>
 
          <div className="p-6">

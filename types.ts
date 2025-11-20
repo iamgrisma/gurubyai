@@ -1,3 +1,4 @@
+// types.ts
 
 export interface UserProfile {
   id: string;
@@ -9,6 +10,7 @@ export interface UserProfile {
   avatar_url?: string;
   city?: string;
   languages?: string[];
+  credits: number; // Added: Wallet System
   created_at?: string;
 }
 
@@ -21,7 +23,7 @@ export interface Service {
   image_url: string;
   category?: string;
   is_featured?: boolean;
-  is_online_enabled?: boolean; // New field
+  is_online_enabled?: boolean;
 }
 
 export interface GurubaService {
@@ -90,6 +92,7 @@ export interface Booking {
   proposed_time?: string;
   confirmation_deadline?: string;
   platform_fee?: number;
+  meeting_link?: string; // Added: Video Call Link (WhatsApp/Meet)
   
   created_at: string;
 }
