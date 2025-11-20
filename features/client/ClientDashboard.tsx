@@ -9,8 +9,8 @@ import { ChatInterface } from '../messages/ChatInterface';
 import { Booking, Transaction, Notification, Gotra } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
-  LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera,
-  MessageSquare, CheckCircle, Receipt, Home, PlusCircle, Menu, X, HelpCircle
+  LayoutDashboard, CreditCard, User, LogOut, Search, Filter, Camera,
+  MessageSquare, CheckCircle, Receipt, Home, PlusCircle, Menu, X, HelpCircle, Phone
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
@@ -112,7 +112,7 @@ export const ClientDashboard: React.FC = () => {
   const { profile, user, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'messages' | 'wallet' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'messages' | 'wallet' | 'profile'>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -209,6 +209,10 @@ export const ClientDashboard: React.FC = () => {
       try {
           if (action === 'accept') {
               if (!proposedTime) return;
+              // Safely handle parsing of proposedTime if it's null/undefined
+              const date = new Date(proposedTime);
+              if (isNaN(date.getTime())) return; 
+
               await supabase.from('bookings').update({ 
                   status: 'confirmed',
                   scheduled_at: proposedTime
@@ -314,40 +318,74 @@ export const ClientDashboard: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Upcoming Bookings */}
-                    <div>
-                        <h3 className="text-xl font-bold text-stone-900 mb-4">Upcoming Schedule</h3>
-                        {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length > 0 ? (
-                            <div className="space-y-4">
-                                {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').slice(0,3).map(booking => (
-                                    <div key={booking.id} className="flex flex-col md:flex-row items-center bg-white p-4 rounded-2xl border border-stone-100 shadow-sm gap-6">
-                                        <div className="h-16 w-16 rounded-xl bg-stone-100 overflow-hidden flex-shrink-0">
-                                            <img src={booking.services?.image_url} className="h-full w-full object-cover" alt="" />
-                                        </div>
-                                        <div className="flex-1 text-center md:text-left">
-                                            <h4 className="font-bold text-stone-900">{booking.services?.title}</h4>
-                                            <p className="text-sm text-stone-500 flex items-center justify-center md:justify-start gap-2 mt-1">
-                                                <Calendar className="h-3 w-3" /> {new Date(booking.scheduled_at).toLocaleDateString()} 
-                                                <Clock className="h-3 w-3 ml-2" /> {new Date(booking.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-right hidden md:block">
-                                                <p className="text-xs text-stone-400 uppercase font-semibold">Guruba</p>
-                                                <p className="text-sm font-medium">{booking.gurubas?.profiles?.full_name}</p>
+                    {/* Dashboard Main Content: Schedule + Profile Card */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Upcoming Bookings Column */}
+                        <div className="lg:col-span-2">
+                            <h3 className="text-xl font-bold text-stone-900 mb-4">Upcoming Schedule</h3>
+                            {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length > 0 ? (
+                                <div className="space-y-4">
+                                    {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').slice(0,3).map(booking => (
+                                        <div key={booking.id} className="flex flex-col md:flex-row items-center bg-white p-4 rounded-2xl border border-stone-100 shadow-sm gap-6">
+                                            <div className="h-16 w-16 rounded-xl bg-stone-100 overflow-hidden flex-shrink-0">
+                                                <img src={booking.services?.image_url} className="h-full w-full object-cover" alt="" />
                                             </div>
-                                            <div className="h-10 w-10 rounded-full bg-stone-200 overflow-hidden">
-                                                <img src={booking.gurubas?.profiles?.avatar_url || 'https://via.placeholder.com/40'} className="h-full w-full object-cover" />
+                                            <div className="flex-1 text-center md:text-left">
+                                                <h4 className="font-bold text-stone-900">{booking.services?.title}</h4>
+                                                <p className="text-sm text-stone-500 flex items-center justify-center md:justify-start gap-2 mt-1">
+                                                    <Calendar className="h-3 w-3" /> {new Date(booking.scheduled_at).toLocaleDateString()} 
+                                                    <Clock className="h-3 w-3 ml-2" /> {new Date(booking.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right hidden md:block">
+                                                    <p className="text-xs text-stone-400 uppercase font-semibold">Guruba</p>
+                                                    <p className="text-sm font-medium">{booking.gurubas?.profiles?.full_name}</p>
+                                                </div>
+                                                <div className="h-10 w-10 rounded-full bg-stone-200 overflow-hidden">
+                                                    <img src={booking.gurubas?.profiles?.avatar_url || 'https://via.placeholder.com/40'} className="h-full w-full object-cover" />
+                                                </div>
                                             </div>
                                         </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-stone-50 rounded-2xl p-8 text-center border border-stone-100 border-dashed">
+                                    <p className="text-stone-500">No upcoming rituals. Time to book one?</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* My Profile Summary Card */}
+                        <div>
+                            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm h-full">
+                                <h3 className="font-bold text-lg text-stone-900 mb-4">My Profile</h3>
+                                <div className="text-center mb-6">
+                                    <div className="h-24 w-24 mx-auto bg-stone-100 rounded-full overflow-hidden mb-3 border-4 border-white shadow-md">
+                                        {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : <User className="h-12 w-12 text-stone-300 m-6" />}
                                     </div>
-                                ))}
+                                    <p className="font-bold text-stone-900 text-lg">{profileForm.full_name || 'Update Name'}</p>
+                                    <p className="text-sm text-stone-500">{user?.email}</p>
+                                </div>
+                                <div className="space-y-4 text-sm mb-8">
+                                    <div className="flex justify-between items-center p-2 bg-stone-50 rounded-lg">
+                                        <span className="text-stone-500 flex items-center gap-2"><Phone className="h-4 w-4"/> Phone</span>
+                                        <span className="font-medium text-stone-900">{profileForm.phone || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-2 bg-stone-50 rounded-lg">
+                                        <span className="text-stone-500 flex items-center gap-2"><User className="h-4 w-4"/> Gotra</span>
+                                        <span className="font-medium text-stone-900">{profileForm.gotra_id || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-2 bg-stone-50 rounded-lg">
+                                        <span className="text-stone-500 flex items-center gap-2"><User className="h-4 w-4"/> City</span>
+                                        <span className="font-medium text-stone-900">{profileForm.city || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                <Button variant="outline" className="w-full" onClick={() => setActiveTab('profile')}>
+                                    Edit Profile
+                                </Button>
                             </div>
-                        ) : (
-                            <div className="bg-stone-50 rounded-2xl p-8 text-center border border-stone-100 border-dashed">
-                                <p className="text-stone-500">No upcoming rituals. Time to book one?</p>
-                            </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             );
@@ -476,10 +514,10 @@ export const ClientDashboard: React.FC = () => {
                 </div>
             );
 
-        case 'settings':
+        case 'profile':
             return (
                 <div className="max-w-2xl space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <h2 className="text-2xl font-bold text-stone-900">Profile Settings</h2>
+                    <h2 className="text-2xl font-bold text-stone-900">My Profile</h2>
                     <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8">
                         <div className="flex items-center gap-6 mb-8">
                             <div className="h-24 w-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden relative group cursor-pointer">
@@ -501,14 +539,16 @@ export const ClientDashboard: React.FC = () => {
                                     className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
                                     value={profileForm.full_name}
                                     onChange={e => setProfileForm({...profileForm, full_name: e.target.value})}
+                                    placeholder="Enter your full name"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-stone-700 mb-1">Phone</label>
+                                <label className="block text-sm font-medium text-stone-700 mb-1">Phone Number</label>
                                 <input 
                                     className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
                                     value={profileForm.phone}
                                     onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                                    placeholder="e.g. 9800000000"
                                 />
                             </div>
                             
@@ -575,7 +615,7 @@ export const ClientDashboard: React.FC = () => {
             <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
             <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => handleTabChange('wallet')} />
             <div className="my-4 h-px bg-stone-100 mx-2" />
-            <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => handleTabChange('settings')} />
+            <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} />
          </nav>
 
          <div className="p-6">
