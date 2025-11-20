@@ -34,7 +34,14 @@ export const AdminDashboard: React.FC = () => {
   // Service Form State
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [serviceForm, setServiceForm] = useState({ title: '', description: '', base_price: 0, duration_minutes: 0, image_url: '' });
+  const [serviceForm, setServiceForm] = useState({ 
+    title: '', 
+    description: '', 
+    base_price: 0, 
+    duration_minutes: 0, 
+    image_url: '',
+    category: '' 
+  });
 
   useEffect(() => {
     fetchData();
@@ -78,9 +85,7 @@ export const AdminDashboard: React.FC = () => {
 
   const handleVerifyGuruba = async (gurubaId: string, status: boolean) => {
       try {
-          // gurubaId is actually user_id in this context because of how I fetched (gurubas:id is slightly wrong join for update, need to be careful)
-          // Correction: profiles.id === gurubas.user_id.
-          // So I need to update 'gurubas' table where user_id = profileId
+          // gurubaId is actually user_id in this context because of how I fetched
           const { error } = await supabase
             .from('gurubas')
             .update({ is_verified: status })
@@ -123,11 +128,12 @@ export const AdminDashboard: React.FC = () => {
               description: service.description, 
               base_price: service.base_price, 
               duration_minutes: service.duration_minutes,
-              image_url: service.image_url
+              image_url: service.image_url,
+              category: service.category || ''
           });
       } else {
           setEditingService(null);
-          setServiceForm({ title: '', description: '', base_price: 0, duration_minutes: 0, image_url: '' });
+          setServiceForm({ title: '', description: '', base_price: 0, duration_minutes: 0, image_url: '', category: '' });
       }
       setIsServiceModalOpen(true);
   };
@@ -232,6 +238,9 @@ export const AdminDashboard: React.FC = () => {
                               <div key={service.id} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden group">
                                   <div className="h-32 bg-stone-200 relative">
                                       <img src={service.image_url} className="h-full w-full object-cover" />
+                                      <div className="absolute top-2 left-2 bg-white/90 text-stone-800 text-xs px-2 py-1 rounded font-bold">
+                                          {service.category || 'General'}
+                                      </div>
                                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                           <button onClick={() => openServiceModal(service)} className="p-2 bg-white rounded-full hover:scale-110 transition-transform"><Edit className="h-4 w-4" /></button>
                                           <button onClick={() => handleDeleteService(service.id)} className="p-2 bg-white rounded-full text-red-600 hover:scale-110 transition-transform"><Trash className="h-4 w-4" /></button>
@@ -299,6 +308,12 @@ export const AdminDashboard: React.FC = () => {
                             value={serviceForm.title} 
                             onChange={e => setServiceForm({...serviceForm, title: e.target.value})} 
                             required 
+                        />
+                        <input 
+                            placeholder="Category (e.g. Pujas, Sanskaras, Astrology)" 
+                            className="w-full border p-2 rounded" 
+                            value={serviceForm.category} 
+                            onChange={e => setServiceForm({...serviceForm, category: e.target.value})} 
                         />
                         <textarea 
                             placeholder="Description" 

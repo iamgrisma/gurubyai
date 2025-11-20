@@ -17,6 +17,7 @@ export interface Service {
   duration_minutes: number;
   base_price: number;
   image_url: string;
+  category?: string;
 }
 
 export interface Review {

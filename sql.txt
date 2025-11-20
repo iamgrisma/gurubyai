@@ -45,8 +45,17 @@ create table if not exists public.services (
   duration_minutes integer,
   base_price integer,
   image_url text,
+  category text default 'General',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Update schema if table already exists
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_name = 'services' and column_name = 'category') then
+    alter table public.services add column category text default 'General';
+  end if;
+end $$;
 
 -- RLS for Services
 alter table public.services enable row level security;
@@ -280,11 +289,11 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- 10. SEED DATA
-insert into public.services (title, description, duration_minutes, base_price, image_url)
+insert into public.services (title, description, duration_minutes, base_price, image_url, category)
 values 
-  ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu.', 90, 51, 'https://picsum.photos/400/300?random=1'),
-  ('Griha Pravesh', 'House warming ceremony to purify the home.', 180, 101, 'https://picsum.photos/400/300?random=2'),
-  ('Vivah Sanskar', 'Complete Vedic wedding ceremony.', 240, 501, 'https://picsum.photos/400/300?random=3')
+  ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu.', 90, 51, 'https://picsum.photos/400/300?random=1', 'Pujas'),
+  ('Griha Pravesh', 'House warming ceremony to purify the home.', 180, 101, 'https://picsum.photos/400/300?random=2', 'Pujas'),
+  ('Vivah Sanskar', 'Complete Vedic wedding ceremony.', 240, 501, 'https://picsum.photos/400/300?random=3', 'Sanskaras')
 on conflict do nothing;
 
 NOTIFY pgrst, 'reload config';
