@@ -1,9 +1,7 @@
 name = "guruba-connect"
-main = "worker.js"
 compatibility_date = "2024-09-23"
+pages_build_output_dir = "./dist"
 
-# Cloudflare Workers Assets configuration
-# This binds the ./dist folder (your build output) to the ASSETS binding in the worker
-[assets]
-directory = "./dist"
-binding = "ASSETS"
+# Cloudflare Pages configuration for SPA routing
+[[rules]]
+type = "SPA"
