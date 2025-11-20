@@ -97,9 +97,7 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
         .order('scheduled_at', { ascending: true });
 
       if (role === 'guruba') {
-        // For Gurubas, we need to find the guruba record first or join differently.
-        // Assuming the userId passed here is the Auth ID. 
-        // We need to match the auth ID to the guruba record.
+        // For Gurubas, we need to find the guruba record first
         const { data: gurubaData } = await supabase.from('gurubas').select('id').eq('user_id', userId).single();
         if (gurubaData) {
             query = query.eq('guruba_id', gurubaData.id);
