@@ -27,7 +27,7 @@ using ( true );
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile" 
 on public.profiles for update 
-using ( auth.uid() = id );
+using ( (select auth.uid()) = id );
 
 drop policy if exists "Admins can update any profile" on public.profiles;
 create policy "Admins can update any profile" 
@@ -35,7 +35,7 @@ on public.profiles for update
 using ( 
   exists (
     select 1 from public.profiles 
-    where id = auth.uid() and role = 'admin'
+    where id = (select auth.uid()) and role = 'admin'
   )
 );
 
@@ -65,6 +65,10 @@ begin
   if not exists (select 1 from information_schema.columns where table_name = 'services' and column_name = 'is_online_enabled') then
     alter table public.services add column is_online_enabled boolean default false;
   end if;
+  -- Add unique constraint on title to prevent duplicate seeding
+  if not exists (select 1 from pg_constraint where conname = 'services_title_key') then
+    alter table public.services add constraint services_title_key unique (title);
+  end if;
 end $$;
 
 -- RLS for Services
@@ -81,7 +85,7 @@ on public.services for all
 using ( 
   exists (
     select 1 from public.profiles 
-    where id = auth.uid() and role = 'admin'
+    where id = (select auth.uid()) and role = 'admin'
   )
 );
 
@@ -121,12 +125,12 @@ using ( true );
 drop policy if exists "Gurubas can update own details" on public.gurubas;
 create policy "Gurubas can update own details" 
 on public.gurubas for update 
-using ( auth.uid() = user_id );
+using ( (select auth.uid()) = user_id );
 
 drop policy if exists "Gurubas can insert own profile" on public.gurubas;
 create policy "Gurubas can insert own profile" 
 on public.gurubas for insert 
-with check ( auth.uid() = user_id );
+with check ( (select auth.uid()) = user_id );
 
 drop policy if exists "Admins can update gurubas" on public.gurubas;
 create policy "Admins can update gurubas" 
@@ -134,7 +138,7 @@ on public.gurubas for update
 using ( 
   exists (
     select 1 from public.profiles 
-    where id = auth.uid() and role = 'admin'
+    where id = (select auth.uid()) and role = 'admin'
   )
 );
 
@@ -156,7 +160,7 @@ create policy "Guruba services public view" on public.guruba_services for select
 
 drop policy if exists "Gurubas manage own services" on public.guruba_services;
 create policy "Gurubas manage own services" on public.guruba_services for all using (
-  auth.uid() in (select user_id from public.gurubas where id = guruba_services.guruba_id)
+  (select auth.uid()) in (select user_id from public.gurubas where id = guruba_services.guruba_id)
 );
 
 
@@ -183,7 +187,7 @@ drop policy if exists "Gurubas manage own availability" on public.guruba_availab
 create policy "Gurubas manage own availability" 
 on public.guruba_availability for all 
 using ( 
-  auth.uid() in (
+  (select auth.uid()) in (
     select user_id from public.gurubas where id = guruba_availability.guruba_id
   )
 );
@@ -215,8 +219,6 @@ begin
     alter table public.bookings add column platform_fee integer default 100;
   end if;
   -- Update check constraint for status if possible (Postgres check constraints are immutable, usually need drop/add)
-  -- For simplicity in this context, we assume the check constraint allows new text or is removed/replaced manually if needed.
-  -- In a real migration, we would drop constraint and add new one.
   alter table public.bookings drop constraint if exists bookings_status_check;
   alter table public.bookings add constraint bookings_status_check check (status in ('pending', 'confirmed', 'completed', 'cancelled', 'awaiting_client_confirmation'));
 end $$;
@@ -227,13 +229,13 @@ alter table public.bookings enable row level security;
 drop policy if exists "Users can view own bookings" on public.bookings;
 create policy "Users can view own bookings" 
 on public.bookings for select 
-using ( auth.uid() = user_id );
+using ( (select auth.uid()) = user_id );
 
 drop policy if exists "Gurubas can view assigned bookings" on public.bookings;
 create policy "Gurubas can view assigned bookings" 
 on public.bookings for select 
 using ( 
-  auth.uid() in (
+  (select auth.uid()) in (
     select user_id from public.gurubas where id = bookings.guruba_id
   )
 );
@@ -241,13 +243,13 @@ using (
 drop policy if exists "Users can create bookings" on public.bookings;
 create policy "Users can create bookings" 
 on public.bookings for insert 
-with check ( auth.uid() = user_id );
+with check ( (select auth.uid()) = user_id );
 
 drop policy if exists "Gurubas can update assigned bookings" on public.bookings;
 create policy "Gurubas can update assigned bookings" 
 on public.bookings for update 
 using ( 
-  auth.uid() in (
+  (select auth.uid()) in (
     select user_id from public.gurubas where id = bookings.guruba_id
   )
 );
@@ -255,7 +257,7 @@ using (
 drop policy if exists "Users can update own bookings" on public.bookings;
 create policy "Users can update own bookings" 
 on public.bookings for update 
-using ( auth.uid() = user_id );
+using ( (select auth.uid()) = user_id );
 
 drop policy if exists "Admins can manage bookings" on public.bookings;
 create policy "Admins can manage bookings" 
@@ -263,7 +265,7 @@ on public.bookings for all
 using ( 
   exists (
     select 1 from public.profiles 
-    where id = auth.uid() and role = 'admin'
+    where id = (select auth.uid()) and role = 'admin'
   )
 );
 
@@ -290,7 +292,7 @@ using ( true );
 drop policy if exists "Users can create reviews for their bookings" on public.reviews;
 create policy "Users can create reviews for their bookings" 
 on public.reviews for insert 
-with check ( auth.uid() = user_id );
+with check ( (select auth.uid()) = user_id );
 
 -- 7. TRANSACTIONS TABLE (SaaS Feature)
 create table if not exists public.transactions (
@@ -307,12 +309,12 @@ alter table public.transactions enable row level security;
 
 drop policy if exists "Users view own transactions" on public.transactions;
 create policy "Users view own transactions" on public.transactions
-for select using (auth.uid() = user_id);
+for select using ((select auth.uid()) = user_id);
 
 drop policy if exists "Admins view all transactions" on public.transactions;
 create policy "Admins view all transactions" on public.transactions
 for select using (
-  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  exists (select 1 from public.profiles where id = (select auth.uid()) and role = 'admin')
 );
 
 -- 8. NOTIFICATIONS TABLE (SaaS Feature)
@@ -329,12 +331,12 @@ alter table public.notifications enable row level security;
 
 drop policy if exists "Users manage own notifications" on public.notifications;
 create policy "Users manage own notifications" on public.notifications
-for all using (auth.uid() = user_id);
+for all using ((select auth.uid()) = user_id);
 
 drop policy if exists "Admins manage notifications" on public.notifications;
 create policy "Admins manage notifications" on public.notifications
 for all using (
-  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  exists (select 1 from public.profiles where id = (select auth.uid()) and role = 'admin')
 );
 
 -- 9. MESSAGES TABLE (New SaaS Feature)
@@ -361,12 +363,17 @@ alter table public.messages enable row level security;
 drop policy if exists "Users can view their own messages" on public.messages;
 create policy "Users can view their own messages" 
 on public.messages for select 
-using ( auth.uid() = sender_id or auth.uid() = receiver_id );
+using ( (select auth.uid()) = sender_id or (select auth.uid()) = receiver_id );
 
 drop policy if exists "Users can send messages" on public.messages;
 create policy "Users can send messages" 
 on public.messages for insert 
-with check ( auth.uid() = sender_id );
+with check ( (select auth.uid()) = sender_id );
+
+drop policy if exists "Users can delete own messages" on public.messages;
+create policy "Users can delete own messages" 
+on public.messages for delete 
+using ( (select auth.uid()) = sender_id );
 
 drop policy if exists "System can send messages" on public.messages;
 create policy "System can send messages"
@@ -386,12 +393,12 @@ alter table public.gotras enable row level security;
 drop policy if exists "Gotras are viewable by authenticated users" on public.gotras;
 create policy "Gotras are viewable by authenticated users" 
 on public.gotras for select 
-using ( auth.role() = 'authenticated' );
+using ( (select auth.role()) = 'authenticated' );
 
 drop policy if exists "Authenticated users can request gotras" on public.gotras;
 create policy "Authenticated users can request gotras" 
 on public.gotras for insert 
-with check ( auth.role() = 'authenticated' );
+with check ( (select auth.role()) = 'authenticated' );
 
 drop policy if exists "Admins can manage gotras" on public.gotras;
 create policy "Admins can manage gotras" 
@@ -399,7 +406,7 @@ on public.gotras for all
 using ( 
   exists (
     select 1 from public.profiles 
-    where id = auth.uid() and role = 'admin'
+    where id = (select auth.uid()) and role = 'admin'
   )
 );
 
@@ -559,7 +566,23 @@ create trigger on_guruba_service_change
   for each row execute procedure public.sync_specialties();
 
 
--- 12. SEED DATA (Nepal Context)
+-- 12. INDEXES FOR PERFORMANCE
+-- Add indexes to Foreign Keys and frequently searched columns
+create index if not exists idx_services_category on public.services(category);
+create index if not exists idx_guruba_services_guruba_id on public.guruba_services(guruba_id);
+create index if not exists idx_guruba_services_service_id on public.guruba_services(service_id);
+create index if not exists idx_guruba_availability_guruba_id on public.guruba_availability(guruba_id);
+create index if not exists idx_bookings_user_id on public.bookings(user_id);
+create index if not exists idx_bookings_guruba_id on public.bookings(guruba_id);
+create index if not exists idx_bookings_service_id on public.bookings(service_id);
+create index if not exists idx_bookings_status on public.bookings(status);
+create index if not exists idx_reviews_guruba_id on public.reviews(guruba_id);
+create index if not exists idx_transactions_user_id on public.transactions(user_id);
+create index if not exists idx_notifications_user_id on public.notifications(user_id);
+create index if not exists idx_messages_sender_id on public.messages(sender_id);
+create index if not exists idx_messages_receiver_id on public.messages(receiver_id);
+
+-- 13. SEED DATA (Nepal Context)
 -- Prices in NPR (approx)
 insert into public.services (title, description, duration_minutes, base_price, image_url, category, is_featured, is_online_enabled)
 values 
@@ -569,7 +592,7 @@ values
   ('Kundali Milan', 'Horoscope matching for marriage compatibility (Gunn Milan).', 60, 1000, 'https://images.unsplash.com/photo-1531844251246-9f24706c4202?q=80&w=800&auto=format&fit=crop', 'Astrology', false, true),
   ('Bratabandha (Upanayana)', 'The sacred thread ceremony marking the entry into formal education and manhood.', 300, 15000, 'https://images.unsplash.com/photo-1605218427368-d24860082617?q=80&w=800&auto=format&fit=crop', 'Sanskaras', true, false),
   ('Rudri Puja', 'Worship of Lord Shiva with Rudra chanting, highly revered in Nepal.', 120, 3500, 'https://images.unsplash.com/photo-1564850058391-881b1d89a608?q=80&w=800&auto=format&fit=crop', 'Pujas', false, true)
-on conflict do nothing;
+on conflict (title) do nothing;
 
 -- Seed Gotras
 insert into public.gotras (name, status) values 

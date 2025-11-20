@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
 import { Message } from '../../types';
-import { Send, User, MoreVertical, CheckCheck, MessageSquare, Clock, EyeOff } from 'lucide-react';
+import { Send, User, MoreVertical, CheckCheck, MessageSquare, Clock, EyeOff, Trash2 } from 'lucide-react';
 
 interface ChatInterfaceProps {
   defaultReceiverId?: string;
@@ -16,7 +16,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [retentionHours, setRetentionHours] = useState<number | undefined>(undefined); // Vanish Mode
+  const [retentionHours, setRetentionHours] = useState<number | undefined>(120); // Vanish Mode (5 days default)
   const [showRetentionMenu, setShowRetentionMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -98,6 +98,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       
       setMessages(data || []);
 
+      // Sync retention settings from last message to simulate shared config
+      if (data && data.length > 0) {
+         const lastMsg = data[data.length - 1];
+         // If the last message had a specific retention, adopt it. Otherwise default to 5 days (120h).
+         setRetentionHours(lastMsg.retention_hours ?? 120);
+      }
+
       // Mark messages as read
       if (data && data.length > 0) {
         const unreadIds = data
@@ -145,6 +152,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       }
   };
 
+  const deleteMessage = async (messageId: string) => {
+      // Optimistic UI update
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      
+      const { error } = await supabase.from('messages').delete().eq('id', messageId);
+      
+      if (error) {
+          console.error("Delete failed", error);
+          if (activeConversation) fetchMessages(activeConversation); // Revert on fail
+      }
+  };
+
   const getActiveUser = () => conversations.find(c => c.id === activeConversation);
 
   const isMessageExpired = (msg: Message) => {
@@ -162,7 +181,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   return (
     <div className="flex h-[600px] bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
         {/* Sidebar List */}
-        <div className="w-80 border-r border-stone-100 flex flex-col bg-stone-50">
+        <div className="w-80 border-r border-stone-100 flex flex-col bg-stone-50 hidden md:flex">
             <div className="p-4 border-b border-stone-100 bg-white">
                 <h3 className="font-bold text-stone-900">Messages</h3>
             </div>
@@ -217,10 +236,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                         <div className="relative">
                             <button 
                                 onClick={() => setShowRetentionMenu(!showRetentionMenu)}
-                                className={`p-2 rounded-full transition-colors ${retentionHours ? 'bg-red-50 text-red-600' : 'hover:bg-stone-100 text-stone-400'}`}
+                                className={`p-2 rounded-full transition-colors flex items-center gap-2 ${retentionHours ? 'bg-red-50 text-red-600' : 'hover:bg-stone-100 text-stone-400'}`}
                                 title="Vanish Mode / Message Retention"
                             >
                                 {retentionHours ? <EyeOff className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                                <span className="text-xs font-bold hidden sm:block">
+                                    {retentionHours === 120 ? '5 Days' : retentionHours ? `${retentionHours}h` : 'Off'}
+                                </span>
                             </button>
                             {showRetentionMenu && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-20">
@@ -250,11 +272,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                         {filteredMessages.map((msg, idx) => {
                             const isMe = msg.sender_id === user?.id;
                             return (
-                                <div key={msg.id || idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm ${
+                                <div key={msg.id || idx} className={`flex group ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm relative ${
                                         isMe ? 'bg-saffron-600 text-white rounded-tr-none' : 'bg-white text-stone-800 border border-stone-100 rounded-tl-none'
                                     }`}>
-                                        <p className="text-sm leading-relaxed">{msg.content}</p>
+                                        <p className="text-sm leading-relaxed pr-4">{msg.content}</p>
                                         <div className={`text-[10px] mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-saffron-200' : 'text-stone-400'}`}>
                                             {msg.retention_hours && <EyeOff className="h-3 w-3 mr-1" />}
                                             {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -262,6 +284,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                                 <CheckCheck className={`h-3 w-3 ${msg.is_read ? 'text-blue-300' : 'opacity-70'}`} />
                                             )}
                                         </div>
+                                        
+                                        {/* Delete Button (Only for my messages) */}
+                                        {isMe && !msg.id.startsWith('temp') && (
+                                            <button 
+                                                onClick={() => deleteMessage(msg.id)}
+                                                className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                title="Delete Message"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             );
