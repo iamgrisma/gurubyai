@@ -5,7 +5,9 @@ import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { BookingModal } from './BookingModal';
-import { Star, MapPin, Award, User, ArrowLeft } from 'lucide-react';
+import { Star, MapPin, Award, User, ArrowLeft, Calendar, Filter, Info } from 'lucide-react';
+
+const DAYS_MAP = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export const GurubaSelection: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -15,6 +17,11 @@ export const GurubaSelection: React.FC = () => {
   const [gurubas, setGurubas] = useState<Guruba[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGuruba, setSelectedGuruba] = useState<Guruba | null>(null);
+  
+  // Availability Filtering
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [availableGurubaIds, setAvailableGurubaIds] = useState<Set<string>>(new Set());
+  const [filteringByDate, setFilteringByDate] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,7 +53,7 @@ export const GurubaSelection: React.FC = () => {
 
         if (gurubaError) throw gurubaError;
 
-        // 3. Fetch Review Stats manually since we can't do complex aggregation SQL easily in this env
+        // 3. Fetch Review Stats manually
         const { data: reviewData } = await supabase
             .from('reviews')
             .select('guruba_id, rating');
@@ -67,10 +74,21 @@ export const GurubaSelection: React.FC = () => {
             });
 
             // Filter: Does the Guruba specialize in this service?
-            const relevantGurubas = gurubasWithRatings.filter((g: any) => 
-                g.specialties && Array.isArray(g.specialties) && g.specialties.includes(dbService.title)
-            );
-            setGurubas(relevantGurubas);
+            // Relaxed matching: Checks against service Title OR Category
+            const relevantGurubas = gurubasWithRatings.filter((g: any) => {
+                if (!g.specialties || !Array.isArray(g.specialties)) return true; // Show all if no specialties listed (generalists)
+                if (g.specialties.length === 0) return true;
+
+                const serviceTerms = [dbService.title, dbService.category].filter(Boolean).map(t => t!.toLowerCase());
+                return g.specialties.some((s: string) => {
+                    const sLower = s.toLowerCase();
+                    return serviceTerms.some(term => sLower.includes(term) || term.includes(sLower));
+                });
+            });
+            
+            // Fallback if no one matches specifics, show all but maybe warn? For now, just showing matched or all if filtering is too strict.
+            // If strict filter returned 0, let's show all gurubas to prevent empty screen, but maybe sorted.
+            setGurubas(relevantGurubas.length > 0 ? relevantGurubas : gurubasWithRatings);
         }
       } catch (e) {
           console.error("Error fetching booking data:", e);
@@ -82,7 +100,40 @@ export const GurubaSelection: React.FC = () => {
     fetchData();
   }, [serviceId]);
 
-  if (loading) return <div className="flex h-screen items-center justify-center">Loading Gurubas...</div>;
+  // Handle Date Filtering
+  useEffect(() => {
+      if (!selectedDate) {
+          setAvailableGurubaIds(new Set());
+          setFilteringByDate(false);
+          return;
+      }
+
+      const checkAvailability = async () => {
+          setFilteringByDate(true);
+          const dayOfWeek = new Date(selectedDate).getDay();
+          
+          const { data, error } = await supabase
+            .from('guruba_availability')
+            .select('guruba_id')
+            .eq('day_of_week', dayOfWeek);
+          
+          if (data) {
+              const availableIds = new Set(data.map(d => d.guruba_id));
+              setAvailableGurubaIds(availableIds);
+          }
+      };
+      
+      checkAvailability();
+  }, [selectedDate]);
+
+  const getFilteredGurubas = () => {
+      if (!selectedDate) return gurubas;
+      return gurubas.filter(g => availableGurubaIds.has(g.id));
+  };
+
+  const displayedGurubas = getFilteredGurubas();
+
+  if (loading) return <div className="flex h-screen items-center justify-center text-saffron-600">Loading Gurubas...</div>;
   if (!service) return <div className="p-8 text-center">Service not found.</div>;
 
   return (
@@ -98,13 +149,47 @@ export const GurubaSelection: React.FC = () => {
           </p>
         </div>
 
-        {gurubas.length === 0 ? (
-          <div className="rounded-lg bg-yellow-50 p-4 text-yellow-800 border border-yellow-200">
-            No Gurubas currently listed for this specific service.
+        {/* Availability Filter Bar */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 mb-8 flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center gap-2 text-stone-700 font-medium">
+                <Filter className="h-5 w-5 text-saffron-600" />
+                <span>Check Availability:</span>
+            </div>
+            <div className="relative flex-1 w-full">
+                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
+                <input 
+                    type="date" 
+                    className="w-full pl-10 pr-4 py-2 border border-stone-300 rounded-lg focus:ring-saffron-500 focus:border-saffron-500 text-sm"
+                    min={new Date().toISOString().split('T')[0]}
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                />
+            </div>
+            {selectedDate && (
+                <button 
+                    onClick={() => setSelectedDate('')}
+                    className="text-sm text-stone-500 hover:text-stone-800 underline"
+                >
+                    Clear Date
+                </button>
+            )}
+        </div>
+
+        {displayedGurubas.length === 0 ? (
+          <div className="rounded-lg bg-stone-100 p-8 text-center border border-stone-200">
+            <div className="mx-auto h-12 w-12 bg-stone-200 rounded-full flex items-center justify-center mb-3">
+                <Info className="h-6 w-6 text-stone-400" />
+            </div>
+            <h3 className="text-lg font-medium text-stone-900">No Gurubas Available</h3>
+            <p className="text-stone-500 mt-1">
+                {selectedDate 
+                    ? `We couldn't find any Gurubas available on ${new Date(selectedDate).toLocaleDateString()}. Try a different date.`
+                    : "No Gurubas currently match this service specialization."}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {gurubas.map((guruba) => (
+            {displayedGurubas.map((guruba) => (
               <div 
                 key={guruba.id} 
                 className="flex flex-col md:flex-row rounded-xl bg-white p-6 shadow-sm border border-stone-200 transition-all hover:shadow-md items-start md:items-center gap-6"
@@ -125,6 +210,9 @@ export const GurubaSelection: React.FC = () => {
                       <span className="font-bold">{guruba.rating}</span>
                       <span className="text-stone-400 ml-1 font-normal">({guruba.review_count || 0})</span>
                     </div>
+                    {guruba.is_verified && (
+                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium border border-green-200">Verified</span>
+                    )}
                   </div>
                   
                   <div className="mt-1 flex flex-wrap gap-4 text-sm text-stone-500">
@@ -137,7 +225,7 @@ export const GurubaSelection: React.FC = () => {
                   </div>
                   
                   <div className="mt-3 flex flex-wrap gap-2">
-                     {guruba.specialties.map(s => (
+                     {guruba.specialties?.slice(0, 4).map(s => (
                        <span key={s} className="px-2 py-1 bg-stone-100 text-stone-600 text-xs rounded-md">
                          {s}
                        </span>
@@ -147,9 +235,16 @@ export const GurubaSelection: React.FC = () => {
                   <p className="mt-3 text-sm text-stone-600 line-clamp-2">{guruba.bio}</p>
                 </div>
 
-                <Button onClick={() => setSelectedGuruba(guruba)}>
-                  Select & Book
-                </Button>
+                <div className="flex flex-col gap-2 w-full md:w-auto">
+                    <Button onClick={() => setSelectedGuruba(guruba)} className="w-full whitespace-nowrap">
+                      Select & Book
+                    </Button>
+                    {selectedDate && (
+                        <p className="text-xs text-green-600 text-center bg-green-50 rounded py-1">
+                            Available {new Date(selectedDate).toLocaleDateString()}
+                        </p>
+                    )}
+                </div>
               </div>
             ))}
           </div>
@@ -159,6 +254,7 @@ export const GurubaSelection: React.FC = () => {
           <BookingModal
             service={service}
             guruba={selectedGuruba}
+            initialDate={selectedDate}
             onClose={() => setSelectedGuruba(null)}
           />
         )}

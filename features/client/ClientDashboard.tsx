@@ -7,8 +7,8 @@ import { Button } from '../../components/ui/Button';
 import { ReviewModal } from './ReviewModal';
 import { Booking, Transaction, Notification } from '../../types';
 import { 
-  Calendar, Clock, MapPin, AlertCircle, RefreshCw, Save, X, Camera, User, 
-  LayoutDashboard, CreditCard, Settings, Bell, LogOut, ChevronRight, Search, Filter
+  Calendar, Clock, AlertCircle, RefreshCw,
+  LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera
 } from 'lucide-react';
 
 // Sidebar Navigation Component
@@ -102,7 +102,6 @@ export const ClientDashboard: React.FC = () => {
       setBookings(bookingsWithReviewStatus || []);
 
       // 2. Fetch Transactions (Mock if not exists)
-      // Since we added the table, we try to fetch. If empty, we show empty state or mock for demo.
       const { data: transData } = await supabase
         .from('transactions')
         .select('*')
@@ -239,7 +238,7 @@ export const ClientDashboard: React.FC = () => {
                                              </p>
                                          </div>
                                          <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm min-w-[200px]">
-                                             <p className="text-xs opacity-75 mb-1">Performerd by</p>
+                                             <p className="text-xs opacity-75 mb-1">Performed by</p>
                                              <div className="flex items-center gap-3">
                                                 <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
                                                     {next.gurubas?.profiles?.avatar_url ? (
@@ -264,42 +263,80 @@ export const ClientDashboard: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Recent Activity Table */}
-                    <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                        <div className="p-4 border-b border-stone-100 flex justify-between items-center">
-                            <h3 className="font-bold text-stone-900">Recent Bookings</h3>
-                            <Button variant="ghost" size="sm" onClick={() => setActiveTab('bookings')}>View All</Button>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-stone-500 uppercase bg-stone-50">
-                                    <tr>
-                                        <th className="px-4 py-3">Service</th>
-                                        <th className="px-4 py-3">Date</th>
-                                        <th className="px-4 py-3">Guruba</th>
-                                        <th className="px-4 py-3">Status</th>
-                                        <th className="px-4 py-3 text-right">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {bookings.slice(0, 5).map(b => (
-                                        <tr key={b.id} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
-                                            <td className="px-4 py-3 font-medium text-stone-900">{b.services?.title}</td>
-                                            <td className="px-4 py-3 text-stone-500">{new Date(b.scheduled_at).toLocaleDateString()}</td>
-                                            <td className="px-4 py-3 text-stone-600">{b.gurubas?.profiles?.full_name}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(b.status)}`}>
-                                                    {b.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-medium">${b.services?.base_price}</td>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                         {/* Recent Activity Table */}
+                        <div className="md:col-span-2 bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                            <div className="p-4 border-b border-stone-100 flex justify-between items-center">
+                                <h3 className="font-bold text-stone-900">Recent Bookings</h3>
+                                <Button variant="ghost" size="sm" onClick={() => setActiveTab('bookings')}>View All</Button>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-stone-500 uppercase bg-stone-50">
+                                        <tr>
+                                            <th className="px-4 py-3">Service</th>
+                                            <th className="px-4 py-3">Date</th>
+                                            <th className="px-4 py-3">Guruba</th>
+                                            <th className="px-4 py-3">Status</th>
+                                            <th className="px-4 py-3 text-right">Amount</th>
                                         </tr>
-                                    ))}
-                                    {bookings.length === 0 && (
-                                        <tr><td colSpan={5} className="text-center py-8 text-stone-500">No history found</td></tr>
+                                    </thead>
+                                    <tbody>
+                                        {bookings.slice(0, 5).map(b => (
+                                            <tr key={b.id} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
+                                                <td className="px-4 py-3 font-medium text-stone-900">{b.services?.title}</td>
+                                                <td className="px-4 py-3 text-stone-500">{new Date(b.scheduled_at).toLocaleDateString()}</td>
+                                                <td className="px-4 py-3 text-stone-600">{b.gurubas?.profiles?.full_name}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(b.status)}`}>
+                                                        {b.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium">${b.services?.base_price}</td>
+                                            </tr>
+                                        ))}
+                                        {bookings.length === 0 && (
+                                            <tr><td colSpan={5} className="text-center py-8 text-stone-500">No history found</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Quick Profile Card */}
+                        <div className="rounded-lg bg-white p-6 shadow border border-stone-200">
+                            <h3 className="font-semibold text-stone-900 mb-4">My Profile</h3>
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="h-12 w-12 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-600 font-bold overflow-hidden">
+                                    {profile?.avatar_url ? (
+                                        <img src={profile.avatar_url} className="h-full w-full object-cover" />
+                                    ) : (
+                                        displayName[0]
                                     )}
-                                </tbody>
-                            </table>
+                                </div>
+                                <div>
+                                    <p className="font-bold">{displayName}</p>
+                                    <p className="text-xs text-stone-500">{user?.email}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-2 text-sm mb-4">
+                                <div className="flex justify-between">
+                                    <span className="text-stone-500">Gotra:</span>
+                                    <span className="font-medium">{profile?.gotra_id || 'Not Set'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-stone-500">Phone:</span>
+                                    <span className="font-medium">{profile?.phone || 'Not Set'}</span>
+                                </div>
+                            </div>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="w-full"
+                                onClick={() => setActiveTab('settings')}
+                            >
+                                Edit Profile
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -324,7 +361,6 @@ export const ClientDashboard: React.FC = () => {
                             <div key={booking.id} className="bg-white rounded-xl border border-stone-200 shadow-sm p-6 flex flex-col md:flex-row gap-6">
                                 <div className="flex-shrink-0">
                                     <div className="h-24 w-24 bg-stone-100 rounded-lg overflow-hidden">
-                                        {/* Placeholder image logic */}
                                         <div className="h-full w-full flex items-center justify-center bg-saffron-50 text-saffron-600 font-bold text-2xl">
                                             {booking.services?.title[0]}
                                         </div>
@@ -503,6 +539,7 @@ export const ClientDashboard: React.FC = () => {
                                         value={profileForm.full_name}
                                         onChange={(e) => setProfileForm({...profileForm, full_name: e.target.value})}
                                         className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" 
+                                        placeholder="Your Full Name"
                                     />
                                 </div>
                                 <div>
@@ -512,6 +549,7 @@ export const ClientDashboard: React.FC = () => {
                                         value={profileForm.phone}
                                         onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
                                         className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" 
+                                        placeholder="Your Phone"
                                     />
                                 </div>
                             </div>
@@ -525,8 +563,11 @@ export const ClientDashboard: React.FC = () => {
                                     placeholder="e.g. Kashyap"
                                 />
                             </div>
-                            <div className="pt-2">
-                                <Button onClick={handleSaveProfile} isLoading={updateLoading}>Save Changes</Button>
+                            <div className="pt-2 flex justify-end">
+                                <Button onClick={handleSaveProfile} isLoading={updateLoading}>
+                                    <RefreshCw className={`h-4 w-4 mr-2 ${updateLoading ? 'animate-spin' : ''}`} />
+                                    Save Changes
+                                </Button>
                             </div>
                         </div>
                     </div>

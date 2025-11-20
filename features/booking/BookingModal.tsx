@@ -10,14 +10,15 @@ import { Calendar, Clock, AlertTriangle, CheckCircle, X, MapPin, Info } from 'lu
 interface BookingModalProps {
   service: Service;
   guruba: Guruba;
+  initialDate?: string;
   onClose: () => void;
 }
 
-export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, onClose }) => {
+export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, initialDate, onClose }) => {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
   
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(initialDate || '');
   const [selectedTime, setSelectedTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
