@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
-import { Availability, Booking, Guruba } from '../../types';
+import { Availability, Booking, Guruba, Service } from '../../types';
 import { ChatInterface } from '../messages/ChatInterface';
 import { 
     Calendar, Clock, DollarSign, MapPin, Star, Zap, RefreshCw, AlertCircle, Save, Check, 
-    LayoutDashboard, ListChecks, User, LogOut, XCircle, CheckCircle, Settings, MessageSquare, BarChart3
+    LayoutDashboard, ListChecks, User, LogOut, XCircle, CheckCircle, Settings, MessageSquare, BarChart3,
+    Briefcase, Users, BookOpen, Plus, Trash2
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -29,11 +30,12 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
 
 export const GurubaDashboard: React.FC = () => {
   const { profile, user, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>('overview');
   
   const [guruba, setGuruba] = useState<Guruba | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
+  const [allServices, setAllServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -43,7 +45,7 @@ export const GurubaDashboard: React.FC = () => {
 
   // Profile Edit
   const [bio, setBio] = useState('');
-  const [specialties, setSpecialties] = useState<string>('');
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export const GurubaDashboard: React.FC = () => {
     setError(null);
     
     try {
+        // 1. Fetch Guruba Profile
         let { data: gurubaRows, error: gurubaError } = await supabase
             .from('gurubas')
             .select('*')
@@ -64,7 +67,7 @@ export const GurubaDashboard: React.FC = () => {
             
         let gurubaData = gurubaRows?.[0];
 
-        // Auto-provision
+        // Auto-provision if missing
         if ((!gurubaRows || gurubaRows.length === 0) && !gurubaError) {
              const { data: newGuruba, error: createError } = await supabase.from('gurubas').insert([{ user_id: user?.id }]).select().single();
              if (createError && createError.code !== '23505') throw createError;
@@ -84,9 +87,9 @@ export const GurubaDashboard: React.FC = () => {
         
         setGuruba(gurubaData);
         setBio(gurubaData.bio || '');
-        setSpecialties(gurubaData.specialties?.join(', ') || '');
+        setSpecialties(gurubaData.specialties || []);
 
-        // Get Bookings
+        // 2. Get Bookings
         const { data: bookingData } = await supabase
             .from('bookings')
             .select(`*, services:service_id (title, base_price, duration_minutes), profiles:user_id (full_name, phone, email, avatar_url)`)
@@ -95,9 +98,8 @@ export const GurubaDashboard: React.FC = () => {
         
         setBookings(bookingData || []);
 
-        // Get Availability
+        // 3. Get Availability
         const { data: availData } = await supabase.from('guruba_availability').select('*').eq('guruba_id', gurubaData.id);
-        
         setAvailability(availData || []);
         
         const initialSchedule: any = {};
@@ -108,6 +110,10 @@ export const GurubaDashboard: React.FC = () => {
                 : { start: '09:00', end: '17:00', enabled: false };
         });
         setSchedule(initialSchedule);
+
+        // 4. Get All Services (for Service Management)
+        const { data: servicesData } = await supabase.from('services').select('*').order('title');
+        setAllServices(servicesData || []);
 
     } catch (e: any) {
         console.error(e);
@@ -142,17 +148,56 @@ export const GurubaDashboard: React.FC = () => {
       } catch (e) { alert("Failed"); } finally { setSavingSchedule(false); }
   };
 
+  const toggleSpecialty = async (title: string) => {
+      if (!guruba) return;
+      const newSpecialties = specialties.includes(title)
+          ? specialties.filter(s => s !== title)
+          : [...specialties, title];
+      
+      setSpecialties(newSpecialties);
+      
+      // Auto save
+      try {
+          await supabase.from('gurubas').update({ specialties: newSpecialties }).eq('id', guruba.id);
+      } catch (e) { console.error("Failed to save specialty"); }
+  };
+
   const saveProfile = async () => {
       if (!guruba) return;
       setSavingProfile(true);
       try {
-          await supabase.from('gurubas').update({ bio, specialties: specialties.split(',').map(s => s.trim()).filter(s => s) }).eq('id', guruba.id);
+          await supabase.from('gurubas').update({ bio }).eq('id', guruba.id);
           alert("Profile updated!");
       } catch (e) { alert("Failed"); } finally { setSavingProfile(false); }
   };
 
+  // Derived Data
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const earnings = bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.services?.base_price || 0), 0);
+
+  // CRM Helper
+  const getUniqueClients = () => {
+      const clients: {[key: string]: any} = {};
+      bookings.forEach(b => {
+          if (!b.profiles) return;
+          if (!clients[b.profiles.id]) {
+              clients[b.profiles.id] = {
+                  ...b.profiles,
+                  total_spend: 0,
+                  booking_count: 0,
+                  last_booking: b.scheduled_at
+              };
+          }
+          clients[b.profiles.id].booking_count++;
+          if (b.status === 'completed') {
+             clients[b.profiles.id].total_spend += (b.services?.base_price || 0);
+          }
+          if (new Date(b.scheduled_at) > new Date(clients[b.profiles.id].last_booking)) {
+              clients[b.profiles.id].last_booking = b.scheduled_at;
+          }
+      });
+      return Object.values(clients);
+  };
 
   const renderContent = () => {
       switch(activeTab) {
@@ -172,7 +217,6 @@ export const GurubaDashboard: React.FC = () => {
                           </div>
                       )}
 
-                      {/* Stats Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                           <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
                               <h3 className="text-stone-500 text-sm font-medium mb-2">Total Earnings</h3>
@@ -200,7 +244,6 @@ export const GurubaDashboard: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                          {/* Upcoming Rituals */}
                           <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
                               <div className="flex justify-between items-center mb-6">
                                   <h3 className="font-bold text-lg text-stone-900">Upcoming Confirmed Rituals</h3>
@@ -235,7 +278,6 @@ export const GurubaDashboard: React.FC = () => {
                               </div>
                           </div>
 
-                          {/* Quick Earnings Chart Mock */}
                           <div className="bg-stone-900 rounded-2xl p-6 text-white shadow-xl flex flex-col justify-between">
                              <div>
                                 <h3 className="font-bold text-lg mb-2">Weekly Performance</h3>
@@ -372,6 +414,121 @@ export const GurubaDashboard: React.FC = () => {
                   </div>
               );
             
+          case 'services':
+              return (
+                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                      <h2 className="text-2xl font-bold text-stone-900 mb-2">My Services</h2>
+                      <p className="text-stone-600 mb-6">Select the rituals you are qualified to perform. These will appear on your public profile.</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {allServices.map(service => {
+                              const isActive = specialties.includes(service.title);
+                              return (
+                                  <div 
+                                    key={service.id} 
+                                    onClick={() => toggleSpecialty(service.title)}
+                                    className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                                        isActive 
+                                        ? 'border-saffron-500 bg-saffron-50 shadow-md' 
+                                        : 'border-stone-200 bg-white hover:border-stone-300'
+                                    }`}
+                                  >
+                                      <div className="flex justify-between items-start mb-3">
+                                          <h3 className={`font-bold text-lg ${isActive ? 'text-saffron-900' : 'text-stone-900'}`}>{service.title}</h3>
+                                          {isActive ? (
+                                              <div className="h-6 w-6 bg-saffron-500 rounded-full flex items-center justify-center text-white">
+                                                  <Check className="h-4 w-4" />
+                                              </div>
+                                          ) : (
+                                              <div className="h-6 w-6 border-2 border-stone-300 rounded-full"></div>
+                                          )}
+                                      </div>
+                                      <p className="text-sm text-stone-500 line-clamp-2 mb-3">{service.description}</p>
+                                      <div className="flex items-center gap-3 text-xs font-medium text-stone-400">
+                                          <span>${service.base_price}</span>
+                                          <span>•</span>
+                                          <span>{service.duration_minutes} mins</span>
+                                      </div>
+                                  </div>
+                              );
+                          })}
+                      </div>
+                  </div>
+              );
+
+          case 'clients':
+              return (
+                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                       <h2 className="text-2xl font-bold text-stone-900">My Clients</h2>
+                       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                           <table className="w-full text-left text-sm">
+                               <thead className="bg-stone-50 text-stone-500 uppercase font-bold text-xs border-b border-stone-100">
+                                   <tr>
+                                       <th className="px-6 py-4">Client Name</th>
+                                       <th className="px-6 py-4">Contact</th>
+                                       <th className="px-6 py-4 text-center">Bookings</th>
+                                       <th className="px-6 py-4 text-right">Total Spend</th>
+                                       <th className="px-6 py-4 text-right">Last Seen</th>
+                                   </tr>
+                               </thead>
+                               <tbody className="divide-y divide-stone-100">
+                                   {getUniqueClients().map((client: any) => (
+                                       <tr key={client.id} className="hover:bg-stone-50 transition-colors">
+                                           <td className="px-6 py-4">
+                                               <div className="flex items-center gap-3">
+                                                   <div className="h-8 w-8 rounded-full bg-stone-200 overflow-hidden">
+                                                       <img src={client.avatar_url || 'https://via.placeholder.com/40'} className="h-full w-full object-cover" />
+                                                   </div>
+                                                   <span className="font-bold text-stone-900">{client.full_name}</span>
+                                               </div>
+                                           </td>
+                                           <td className="px-6 py-4 text-stone-500">
+                                               <div className="flex flex-col">
+                                                   <span>{client.phone || 'N/A'}</span>
+                                                   <span className="text-xs opacity-70">{client.email}</span>
+                                               </div>
+                                           </td>
+                                           <td className="px-6 py-4 text-center font-medium">{client.booking_count}</td>
+                                           <td className="px-6 py-4 text-right font-bold text-green-600">${client.total_spend}</td>
+                                           <td className="px-6 py-4 text-right text-stone-500">{new Date(client.last_booking).toLocaleDateString()}</td>
+                                       </tr>
+                                   ))}
+                                   {getUniqueClients().length === 0 && (
+                                       <tr><td colSpan={5} className="px-6 py-8 text-center text-stone-400">No clients yet.</td></tr>
+                                   )}
+                               </tbody>
+                           </table>
+                       </div>
+                  </div>
+              );
+
+          case 'resources':
+              return (
+                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                      <h2 className="text-2xl font-bold text-stone-900">Vedic Resources</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {[
+                              { title: "Satyanarayan Katha (Sanskrit)", type: "PDF", size: "2.4 MB" },
+                              { title: "Vivah Paddhati Guide", type: "PDF", size: "5.1 MB" },
+                              { title: "Griha Pravesh Samagri Checklist", type: "List", size: "150 KB" },
+                              { title: "Vedic Mantras Audio Collection", type: "MP3", size: "45 MB" },
+                              { title: "Panchang 2025", type: "PDF", size: "3.2 MB" },
+                          ].map((res, i) => (
+                              <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all group cursor-pointer">
+                                  <div className="flex justify-between items-start mb-4">
+                                      <div className="h-10 w-10 bg-saffron-50 rounded-lg flex items-center justify-center text-saffron-600 group-hover:bg-saffron-500 group-hover:text-white transition-colors">
+                                          <BookOpen className="h-5 w-5" />
+                                      </div>
+                                      <span className="text-xs font-bold bg-stone-100 text-stone-500 px-2 py-1 rounded">{res.type}</span>
+                                  </div>
+                                  <h3 className="font-bold text-stone-900 mb-1">{res.title}</h3>
+                                  <p className="text-xs text-stone-400">{res.size}</p>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              );
+
           case 'profile':
               return (
                   <div className="max-w-3xl space-y-8 animate-in slide-in-from-right-4 duration-300">
@@ -390,15 +547,16 @@ export const GurubaDashboard: React.FC = () => {
                                   />
                               </div>
                               <div>
-                                  <label className="block text-sm font-bold text-stone-900 mb-2">Specialties (comma separated)</label>
-                                  <input 
-                                      type="text" 
-                                      value={specialties}
-                                      onChange={(e) => setSpecialties(e.target.value)}
-                                      className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 text-base p-3"
-                                      placeholder="e.g. Vivah Sanskar, Griha Pravesh, Astrology"
-                                  />
-                                  <p className="text-xs text-stone-500 mt-2">These tags help clients find you in search.</p>
+                                  <label className="block text-sm font-bold text-stone-900 mb-2">Current Specialties</label>
+                                  <div className="flex flex-wrap gap-2 p-4 bg-stone-50 rounded-xl border border-stone-200 min-h-[60px]">
+                                      {specialties.length === 0 ? <span className="text-stone-400 text-sm italic">No services selected. Go to 'Services' tab to add.</span> : 
+                                      specialties.map(s => (
+                                          <span key={s} className="bg-white border border-stone-200 px-3 py-1 rounded-full text-sm font-medium text-stone-700 shadow-sm">
+                                              {s}
+                                          </span>
+                                      ))}
+                                  </div>
+                                  <p className="text-xs text-stone-500 mt-2">Manage these in the Services tab.</p>
                               </div>
                               <div className="pt-4 flex justify-end">
                                   <Button onClick={saveProfile} isLoading={savingProfile} size="lg">Update Profile</Button>
@@ -426,15 +584,18 @@ export const GurubaDashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <nav className="flex-1 px-4 py-4 space-y-1">
+            <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
                 <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
                 <SidebarItem icon={ListChecks} label="Requests" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} badge={pendingCount > 0 ? pendingCount : null} />
+                <SidebarItem icon={Briefcase} label="My Services" active={activeTab === 'services'} onClick={() => setActiveTab('services')} />
+                <SidebarItem icon={Users} label="My Clients" active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} />
                 <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} />
                 <SidebarItem icon={Calendar} label="Schedule" active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} />
+                <SidebarItem icon={BookOpen} label="Resources" active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} />
                 <div className="my-4 h-px bg-stone-100 mx-2" />
                 <SidebarItem icon={Settings} label="Profile" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
             </nav>
-            <div className="p-6">
+            <div className="p-6 border-t border-stone-100">
                 <button onClick={() => signOut().then(() => window.location.reload())} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                     <LogOut className="h-4 w-4" /> Sign Out
                 </button>

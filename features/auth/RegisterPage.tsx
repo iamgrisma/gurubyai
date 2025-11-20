@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
@@ -44,12 +45,11 @@ export const RegisterPage: React.FC = () => {
          else navigate('/client');
       } 
       // If only user exists, they are created but not logged in (Email confirm is ON)
-      // We redirect to login immediately to let them try, treating verification as "optional" step in UI
       else if (data.user) {
         navigate('/login', { 
             state: { 
                 email: email, 
-                successMessage: "Account created successfully! You can now sign in." 
+                successMessage: "Account created! Please check your email to confirm your address before logging in." 
             } 
         });
       }

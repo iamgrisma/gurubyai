@@ -90,35 +90,39 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Floating App Mockup */}
-          <div className="mt-20 relative mx-auto max-w-4xl perspective-1000">
-             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/50 bg-white/30 backdrop-blur-xl p-2 rotate-x-12 transform transition-transform hover:rotate-0 duration-1000">
-                 <img 
-                   src="https://images.unsplash.com/photo-1604931668626-ab49cb2c3554?q=80&w=2400&auto=format&fit=crop" 
-                   alt="Vedic Ritual Dashboard" 
-                   className="w-full rounded-xl shadow-inner"
-                 />
+          <div className="mt-20 relative mx-auto max-w-5xl [perspective:2000px] group">
+             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/50 bg-white/40 backdrop-blur-xl p-3 [transform:rotateX(20deg)] transition-transform duration-700 group-hover:[transform:rotateX(0deg)] origin-top">
+                 <div className="relative rounded-xl overflow-hidden bg-stone-100 aspect-[16/9]">
+                    <img 
+                      src="https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=2000&auto=format&fit=crop" 
+                      alt="Vedic Ritual Dashboard" 
+                      className="w-full h-full object-cover shadow-inner"
+                    />
+                    {/* Overlay Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/20 to-transparent pointer-events-none"></div>
+                 </div>
                  
                  {/* Floating Cards */}
-                 <div className="absolute top-10 left-10 bg-white/90 backdrop-blur p-4 rounded-2xl shadow-xl border border-white/50 animate-bounce" style={{ animationDuration: '4s' }}>
-                    <div className="flex items-center gap-3">
-                       <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                          <CheckCircle className="h-6 w-6 text-green-600" />
+                 <div className="absolute top-12 left-12 bg-white/95 backdrop-blur p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/50 animate-bounce" style={{ animationDuration: '4s' }}>
+                    <div className="flex items-center gap-4">
+                       <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center shadow-inner">
+                          <CheckCircle className="h-7 w-7 text-green-600" />
                        </div>
                        <div>
                           <p className="font-bold text-stone-900 text-sm">Booking Confirmed</p>
-                          <p className="text-xs text-stone-500">Satyanarayan Puja • Tomorrow</p>
+                          <p className="text-xs text-stone-500 font-medium">Satyanarayan Puja • Tomorrow</p>
                        </div>
                     </div>
                  </div>
 
-                 <div className="absolute bottom-10 right-10 bg-white/90 backdrop-blur p-4 rounded-2xl shadow-xl border border-white/50 animate-bounce hidden md:block" style={{ animationDelay: '1s', animationDuration: '5s' }}>
-                    <div className="flex items-center gap-3">
-                       <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                 <div className="absolute bottom-12 right-12 bg-white/95 backdrop-blur p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/50 animate-bounce hidden md:block" style={{ animationDelay: '1s', animationDuration: '5s' }}>
+                    <div className="flex items-center gap-4">
+                       <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white shadow-md">
                           <img src="https://randomuser.me/api/portraits/men/32.jpg" className="h-full w-full object-cover" />
                        </div>
                        <div>
                           <p className="font-bold text-stone-900 text-sm">Pandit Ji is arriving</p>
-                          <p className="text-xs text-green-600 font-medium">On the way</p>
+                          <p className="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">On the way</p>
                        </div>
                     </div>
                  </div>

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Mail } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showResend, setShowResend] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,6 +33,7 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
+    setShowResend(false);
 
     try {
       const cleanEmail = loginEmail.trim();
@@ -78,6 +81,7 @@ export const LoginPage: React.FC = () => {
          setError('Security Alert: The password you entered has been found in a data leak. Please reset your password.');
       } else if (msg.includes('Email not confirmed')) {
          setError('Please verify your email address before logging in.');
+         setShowResend(true);
       } else {
          setError(msg);
       }
@@ -89,6 +93,21 @@ export const LoginPage: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     performLogin(email, password);
+  };
+
+  const handleResendVerification = async () => {
+    try {
+        const { error } = await supabase.auth.resend({
+            type: 'signup',
+            email: email
+        });
+        if (error) throw error;
+        setSuccessMessage('Verification email resent! Please check your inbox.');
+        setShowResend(false);
+        setError(null);
+    } catch (err: any) {
+        setError(err.message || "Failed to resend verification email.");
+    }
   };
 
   return (
@@ -147,11 +166,24 @@ export const LoginPage: React.FC = () => {
           )}
 
           {error && (
-            <div className="flex items-start gap-3 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200 animate-in fade-in slide-in-from-top-2">
-                <div className="mt-0.5 shrink-0">
-                  {typeof error !== 'string' ? null : <AlertTriangle className="h-5 w-5" />}
+            <div className="flex flex-col gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-start gap-3">
+                    <div className="mt-0.5 shrink-0">
+                        {typeof error !== 'string' ? null : <AlertTriangle className="h-5 w-5" />}
+                    </div>
+                    <div className="flex-1 w-full overflow-hidden">{error}</div>
                 </div>
-                <div className="flex-1 w-full overflow-hidden">{error}</div>
+                {showResend && (
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleResendVerification}
+                        className="self-end mt-2 bg-white border-red-200 hover:bg-red-50 text-red-700"
+                    >
+                        <Mail className="h-3 w-3 mr-2" /> Resend Verification
+                    </Button>
+                )}
             </div>
           )}
 
