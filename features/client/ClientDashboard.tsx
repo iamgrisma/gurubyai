@@ -6,11 +6,10 @@ import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
 import { ReviewModal } from './ReviewModal';
 import { ChatInterface } from '../messages/ChatInterface';
-import { Booking, Transaction, Notification, Gotra } from '../../types';
+import { Booking, Transaction, Gotra } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
-  LayoutDashboard, CreditCard, User, LogOut, Search, Filter, Camera,
-  MessageSquare, CheckCircle, Receipt, Home, PlusCircle, Menu, X, HelpCircle, Phone
+  LayoutDashboard, CreditCard, User, LogOut, PlusCircle, Menu, X, Phone
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
@@ -69,7 +68,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
             <label className="block text-sm font-medium text-stone-700 mb-1">Gotra</label>
             <div className="relative">
                 <input 
-                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500"
+                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border"
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }}
                     onFocus={() => setShowDropdown(true)}
@@ -304,7 +303,7 @@ export const ClientDashboard: React.FC = () => {
                         </div>
                         <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
                             <div className="h-10 w-10 bg-green-50 rounded-full flex items-center justify-center mb-4 text-green-600">
-                                <CheckCircle className="h-5 w-5" />
+                                <RefreshCw className="h-5 w-5" />
                             </div>
                             <h3 className="text-stone-500 text-sm font-medium">Completed Rituals</h3>
                             <div className="text-3xl font-bold text-stone-900">{bookings.filter(b => b.status === 'completed').length}</div>
@@ -439,9 +438,6 @@ export const ClientDashboard: React.FC = () => {
                                                 Write Review
                                             </Button>
                                         )}
-                                        <Button size="sm" variant="outline" className="gap-2">
-                                            <Receipt className="h-4 w-4" /> Invoice
-                                        </Button>
                                     </div>
                                 </div>
                             </div>
@@ -504,7 +500,7 @@ export const ClientDashboard: React.FC = () => {
                                         <tr key={t.id} className="border-b border-stone-100 last:border-0">
                                             <td className="px-6 py-4 text-stone-500">{new Date(t.created_at).toLocaleDateString()}</td>
                                             <td className="px-6 py-4 font-medium">{t.description}</td>
-                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}Rs. {t.amount.toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}Rs. {(t.amount || 0).toLocaleString()}</td>
                                         </tr>
                                     ))
                                 )}
@@ -522,9 +518,6 @@ export const ClientDashboard: React.FC = () => {
                         <div className="flex items-center gap-6 mb-8">
                             <div className="h-24 w-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden relative group cursor-pointer">
                                 {profileForm.avatar_url ? <img src={profileForm.avatar_url} className="h-full w-full object-cover" /> : <User className="h-10 w-10 text-stone-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                    <Camera className="h-6 w-6" />
-                                </div>
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold text-stone-900">{profileForm.full_name || 'Your Name'}</h3>
@@ -536,7 +529,7 @@ export const ClientDashboard: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
                                 <input 
-                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
+                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
                                     value={profileForm.full_name}
                                     onChange={e => setProfileForm({...profileForm, full_name: e.target.value})}
                                     placeholder="Enter your full name"
@@ -545,7 +538,7 @@ export const ClientDashboard: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-stone-700 mb-1">Phone Number</label>
                                 <input 
-                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
+                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
                                     value={profileForm.phone}
                                     onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
                                     placeholder="e.g. 9800000000"
@@ -561,7 +554,7 @@ export const ClientDashboard: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-stone-700 mb-1">City</label>
                                 <input 
-                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
+                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
                                     value={profileForm.city}
                                     onChange={e => setProfileForm({...profileForm, city: e.target.value})}
                                 />
@@ -612,7 +605,7 @@ export const ClientDashboard: React.FC = () => {
          <nav className="flex-1 px-4 space-y-1">
             <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
             <SidebarItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => handleTabChange('bookings')} badge={bookings.filter(b=>b.status==='confirmed').length || null} />
-            <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
+            <SidebarItem icon={Menu} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
             <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => handleTabChange('wallet')} />
             <div className="my-4 h-px bg-stone-100 mx-2" />
             <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} />

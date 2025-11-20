@@ -69,7 +69,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
             <label className="block text-sm font-bold text-stone-900 mb-2">Lineage (Gotra)</label>
             <div className="relative">
                 <input 
-                    className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 p-3"
+                    className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 p-3 border"
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }}
                     onFocus={() => setShowDropdown(true)}
@@ -345,7 +345,7 @@ export const GurubaDashboard: React.FC = () => {
                           <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
                               <h3 className="text-stone-500 text-sm font-medium mb-2">Total Earnings</h3>
                               <div className="text-3xl font-bold text-stone-900 flex items-center gap-1">
-                                <DollarSign className="h-6 w-6 text-stone-400" /> {earnings.toLocaleString()}
+                                <DollarSign className="h-6 w-6 text-stone-400" /> {(earnings || 0).toLocaleString()}
                               </div>
                           </div>
                           <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
@@ -664,7 +664,7 @@ export const GurubaDashboard: React.FC = () => {
                                                </div>
                                            </td>
                                            <td className="px-6 py-4 text-center font-medium">{client.booking_count}</td>
-                                           <td className="px-6 py-4 text-right font-bold text-green-600">Rs. {client.total_spend.toLocaleString()}</td>
+                                           <td className="px-6 py-4 text-right font-bold text-green-600">Rs. {(client.total_spend || 0).toLocaleString()}</td>
                                            <td className="px-6 py-4 text-right text-stone-500">{new Date(client.last_booking).toLocaleDateString()}</td>
                                        </tr>
                                    ))}
