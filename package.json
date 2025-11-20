@@ -7,15 +7,16 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "pages:dev": "wrangler pages dev dist",
-    "pages:deploy": "wrangler pages deploy dist"
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler publish"
   },
   "dependencies": {
     "react-dom": "^19.2.0",
     "react": "^19.2.0",
     "react-router-dom": "^7.9.6",
     "lucide-react": "^0.554.0",
-    "@supabase/supabase-js": "^2.83.0"
+    "@supabase/supabase-js": "^2.83.0",
+    "@cloudflare/kv-asset-handler": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
