@@ -49,6 +49,7 @@ create table if not exists public.services (
   image_url text,
   category text default 'General',
   is_featured boolean default false,
+  is_online_enabled boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -60,6 +61,9 @@ begin
   end if;
   if not exists (select 1 from information_schema.columns where table_name = 'services' and column_name = 'is_featured') then
     alter table public.services add column is_featured boolean default false;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'services' and column_name = 'is_online_enabled') then
+    alter table public.services add column is_online_enabled boolean default false;
   end if;
 end $$;
 
@@ -89,7 +93,7 @@ create table if not exists public.gurubas (
   years_experience integer default 0,
   rating numeric(2,1) default 5.0,
   location text,
-  specialties text[] default '{}',
+  specialties text[] default '{}', -- Legacy column, kept for simple searching
   is_verified boolean default false,
   languages text[] default '{}',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -133,6 +137,28 @@ using (
     where id = auth.uid() and role = 'admin'
   )
 );
+
+-- 3.1 GURUBA SERVICES (New granular table)
+create table if not exists public.guruba_services (
+  id uuid default uuid_generate_v4() primary key,
+  guruba_id uuid references public.gurubas(id) on delete cascade not null,
+  service_id uuid references public.services(id) on delete cascade not null,
+  is_online boolean default false,
+  custom_price numeric,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(guruba_id, service_id)
+);
+
+alter table public.guruba_services enable row level security;
+
+drop policy if exists "Guruba services public view" on public.guruba_services;
+create policy "Guruba services public view" on public.guruba_services for select using (true);
+
+drop policy if exists "Gurubas manage own services" on public.guruba_services;
+create policy "Gurubas manage own services" on public.guruba_services for all using (
+  auth.uid() in (select user_id from public.gurubas where id = guruba_services.guruba_id)
+);
+
 
 -- 4. GURUBA AVAILABILITY TABLE
 create table if not exists public.guruba_availability (
@@ -204,6 +230,16 @@ using (
   )
 );
 
+drop policy if exists "Admins can manage bookings" on public.bookings;
+create policy "Admins can manage bookings" 
+on public.bookings for all 
+using ( 
+  exists (
+    select 1 from public.profiles 
+    where id = auth.uid() and role = 'admin'
+  )
+);
+
 -- 6. REVIEWS TABLE
 create table if not exists public.reviews (
   id uuid default uuid_generate_v4() primary key,
@@ -268,6 +304,12 @@ drop policy if exists "Users manage own notifications" on public.notifications;
 create policy "Users manage own notifications" on public.notifications
 for all using (auth.uid() = user_id);
 
+drop policy if exists "Admins manage notifications" on public.notifications;
+create policy "Admins manage notifications" on public.notifications
+for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+);
+
 -- 9. MESSAGES TABLE (New SaaS Feature)
 create table if not exists public.messages (
   id uuid default uuid_generate_v4() primary key,
@@ -290,8 +332,38 @@ create policy "Users can send messages"
 on public.messages for insert 
 with check ( auth.uid() = sender_id );
 
+-- 10. GOTRAS TABLE
+create table if not exists public.gotras (
+  id uuid default uuid_generate_v4() primary key,
+  name text unique not null,
+  status text check (status in ('approved', 'pending')) default 'pending',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
--- 10. TRIGGERS
+alter table public.gotras enable row level security;
+
+drop policy if exists "Gotras are viewable by authenticated users" on public.gotras;
+create policy "Gotras are viewable by authenticated users" 
+on public.gotras for select 
+using ( auth.role() = 'authenticated' );
+
+drop policy if exists "Authenticated users can request gotras" on public.gotras;
+create policy "Authenticated users can request gotras" 
+on public.gotras for insert 
+with check ( auth.role() = 'authenticated' );
+
+drop policy if exists "Admins can manage gotras" on public.gotras;
+create policy "Admins can manage gotras" 
+on public.gotras for all 
+using ( 
+  exists (
+    select 1 from public.profiles 
+    where id = auth.uid() and role = 'admin'
+  )
+);
+
+
+-- 11. TRIGGERS
 
 -- Trigger 1: Create Profile on Auth Signup
 create or replace function public.handle_new_user() 
@@ -389,12 +461,53 @@ create trigger on_booking_change
   after insert or update on public.bookings
   for each row execute procedure public.handle_booking_notification();
 
+-- Trigger 3: Sync guruba_services to legacy specialties array
+create or replace function public.sync_specialties()
+returns trigger as $$
+begin
+  -- Update the legacy text array in gurubas table based on currently selected services
+  update public.gurubas
+  set specialties = array(
+    select s.title
+    from public.guruba_services gs
+    join public.services s on s.id = gs.service_id
+    where gs.guruba_id = coalesce(NEW.guruba_id, OLD.guruba_id)
+  )
+  where id = coalesce(NEW.guruba_id, OLD.guruba_id);
+  return NEW;
+end;
+$$ language plpgsql security definer;
 
--- 11. SEED DATA
-insert into public.services (title, description, duration_minutes, base_price, image_url, category, is_featured)
+drop trigger if exists on_guruba_service_change on public.guruba_services;
+create trigger on_guruba_service_change
+  after insert or update or delete on public.guruba_services
+  for each row execute procedure public.sync_specialties();
+
+
+-- 12. SEED DATA (Nepal Context)
+-- Prices in NPR (approx)
+insert into public.services (title, description, duration_minutes, base_price, image_url, category, is_featured, is_online_enabled)
 values 
-  ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu for health and prosperity.', 90, 51, 'https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=800&auto=format&fit=crop', 'Pujas', true),
-  ('Griha Pravesh', 'House warming ceremony to purify the home and protect it from evil spirits.', 180, 101, 'https://images.unsplash.com/photo-1582880990674-2355959b2129?q=80&w=800&auto=format&fit=crop', 'Pujas', true),
-  ('Vivah Sanskar', 'Complete Vedic wedding ceremony with all traditional rituals.', 240, 501, 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop', 'Sanskaras', true),
-  ('Kundali Milan', 'Horoscope matching for marriage compatibility.', 60, 21, 'https://images.unsplash.com/photo-1531844251246-9f24706c4202?q=80&w=800&auto=format&fit=crop', 'Astrology', false)
+  ('Shree Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu for health and prosperity, often done on Purnima.', 90, 2500, 'https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=800&auto=format&fit=crop', 'Pujas', true, true),
+  ('Griha Pravesh', 'House warming ceremony to purify the new home and protect it from evil spirits.', 180, 5100, 'https://images.unsplash.com/photo-1582880990674-2355959b2129?q=80&w=800&auto=format&fit=crop', 'Pujas', true, false),
+  ('Vivah Sanskar', 'Complete Vedic wedding ceremony with all traditional Nepali rituals.', 240, 25000, 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop', 'Sanskaras', true, false),
+  ('Kundali Milan', 'Horoscope matching for marriage compatibility (Gunn Milan).', 60, 1000, 'https://images.unsplash.com/photo-1531844251246-9f24706c4202?q=80&w=800&auto=format&fit=crop', 'Astrology', false, true),
+  ('Bratabandha (Upanayana)', 'The sacred thread ceremony marking the entry into formal education and manhood.', 300, 15000, 'https://images.unsplash.com/photo-1605218427368-d24860082617?q=80&w=800&auto=format&fit=crop', 'Sanskaras', true, false),
+  ('Rudri Puja', 'Worship of Lord Shiva with Rudra chanting, highly revered in Nepal.', 120, 3500, 'https://images.unsplash.com/photo-1564850058391-881b1d89a608?q=80&w=800&auto=format&fit=crop', 'Pujas', false, true)
 on conflict do nothing;
+
+-- Seed Gotras
+insert into public.gotras (name, status) values 
+('Not Applicable', 'approved'),
+('Bharadwaj', 'approved'),
+('Kashyap', 'approved'),
+('Atri', 'approved'),
+('Vashistha', 'approved'),
+('Vishwamitra', 'approved'),
+('Gautam', 'approved'),
+('Jamadagni', 'approved'),
+('Agastya', 'approved'),
+('Kaudinya', 'approved'),
+('Garga', 'approved'),
+('Shandilya', 'approved')
+on conflict (name) do nothing;

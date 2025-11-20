@@ -6,11 +6,11 @@ import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
 import { ReviewModal } from './ReviewModal';
 import { ChatInterface } from '../messages/ChatInterface';
-import { Booking, Transaction, Notification } from '../../types';
+import { Booking, Transaction, Notification, Gotra } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
   LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera,
-  MessageSquare, CheckCircle, Receipt, Home
+  MessageSquare, CheckCircle, Receipt, Home, PlusCircle
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
@@ -27,6 +27,91 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
     {badge && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{badge}</span>}
   </button>
 );
+
+// Internal Gotra Select Component
+const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+    const [gotras, setGotras] = useState<Gotra[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    useEffect(() => {
+        const fetchGotras = async () => {
+            const { data } = await supabase.from('gotras').select('*').eq('status', 'approved').order('name');
+            setGotras(data || []);
+        };
+        fetchGotras();
+    }, []);
+
+    useEffect(() => {
+        // If the current value is set and we haven't typed yet, allow it to just be the value. 
+        // But if we want to search, we use searchTerm.
+        // We only sync value -> searchTerm if not editing. 
+        // Actually, let's keep it simple: input displays searchTerm, selection updates value.
+        if (value && !searchTerm) {
+             setSearchTerm(value);
+        }
+    }, [value]);
+
+    const filtered = gotras.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const handleRequestNew = async () => {
+        if (!searchTerm.trim()) return;
+        try {
+            const { error } = await supabase.from('gotras').insert({ name: searchTerm.trim(), status: 'pending' });
+            if (error && error.code !== '23505') throw error;
+            
+            onChange(searchTerm.trim());
+            setShowDropdown(false);
+            alert(`Requested to add '${searchTerm}'. It has been selected for your profile pending approval.`);
+        } catch (e) {
+            alert("Failed to request Gotra.");
+        }
+    };
+
+    return (
+        <div className="relative">
+            <label className="block text-sm font-medium text-stone-700 mb-1">Gotra</label>
+            <div className="relative">
+                <input 
+                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500"
+                    value={searchTerm}
+                    onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }}
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="Search or add Gotra..."
+                />
+                {showDropdown && searchTerm && (
+                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-stone-200 max-h-60 overflow-auto">
+                        {filtered.length > 0 ? (
+                            filtered.map(g => (
+                                <button
+                                    key={g.id}
+                                    className="w-full text-left px-4 py-2 hover:bg-stone-100 text-sm"
+                                    onClick={() => {
+                                        onChange(g.name);
+                                        setSearchTerm(g.name);
+                                        setShowDropdown(false);
+                                    }}
+                                >
+                                    {g.name}
+                                </button>
+                            ))
+                        ) : (
+                            <button
+                                className="w-full text-left px-4 py-2 hover:bg-stone-50 text-sm text-saffron-600 font-medium flex items-center gap-2"
+                                onClick={handleRequestNew}
+                            >
+                                <PlusCircle className="h-4 w-4" /> Request to add "{searchTerm}"
+                            </button>
+                        )}
+                    </div>
+                )}
+                {/* Click outside close listener would ideally go here */}
+            </div>
+            {showDropdown && <div className="fixed inset-0 z-0" onClick={() => setShowDropdown(false)}></div>}
+        </div>
+    );
+};
+
 
 export const ClientDashboard: React.FC = () => {
   const { profile, user, refreshProfile, signOut } = useAuth();
@@ -174,7 +259,7 @@ export const ClientDashboard: React.FC = () => {
                                 <CreditCard className="h-5 w-5" />
                             </div>
                             <h3 className="text-stone-500 text-sm font-medium">Total Spent</h3>
-                            <div className="text-3xl font-bold text-stone-900">$0.00</div>
+                            <div className="text-3xl font-bold text-stone-900">Rs. 0.00</div>
                         </div>
                     </div>
 
@@ -250,7 +335,7 @@ export const ClientDashboard: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="text-xs text-stone-400 uppercase">Cost</p>
-                                            <p className="font-bold text-stone-900">${booking.services?.base_price}</p>
+                                            <p className="font-bold text-stone-900">Rs. {booking.services?.base_price}</p>
                                         </div>
                                     </div>
 
@@ -291,7 +376,7 @@ export const ClientDashboard: React.FC = () => {
                             <CreditCard className="h-8 w-8 opacity-80" />
                         </div>
                         <div className="relative z-10">
-                            <span className="text-4xl font-bold tracking-tight">$0.00</span>
+                            <span className="text-4xl font-bold tracking-tight">Rs. 0.00</span>
                         </div>
                         <div className="flex justify-between items-end relative z-10">
                              <div className="flex flex-col">
@@ -325,7 +410,7 @@ export const ClientDashboard: React.FC = () => {
                                         <tr key={t.id} className="border-b border-stone-100 last:border-0">
                                             <td className="px-6 py-4 text-stone-500">{new Date(t.created_at).toLocaleDateString()}</td>
                                             <td className="px-6 py-4 font-medium">{t.description}</td>
-                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}${t.amount}</td>
+                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}Rs. {t.amount}</td>
                                         </tr>
                                     ))
                                 )}
@@ -370,14 +455,13 @@ export const ClientDashboard: React.FC = () => {
                                     onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-stone-700 mb-1">Gotra</label>
-                                <input 
-                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
-                                    value={profileForm.gotra_id}
-                                    onChange={e => setProfileForm({...profileForm, gotra_id: e.target.value})}
-                                />
-                            </div>
+                            
+                            {/* Smart Gotra Select */}
+                            <GotraSelect 
+                                value={profileForm.gotra_id}
+                                onChange={(val) => setProfileForm({...profileForm, gotra_id: val})}
+                            />
+
                             <div>
                                 <label className="block text-sm font-medium text-stone-700 mb-1">City</label>
                                 <input 

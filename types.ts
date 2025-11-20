@@ -5,7 +5,7 @@ export interface UserProfile {
   full_name?: string;
   role: 'client' | 'guruba' | 'admin';
   phone?: string;
-  gotra_id?: string;
+  gotra_id?: string; // Storing the Name string for simplicity in this architecture
   avatar_url?: string;
   city?: string;
   languages?: string[];
@@ -21,6 +21,14 @@ export interface Service {
   image_url: string;
   category?: string;
   is_featured?: boolean;
+  is_online_enabled?: boolean; // New field
+}
+
+export interface GurubaService {
+  guruba_id: string;
+  service_id: string;
+  is_online: boolean;
+  custom_price?: number;
 }
 
 export interface Review {
@@ -107,4 +115,11 @@ export interface Message {
   is_read: boolean;
   created_at: string;
   sender?: UserProfile; // Joined
+}
+
+export interface Gotra {
+  id: string;
+  name: string;
+  status: 'approved' | 'pending';
+  created_at: string;
 }

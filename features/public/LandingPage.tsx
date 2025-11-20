@@ -8,37 +8,37 @@ import {
 } from 'lucide-react';
 
 const TESTIMONIALS = [
-  { id: 1, name: 'Rahul Sharma', text: 'Found the perfect Pandit ji for my Greh Pravesh within minutes. The process was so seamless and divine.', role: 'Bangalore', img: 'https://randomuser.me/api/portraits/men/32.jpg' },
-  { id: 2, name: 'Priya Patel', text: 'I was worried about finding an authentic Guruba in the US. This platform connected me to my roots instantly.', role: 'New Jersey', img: 'https://randomuser.me/api/portraits/women/44.jpg' },
-  { id: 3, name: 'Amit Verma', text: 'The video consultation feature saved me so much travel time for horoscope matching. Highly recommended!', role: 'Mumbai', img: 'https://randomuser.me/api/portraits/men/86.jpg' },
+  { id: 1, name: 'Ram Bahadur Thapa', text: 'Found a very knowledgeable Pandit ji for my son\'s Bratabandha in Kathmandu. The process was smooth and the ritual was conducted perfectly according to Vedic traditions.', role: 'Kathmandu', img: 'https://randomuser.me/api/portraits/men/32.jpg' },
+  { id: 2, name: 'Sita Devi Sharma', text: 'I live in Australia but wanted a Rudri Puja performed at home in Pokhara for my parents. Guruba Connect made it possible effortlessly.', role: 'Pokhara / Sydney', img: 'https://randomuser.me/api/portraits/women/44.jpg' },
+  { id: 3, name: 'Amit Verma', text: 'The video consultation for Kundali matching saved us a trip to the village. Highly authentic and reliable service.', role: 'Biratnagar', img: 'https://randomuser.me/api/portraits/men/86.jpg' },
 ];
 
 const FEATURES = [
   { 
     icon: ShieldCheck, 
-    title: '100% Verified Gurubas', 
-    desc: 'Every Guruba goes through a rigorous 5-step verification process including background checks and vedic knowledge assessment.',
+    title: 'Verified Gurubas', 
+    desc: 'Every Pandit and Lama goes through a strict verification process regarding their Vedic education and lineage.',
     bg: 'bg-orange-100 text-orange-600',
     colSpan: 'md:col-span-2'
   },
   { 
     icon: Calendar, 
-    title: 'Instant Scheduling', 
-    desc: 'Book rituals at your convenience. Real-time availability calendar ensures no double bookings.',
+    title: 'Easy Scheduling', 
+    desc: 'Book rituals according to your auspicious Muhurat. Real-time availability ensures no conflicts.',
     bg: 'bg-blue-100 text-blue-600',
     colSpan: 'md:col-span-1'
   },
   { 
     icon: Video, 
     title: 'E-Rituals (Live)', 
-    desc: 'Perform rituals via high-definition video conferencing from anywhere in the world.',
+    desc: 'Perform pujas remotely via video call if you are abroad or unable to gather physically.',
     bg: 'bg-purple-100 text-purple-600',
     colSpan: 'md:col-span-1'
   },
   { 
     icon: MessageSquare, 
     title: 'Direct Chat', 
-    desc: 'Communicate directly with your Guruba to discuss Samagri lists and requirements.',
+    desc: 'Chat with your Guruba to discuss the Samagri list and specific requirements for the puja.',
     bg: 'bg-green-100 text-green-600',
     colSpan: 'md:col-span-2'
   },
@@ -63,17 +63,17 @@ export const LandingPage: React.FC = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-saffron-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-saffron-500"></span>
             </span>
-            <span>Over 10,000 Rituals Successfully Performed</span>
+            <span>Over 5,000 Rituals Performed Across Nepal</span>
           </div>
           
           <h1 className="mx-auto max-w-5xl text-5xl font-extrabold tracking-tight text-stone-900 sm:text-7xl mb-8 leading-[1.1]">
-            Your Spiritual Journey, <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-saffron-600 via-orange-500 to-red-600">Simplified & Divine.</span>
+            Nepal's Premier Platform for <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-saffron-600 via-orange-500 to-red-600">Vedic & Spiritual Services</span>
           </h1>
           
           <p className="mx-auto max-w-2xl text-lg md:text-xl text-stone-600 mb-10 leading-relaxed font-medium">
-            Book experienced Vedic Gurubas for Pujas, Havans, and Sanskars instantly. 
-            Connecting tradition with technology for the modern devotee.
+            Connect with experienced Gurubas for Pujas, Havans, Bratabandha, and more. 
+            Preserving our Sanskriti with modern convenience.
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 items-center">
@@ -90,9 +90,9 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Floating App Mockup */}
-          <div className="mt-20 relative mx-auto max-w-5xl [perspective:2000px] group">
-             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/50 bg-white/40 backdrop-blur-xl p-3 [transform:rotateX(20deg)] transition-transform duration-700 group-hover:[transform:rotateX(0deg)] origin-top">
-                 <div className="relative rounded-xl overflow-hidden bg-stone-100 aspect-[16/9]">
+          <div className="mt-20 relative mx-auto max-w-5xl [perspective:1000px] group">
+             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/50 bg-white/40 backdrop-blur-xl p-3 [transform:rotateX(12deg)] transition-transform duration-700 group-hover:[transform:rotateX(0deg)] origin-top">
+                 <div className="relative rounded-xl overflow-hidden bg-stone-100 aspect-video">
                     <img 
                       src="https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=2000&auto=format&fit=crop" 
                       alt="Vedic Ritual Dashboard" 
@@ -110,7 +110,7 @@ export const LandingPage: React.FC = () => {
                        </div>
                        <div>
                           <p className="font-bold text-stone-900 text-sm">Booking Confirmed</p>
-                          <p className="text-xs text-stone-500 font-medium">Satyanarayan Puja • Tomorrow</p>
+                          <p className="text-xs text-stone-500 font-medium">Satyanarayan Puja • Baneshwor</p>
                        </div>
                     </div>
                  </div>
@@ -136,7 +136,7 @@ export const LandingPage: React.FC = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-3xl mx-auto">
              <h2 className="text-3xl font-bold text-stone-900 sm:text-4xl mb-4">Everything needed for a divine experience</h2>
-             <p className="text-stone-600 text-lg">We handle the logistics so you can focus on the devotion. From booking to dakshina, everything is streamlined.</p>
+             <p className="text-stone-600 text-lg">We handle the logistics so you can focus on the devotion. From booking to dakshina, everything is streamlined for Nepali households.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
@@ -169,9 +169,9 @@ export const LandingPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
              {[
-               { title: 'Satyanarayan Puja', price: 51, img: 'https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=800&auto=format&fit=crop', cat: 'Puja', time: '90 mins' },
-               { title: 'Griha Pravesh', price: 101, img: 'https://images.unsplash.com/photo-1582880990674-2355959b2129?q=80&w=800&auto=format&fit=crop', cat: 'Ceremony', time: '3 Hours' },
-               { title: 'Vivah Sanskar', price: 501, img: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop', cat: 'Wedding', time: '4-6 Hours' },
+               { title: 'Shree Satyanarayan Puja', price: '2,500', img: 'https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=800&auto=format&fit=crop', cat: 'Puja', time: '90 mins' },
+               { title: 'Rudri Puja', price: '5,000', img: 'https://images.unsplash.com/photo-1582880990674-2355959b2129?q=80&w=800&auto=format&fit=crop', cat: 'Ceremony', time: '3 Hours' },
+               { title: 'Bratabandha', price: '25,000', img: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop', cat: 'Sanskar', time: 'Full Day' },
              ].map((service, i) => (
                <div key={i} className="group relative rounded-3xl overflow-hidden shadow-lg cursor-pointer h-[400px]" onClick={() => navigate('/book')}>
                   <img src={service.img} alt={service.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -183,7 +183,7 @@ export const LandingPage: React.FC = () => {
                         </div>
                         <h3 className="text-2xl font-bold mb-2">{service.title}</h3>
                         <div className="flex items-center justify-between mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                            <p className="text-saffron-400 font-bold text-xl">From ${service.price}</p>
+                            <p className="text-saffron-400 font-bold text-xl">From Rs. {service.price}</p>
                             <span className="bg-white text-stone-900 p-2 rounded-full"><ArrowRight className="h-4 w-4" /></span>
                         </div>
                      </div>
@@ -199,15 +199,15 @@ export const LandingPage: React.FC = () => {
          <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-stone-800">
                <div>
-                  <div className="text-4xl md:text-5xl font-bold text-saffron-500 mb-2">10k+</div>
+                  <div className="text-4xl md:text-5xl font-bold text-saffron-500 mb-2">5k+</div>
                   <div className="text-stone-400 text-sm uppercase tracking-wide">Happy Families</div>
                </div>
                <div>
-                  <div className="text-4xl md:text-5xl font-bold text-saffron-500 mb-2">500+</div>
+                  <div className="text-4xl md:text-5xl font-bold text-saffron-500 mb-2">200+</div>
                   <div className="text-stone-400 text-sm uppercase tracking-wide">Verified Gurubas</div>
                </div>
                <div>
-                  <div className="text-4xl md:text-5xl font-bold text-saffron-500 mb-2">50+</div>
+                  <div className="text-4xl md:text-5xl font-bold text-saffron-500 mb-2">15+</div>
                   <div className="text-stone-400 text-sm uppercase tracking-wide">Cities Covered</div>
                </div>
                <div>

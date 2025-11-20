@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { BookingModal } from './BookingModal';
 import { Star, MapPin, Award, User, ArrowLeft, Calendar, Filter, Info } from 'lucide-react';
 
-const DAYS_MAP = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+// Removed unused DAYS_MAP
 
 export const GurubaSelection: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();

@@ -25,11 +25,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
   
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [gotraOverride, setGotraOverride] = useState(false);
 
   // Derived Data
   const userGotra = profile?.gotra_id;
   const gurubaGotra = guruba.profiles?.gotra_id;
-  const isGotraConflict = userGotra && gurubaGotra && userGotra.toLowerCase() === gurubaGotra.toLowerCase();
+
+  const isNA = (g?: string) => !g || g.toLowerCase() === 'not applicable' || g.toLowerCase() === 'n/a';
+  
+  const isGotraConflict = 
+    !isNA(userGotra) && 
+    !isNA(gurubaGotra) && 
+    userGotra?.toLowerCase() === gurubaGotra?.toLowerCase();
 
   useEffect(() => {
     if (date && guruba.id) {
@@ -63,7 +70,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
         }
 
         // 2. Fetch existing bookings for this date to check conflicts
-        // Range: selected date 00:00 to 23:59
         const startOfDay = new Date(selectedDateStr);
         startOfDay.setHours(0,0,0,0);
         const endOfDay = new Date(selectedDateStr);
@@ -81,8 +87,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
 
         // 3. Generate Slots
         const slots: string[] = [];
-        
-        // Helper: Parse HH:MM:SS to minutes from midnight
         const toMinutes = (timeStr: string) => {
             const [h, m] = timeStr.split(':').map(Number);
             return h * 60 + m;
@@ -91,11 +95,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
         const workStart = toMinutes(availData.start_time);
         const workEnd = toMinutes(availData.end_time);
         const serviceDuration = service.duration_minutes;
-        
-        // Step: 30 minutes
         const step = 30; 
 
-        // Prepare blocked ranges in minutes
         const blockedRanges = existingBookings?.map((b: any) => {
             const bookingDate = new Date(b.scheduled_at);
             const startMins = bookingDate.getHours() * 60 + bookingDate.getMinutes();
@@ -106,14 +107,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
         for (let t = workStart; t + serviceDuration <= workEnd; t += step) {
             const slotStart = t;
             const slotEnd = t + serviceDuration;
-            
-            // Check collision
             const isBlocked = blockedRanges.some(range => {
                 return (slotStart < range.end && slotEnd > range.start);
             });
 
             if (!isBlocked) {
-                // Convert back to HH:MM
                 const h = Math.floor(t / 60);
                 const m = t % 60;
                 const timeLabel = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
@@ -133,7 +131,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedTime) return;
-    
+    if (isGotraConflict && !gotraOverride) return;
+
     setLoading(true);
     setError(null);
 
@@ -162,7 +161,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-100 bg-stone-50 px-6 py-4">
           <h2 className="text-xl font-bold text-stone-900">Confirm Your Booking</h2>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600 transition-colors">
@@ -172,7 +170,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
 
         <div className="overflow-y-auto p-6">
             <div className="flex flex-col md:flex-row gap-8 mb-8">
-                {/* Summary Card */}
                 <div className="flex-1 space-y-6">
                     <div>
                         <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider mb-3">Service Details</h3>
@@ -184,7 +181,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
                                 <h4 className="text-lg font-bold text-stone-900">{service.title}</h4>
                                 <p className="text-sm text-stone-500 line-clamp-2">{service.description}</p>
                                 <div className="mt-1 flex items-center gap-4 text-sm font-medium text-stone-700">
-                                    <span>${service.base_price}</span>
+                                    <span>Rs. {service.base_price}</span>
                                     <span>•</span>
                                     <span>{service.duration_minutes} mins</span>
                                 </div>
@@ -203,23 +200,37 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
                                 <p className="text-xs text-stone-500 flex items-center">
                                     <MapPin className="h-3 w-3 mr-1" /> {guruba.location}
                                 </p>
+                                <p className="text-xs text-stone-400 mt-1">Gotra: {guruba.profiles?.gotra_id || 'Not Listed'}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Selection Form */}
                 <div className="flex-1 border-l border-stone-100 md:pl-8">
                     <form id="booking-form" onSubmit={handleSubmit} className="space-y-6">
                         {/* Gotra Check */}
                         {isGotraConflict ? (
-                            <div className="flex items-start gap-3 rounded-md bg-red-50 p-4 text-red-800 border border-red-200">
-                                <AlertTriangle className="h-5 w-5 shrink-0" />
-                                <div className="text-sm">
-                                    <p className="font-bold">Gotra Conflict</p>
-                                    <p className="mt-1 text-xs">
-                                    You and the Guruba share the same Gotra ({userGotra}).
-                                    </p>
+                            <div className="rounded-md bg-red-50 p-4 text-red-800 border border-red-200">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="h-5 w-5 shrink-0" />
+                                    <div className="text-sm">
+                                        <p className="font-bold">Gotra Conflict Detected</p>
+                                        <p className="mt-1 text-xs leading-relaxed">
+                                            You and Guruba {guruba.profiles?.full_name} both belong to the <strong>{userGotra}</strong> Gotra. Traditionally, rituals are not performed between members of the same lineage.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 flex items-start gap-2">
+                                    <input 
+                                        type="checkbox" 
+                                        id="gotra-override"
+                                        className="mt-0.5 h-4 w-4 text-red-600 border-red-300 rounded focus:ring-red-500"
+                                        checked={gotraOverride}
+                                        onChange={e => setGotraOverride(e.target.checked)}
+                                    />
+                                    <label htmlFor="gotra-override" className="text-xs font-medium cursor-pointer select-none">
+                                        I am booking on behalf of someone with a different Gotra, or I explicitly accept this match.
+                                    </label>
                                 </div>
                             </div>
                         ) : (
@@ -284,14 +295,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
             </div>
         </div>
 
-        {/* Footer / Actions */}
         <div className="bg-stone-50 p-6 border-t border-stone-200 flex justify-end gap-3">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button 
                 type="submit" 
                 form="booking-form"
                 isLoading={loading}
-                disabled={!!isGotraConflict || !selectedTime}
+                disabled={(isGotraConflict && !gotraOverride) || !selectedTime}
                 className="px-8"
             >
                 Confirm Booking

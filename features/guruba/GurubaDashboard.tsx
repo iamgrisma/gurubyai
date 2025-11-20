@@ -3,12 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
-import { Availability, Booking, Guruba, Service } from '../../types';
+import { Availability, Booking, Guruba, Service, Gotra, GurubaService } from '../../types';
 import { ChatInterface } from '../messages/ChatInterface';
 import { 
     Calendar, Clock, DollarSign, MapPin, Star, Zap, RefreshCw, AlertCircle, Save, Check, 
     LayoutDashboard, ListChecks, User, LogOut, XCircle, CheckCircle, Settings, MessageSquare, BarChart3,
-    Briefcase, Users, BookOpen, Plus, Trash2
+    Briefcase, Users, BookOpen, Plus, Trash2, PlusCircle, Video
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -28,6 +28,85 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
     </button>
 );
 
+// Internal Gotra Select Component
+const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+    const [gotras, setGotras] = useState<Gotra[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    useEffect(() => {
+        const fetchGotras = async () => {
+            const { data } = await supabase.from('gotras').select('*').eq('status', 'approved').order('name');
+            setGotras(data || []);
+        };
+        fetchGotras();
+    }, []);
+
+    useEffect(() => {
+        if (value && !searchTerm) {
+             setSearchTerm(value);
+        }
+    }, [value]);
+
+    const filtered = gotras.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const handleRequestNew = async () => {
+        if (!searchTerm.trim()) return;
+        try {
+            const { error } = await supabase.from('gotras').insert({ name: searchTerm.trim(), status: 'pending' });
+            if (error && error.code !== '23505') throw error;
+            
+            onChange(searchTerm.trim());
+            setShowDropdown(false);
+            alert(`Requested to add '${searchTerm}'. Selected pending approval.`);
+        } catch (e) {
+            alert("Failed to request Gotra.");
+        }
+    };
+
+    return (
+        <div className="relative">
+            <label className="block text-sm font-bold text-stone-900 mb-2">Lineage (Gotra)</label>
+            <div className="relative">
+                <input 
+                    className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 p-3"
+                    value={searchTerm}
+                    onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }}
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="Select or request your Gotra..."
+                />
+                {showDropdown && searchTerm && (
+                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-stone-200 max-h-60 overflow-auto">
+                        {filtered.length > 0 ? (
+                            filtered.map(g => (
+                                <button
+                                    key={g.id}
+                                    className="w-full text-left px-4 py-3 hover:bg-stone-100 text-sm border-b border-stone-50 last:border-0"
+                                    onClick={() => {
+                                        onChange(g.name);
+                                        setSearchTerm(g.name);
+                                        setShowDropdown(false);
+                                    }}
+                                >
+                                    {g.name}
+                                </button>
+                            ))
+                        ) : (
+                            <button
+                                className="w-full text-left px-4 py-3 hover:bg-saffron-50 text-sm text-saffron-700 font-medium flex items-center gap-2"
+                                onClick={handleRequestNew}
+                            >
+                                <PlusCircle className="h-4 w-4" /> Request to add "{searchTerm}"
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+            {showDropdown && <div className="fixed inset-0 z-0" onClick={() => setShowDropdown(false)}></div>}
+        </div>
+    );
+};
+
 export const GurubaDashboard: React.FC = () => {
   const { profile, user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>('overview');
@@ -36,6 +115,7 @@ export const GurubaDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [allServices, setAllServices] = useState<Service[]>([]);
+  const [myServices, setMyServices] = useState<GurubaService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -45,7 +125,7 @@ export const GurubaDashboard: React.FC = () => {
 
   // Profile Edit
   const [bio, setBio] = useState('');
-  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [gotraId, setGotraId] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
@@ -62,7 +142,7 @@ export const GurubaDashboard: React.FC = () => {
         // 1. Fetch Guruba Profile
         let { data: gurubaRows, error: gurubaError } = await supabase
             .from('gurubas')
-            .select('*')
+            .select('*, profiles:user_id(gotra_id)')
             .eq('user_id', user?.id);
             
         let gurubaData = gurubaRows?.[0];
@@ -72,7 +152,7 @@ export const GurubaDashboard: React.FC = () => {
              const { data: newGuruba, error: createError } = await supabase.from('gurubas').insert([{ user_id: user?.id }]).select().single();
              if (createError && createError.code !== '23505') throw createError;
              if (createError && createError.code === '23505') {
-                  const { data: retry } = await supabase.from('gurubas').select('*').eq('user_id', user?.id).single();
+                  const { data: retry } = await supabase.from('gurubas').select('*, profiles:user_id(gotra_id)').eq('user_id', user?.id).single();
                   gurubaData = retry;
              } else {
                   gurubaData = newGuruba;
@@ -87,7 +167,7 @@ export const GurubaDashboard: React.FC = () => {
         
         setGuruba(gurubaData);
         setBio(gurubaData.bio || '');
-        setSpecialties(gurubaData.specialties || []);
+        setGotraId(gurubaData.profiles?.gotra_id || '');
 
         // 2. Get Bookings
         const { data: bookingData } = await supabase
@@ -111,9 +191,12 @@ export const GurubaDashboard: React.FC = () => {
         });
         setSchedule(initialSchedule);
 
-        // 4. Get All Services (for Service Management)
+        // 4. Get All Services & My Services
         const { data: servicesData } = await supabase.from('services').select('*').order('title');
         setAllServices(servicesData || []);
+
+        const { data: myServicesData } = await supabase.from('guruba_services').select('*').eq('guruba_id', gurubaData.id);
+        setMyServices(myServicesData || []);
 
     } catch (e: any) {
         console.error(e);
@@ -137,29 +220,39 @@ export const GurubaDashboard: React.FC = () => {
       setSavingSchedule(true);
       try {
           await supabase.from('guruba_availability').delete().eq('guruba_id', guruba.id);
-          const rows = Object.entries(schedule).filter(([_, val]) => val.enabled).map(([day, val]) => ({
-                guruba_id: guruba.id,
-                day_of_week: parseInt(day),
-                start_time: val.start,
-                end_time: val.end
-            }));
+          const rows = Object.entries(schedule)
+            .filter(([_, val]) => (val as any).enabled)
+            .map(([day, val]) => {
+                const v = val as any;
+                return {
+                    guruba_id: guruba.id,
+                    day_of_week: parseInt(day),
+                    start_time: v.start,
+                    end_time: v.end
+                };
+            });
           if (rows.length > 0) await supabase.from('guruba_availability').insert(rows);
           alert("Schedule updated!");
       } catch (e) { alert("Failed"); } finally { setSavingSchedule(false); }
   };
 
-  const toggleSpecialty = async (title: string) => {
+  const toggleService = async (serviceId: string, currentStatus: boolean) => {
       if (!guruba) return;
-      const newSpecialties = specialties.includes(title)
-          ? specialties.filter(s => s !== title)
-          : [...specialties, title];
-      
-      setSpecialties(newSpecialties);
-      
-      // Auto save
-      try {
-          await supabase.from('gurubas').update({ specialties: newSpecialties }).eq('id', guruba.id);
-      } catch (e) { console.error("Failed to save specialty"); }
+      if (currentStatus) {
+          // Remove
+          await supabase.from('guruba_services').delete().match({ guruba_id: guruba.id, service_id: serviceId });
+          setMyServices(prev => prev.filter(s => s.service_id !== serviceId));
+      } else {
+          // Add
+          await supabase.from('guruba_services').insert({ guruba_id: guruba.id, service_id: serviceId, is_online: false });
+          setMyServices(prev => [...prev, { guruba_id: guruba.id, service_id: serviceId, is_online: false }]);
+      }
+  };
+
+  const toggleOnlineService = async (serviceId: string, currentOnline: boolean) => {
+       if (!guruba) return;
+       await supabase.from('guruba_services').update({ is_online: !currentOnline }).match({ guruba_id: guruba.id, service_id: serviceId });
+       setMyServices(prev => prev.map(s => s.service_id === serviceId ? { ...s, is_online: !currentOnline } : s));
   };
 
   const saveProfile = async () => {
@@ -167,6 +260,7 @@ export const GurubaDashboard: React.FC = () => {
       setSavingProfile(true);
       try {
           await supabase.from('gurubas').update({ bio }).eq('id', guruba.id);
+          await supabase.from('profiles').update({ gotra_id: gotraId }).eq('id', user?.id);
           alert("Profile updated!");
       } catch (e) { alert("Failed"); } finally { setSavingProfile(false); }
   };
@@ -211,7 +305,7 @@ export const GurubaDashboard: React.FC = () => {
                               </div>
                               <div className="flex-1 text-center sm:text-left">
                                   <p className="font-bold text-lg">Complete Your Verification</p>
-                                  <p className="text-sm mt-1 opacity-90">Upload your identification and Vedic certificates to get the "Verified" badge and boost your bookings by 3x.</p>
+                                  <p className="text-sm mt-1 opacity-90">Upload your citizenship and Vedic certificates to get the "Verified" badge.</p>
                               </div>
                               <Button variant="outline" className="bg-white border-yellow-300 text-yellow-900 hover:bg-yellow-100 whitespace-nowrap">Start Verification</Button>
                           </div>
@@ -221,7 +315,7 @@ export const GurubaDashboard: React.FC = () => {
                           <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
                               <h3 className="text-stone-500 text-sm font-medium mb-2">Total Earnings</h3>
                               <div className="text-3xl font-bold text-stone-900 flex items-center gap-1">
-                                <DollarSign className="h-6 w-6 text-stone-400" /> {earnings}
+                                <DollarSign className="h-6 w-6 text-stone-400" /> {earnings.toLocaleString()}
                               </div>
                           </div>
                           <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
@@ -331,7 +425,7 @@ export const GurubaDashboard: React.FC = () => {
                                                           <Clock className="h-4 w-4 text-stone-400" /> {new Date(b.scheduled_at).toLocaleString()}
                                                       </p>
                                                       <p className="text-stone-600 flex items-center gap-2">
-                                                          <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">${b.services?.base_price}</span>
+                                                          <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">Rs. {b.services?.base_price}</span>
                                                       </p>
                                                   </div>
                                               </div>
@@ -418,36 +512,47 @@ export const GurubaDashboard: React.FC = () => {
               return (
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                       <h2 className="text-2xl font-bold text-stone-900 mb-2">My Services</h2>
-                      <p className="text-stone-600 mb-6">Select the rituals you are qualified to perform. These will appear on your public profile.</p>
+                      <p className="text-stone-600 mb-6">Select the rituals you are qualified to perform. You can also specify if you offer them online.</p>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {allServices.map(service => {
-                              const isActive = specialties.includes(service.title);
+                              const myService = myServices.find(s => s.service_id === service.id);
+                              const isActive = !!myService;
+                              const isOnline = myService?.is_online || false;
+
                               return (
                                   <div 
                                     key={service.id} 
-                                    onClick={() => toggleSpecialty(service.title)}
-                                    className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                                    className={`relative p-6 rounded-xl border-2 transition-all duration-200 ${
                                         isActive 
-                                        ? 'border-saffron-500 bg-saffron-50 shadow-md' 
-                                        : 'border-stone-200 bg-white hover:border-stone-300'
+                                        ? 'border-saffron-500 bg-white shadow-md' 
+                                        : 'border-stone-200 bg-stone-50 hover:border-stone-300'
                                     }`}
                                   >
                                       <div className="flex justify-between items-start mb-3">
-                                          <h3 className={`font-bold text-lg ${isActive ? 'text-saffron-900' : 'text-stone-900'}`}>{service.title}</h3>
-                                          {isActive ? (
-                                              <div className="h-6 w-6 bg-saffron-500 rounded-full flex items-center justify-center text-white">
-                                                  <Check className="h-4 w-4" />
-                                              </div>
-                                          ) : (
-                                              <div className="h-6 w-6 border-2 border-stone-300 rounded-full"></div>
-                                          )}
+                                          <h3 className={`font-bold text-lg ${isActive ? 'text-saffron-900' : 'text-stone-500'}`}>{service.title}</h3>
+                                          <div onClick={() => toggleService(service.id, isActive)} className={`cursor-pointer h-6 w-6 rounded-full flex items-center justify-center transition-colors ${isActive ? 'bg-saffron-500 text-white' : 'border-2 border-stone-300'}`}>
+                                              {isActive && <Check className="h-4 w-4" />}
+                                          </div>
                                       </div>
                                       <p className="text-sm text-stone-500 line-clamp-2 mb-3">{service.description}</p>
-                                      <div className="flex items-center gap-3 text-xs font-medium text-stone-400">
-                                          <span>${service.base_price}</span>
-                                          <span>•</span>
-                                          <span>{service.duration_minutes} mins</span>
+                                      
+                                      <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+                                            <div className="flex items-center gap-3 text-xs font-medium text-stone-400">
+                                                <span>Rs. {service.base_price}</span>
+                                                <span>•</span>
+                                                <span>{service.duration_minutes} min</span>
+                                            </div>
+                                            {/* Online Toggle if Service Supports it */}
+                                            {isActive && service.is_online_enabled && (
+                                                <div 
+                                                    onClick={() => toggleOnlineService(service.id, isOnline)}
+                                                    className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full cursor-pointer select-none transition-colors ${isOnline ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-stone-100 text-stone-400 border border-stone-200'}`}
+                                                >
+                                                    <Video className="h-3 w-3" />
+                                                    {isOnline ? 'Online' : 'Offline'}
+                                                </div>
+                                            )}
                                       </div>
                                   </div>
                               );
@@ -489,7 +594,7 @@ export const GurubaDashboard: React.FC = () => {
                                                </div>
                                            </td>
                                            <td className="px-6 py-4 text-center font-medium">{client.booking_count}</td>
-                                           <td className="px-6 py-4 text-right font-bold text-green-600">${client.total_spend}</td>
+                                           <td className="px-6 py-4 text-right font-bold text-green-600">Rs. {client.total_spend}</td>
                                            <td className="px-6 py-4 text-right text-stone-500">{new Date(client.last_booking).toLocaleDateString()}</td>
                                        </tr>
                                    ))}
@@ -509,10 +614,10 @@ export const GurubaDashboard: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           {[
                               { title: "Satyanarayan Katha (Sanskrit)", type: "PDF", size: "2.4 MB" },
-                              { title: "Vivah Paddhati Guide", type: "PDF", size: "5.1 MB" },
+                              { title: "Swasthani Brata Katha (Nepali)", type: "PDF", size: "5.1 MB" },
                               { title: "Griha Pravesh Samagri Checklist", type: "List", size: "150 KB" },
                               { title: "Vedic Mantras Audio Collection", type: "MP3", size: "45 MB" },
-                              { title: "Panchang 2025", type: "PDF", size: "3.2 MB" },
+                              { title: "Nepali Patro 2081", type: "PDF", size: "3.2 MB" },
                           ].map((res, i) => (
                               <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all group cursor-pointer">
                                   <div className="flex justify-between items-start mb-4">
@@ -543,20 +648,30 @@ export const GurubaDashboard: React.FC = () => {
                                       onChange={(e) => setBio(e.target.value)}
                                       rows={6}
                                       className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 text-base p-4"
-                                      placeholder="Describe your lineage, vedic education, and approach to rituals..."
+                                      placeholder="Describe your lineage (Gotra), vedic education (Gurukul), and experience performing rituals..."
                                   />
                               </div>
+                              
+                              {/* Gotra Select */}
+                              <GotraSelect 
+                                  value={gotraId}
+                                  onChange={setGotraId}
+                              />
+
                               <div>
-                                  <label className="block text-sm font-bold text-stone-900 mb-2">Current Specialties</label>
+                                  <label className="block text-sm font-bold text-stone-900 mb-2">Active Services</label>
                                   <div className="flex flex-wrap gap-2 p-4 bg-stone-50 rounded-xl border border-stone-200 min-h-[60px]">
-                                      {specialties.length === 0 ? <span className="text-stone-400 text-sm italic">No services selected. Go to 'Services' tab to add.</span> : 
-                                      specialties.map(s => (
-                                          <span key={s} className="bg-white border border-stone-200 px-3 py-1 rounded-full text-sm font-medium text-stone-700 shadow-sm">
-                                              {s}
-                                          </span>
-                                      ))}
+                                      {myServices.length === 0 ? <span className="text-stone-400 text-sm italic">No services selected. Go to 'Services' tab to add.</span> : 
+                                      myServices.map(s => {
+                                          const serviceName = allServices.find(as => as.id === s.service_id)?.title || 'Unknown Service';
+                                          return (
+                                              <span key={s.service_id} className="bg-white border border-stone-200 px-3 py-1 rounded-full text-sm font-medium text-stone-700 shadow-sm flex items-center gap-1">
+                                                  {serviceName}
+                                                  {s.is_online && <Video className="h-3 w-3 text-blue-500 ml-1" />}
+                                              </span>
+                                          )
+                                      })}
                                   </div>
-                                  <p className="text-xs text-stone-500 mt-2">Manage these in the Services tab.</p>
                               </div>
                               <div className="pt-4 flex justify-end">
                                   <Button onClick={saveProfile} isLoading={savingProfile} size="lg">Update Profile</Button>
