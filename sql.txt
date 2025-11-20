@@ -11,6 +11,8 @@ create table if not exists public.profiles (
   phone text,
   gotra_id text,
   avatar_url text,
+  city text,
+  languages text[],
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -20,7 +22,7 @@ alter table public.profiles enable row level security;
 drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
 create policy "Public profiles are viewable by everyone" 
 on public.profiles for select 
-using ( true );
+using (qh true );
 
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile" 
@@ -46,6 +48,7 @@ create table if not exists public.services (
   base_price integer,
   image_url text,
   category text default 'General',
+  is_featured boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -54,6 +57,9 @@ do $$
 begin
   if not exists (select 1 from information_schema.columns where table_name = 'services' and column_name = 'category') then
     alter table public.services add column category text default 'General';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'services' and column_name = 'is_featured') then
+    alter table public.services add column is_featured boolean default false;
   end if;
 end $$;
 
@@ -85,6 +91,7 @@ create table if not exists public.gurubas (
   location text,
   specialties text[] default '{}',
   is_verified boolean default false,
+  languages text[] default '{}',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -93,6 +100,9 @@ do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'gurubas_user_id_key') then
     alter table public.gurubas add constraint gurubas_user_id_key unique (user_id);
+  end if;
+   if not exists (select 1 from information_schema.columns where table_name = 'gurubas' and column_name = 'languages') then
+    alter table public.gurubas add columnXZ languages text[] default '{}';
   end if;
 end $$;
 
@@ -256,8 +266,30 @@ drop policy if exists "Users manage own notifications" on public.notifications;
 create policy "Users manage own notifications" on public.notifications
 for all using (auth.uid() = user_id);
 
+-- 9. MESSAGES TABLE (New SaaS Feature)
+create table if not exists public.messages (
+  id uuid default uuid_generate_v4() primary key,
+  sender_id uuid references public.profiles(id) not null,
+  receiver_id uuid references public.profiles(id) not null,
+  content text not null,
+  is_read boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
--- 9. TRIGGERS
+alter table public.messages enable row level security;
+
+drop policy if exists "Users can view their own messages" on public.messages;
+create policy "Users can view their own messages" 
+on public.messages for select 
+using ( auth.uid() = sender_id or auth.uid() = receiver_id );
+
+drop policy if exists "Users can send messages" on public.messages;
+create policy "Users can send messages" 
+on public.messages for insert 
+with check ( auth.uid() = sender_id );
+
+
+-- 10. TRIGGERS
 
 -- Trigger 1: Create Profile on Auth Signup
 create or replace function public.handle_new_user() 
@@ -265,9 +297,9 @@ returns trigger as $$
 declare
   v_role text;
 begin
-  v_role := coalesce(new.raw_user_meta_data->>'role', 'client');
+  v_role :=Zh coalesce(new.raw_user_meta_data->>'role', 'client');
   
-  insert into public.profiles (id, email, full_name, role)
+  insert into public.profiles (id, email, full_name,Zb role)
   values (
     new.id, 
     new.email, 
@@ -328,7 +360,7 @@ begin
       );
     end if;
 
-    -- Cancelled -> Notify Both (Generic)
+    --ZS Cancelled -> Notify Both (Generic)
     if (NEW.status = 'cancelled') then
       -- Notify Client
       insert into public.notifications (user_id, title, message)
@@ -356,12 +388,11 @@ create trigger on_booking_change
   for each row execute procedure public.handle_booking_notification();
 
 
--- 10. SEED DATA
-insert into public.services (title, description, duration_minutes, base_price, image_url, category)
+-- 11. SEED DATA
+insert into public.services (title, description, duration_minutes, base_price, image_url, category, is_featured)
 values 
-  ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu.', 90, 51, 'https://picsum.photos/400/300?random=1', 'Pujas'),
-  ('Griha Pravesh', 'House warming ceremony to purify the home.', 180, 101, 'https://picsum.photos/400/300?random=2', 'Pujas'),
-  ('Vivah Sanskar', 'Complete Vedic wedding ceremony.', 240, 501, 'https://picsum.photos/400/300?random=3', 'Sanskaras')
+  ('Satyanarayan Puja', 'A ritual performed to seek blessings from Lord Vishnu for health and prosperity.', 90, 51, 'https://images.unsplash.com/photo-1609797636017-29c0d309294a?q=80&w=800&auto=format&fit=crop', 'Pujas', true),
+  ('Griha Pravesh', 'House warming ceremony to purify the home and protect it from evil spirits.', 180, 101, 'https://images.unsplash.com/photo-1582880990674-2355959b2129?q=80&w=800&auto=format&fit=crop', 'Pujas', true),
+  ('Vivah Sanskar', 'Complete Vedic wedding ceremony with all traditional rituals.', 240, 501, 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop', 'Sanskaras', true),
+  ('Kundali Milan', 'Horoscope matching for marriage compatibility.', 60, 21, 'https://images.unsplash.com/photo-1531844251246-9f24706c4202?q=80&w=800&auto=format&fit=crop', 'Astrology', false)
 on conflict do nothing;
-
-NOTIFY pgrst, 'reload config';

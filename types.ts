@@ -7,6 +7,8 @@ export interface UserProfile {
   phone?: string;
   gotra_id?: string;
   avatar_url?: string;
+  city?: string;
+  languages?: string[];
   created_at?: string;
 }
 
@@ -18,6 +20,7 @@ export interface Service {
   base_price: number;
   image_url: string;
   category?: string;
+  is_featured?: boolean;
 }
 
 export interface Review {
@@ -43,6 +46,7 @@ export interface Guruba {
   location: string;
   specialties: string[];
   is_verified?: boolean;
+  languages?: string[];
   // Joined data from profiles table
   profiles?: {
     full_name: string;
@@ -72,6 +76,7 @@ export interface Booking {
   services?: Service;
   gurubas?: Guruba;
   profiles?: UserProfile; // The client profile
+  created_at: string;
 }
 
 export interface Transaction {
@@ -91,4 +96,14 @@ export interface Notification {
   message: string;
   is_read: boolean;
   created_at: string;
+}
+
+export interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+  sender?: UserProfile; // Joined
 }

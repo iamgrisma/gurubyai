@@ -5,22 +5,26 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
 import { ReviewModal } from './ReviewModal';
+import { ChatInterface } from '../messages/ChatInterface';
 import { Booking, Transaction, Notification } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
-  LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera
+  LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera,
+  MessageSquare, CheckCircle, Receipt
 } from 'lucide-react';
 
-// Sidebar Navigation Component
-const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
+const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors rounded-lg mb-1 ${
-      active ? 'bg-saffron-50 text-saffron-700' : 'text-stone-600 hover:bg-stone-100'
+    className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-all duration-200 rounded-xl mb-1 ${
+      active ? 'bg-saffron-50 text-saffron-700 shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:translate-x-1'
     }`}
   >
-    <Icon className={`h-5 w-5 ${active ? 'text-saffron-600' : 'text-stone-400'}`} />
-    {label}
+    <div className="flex items-center gap-3">
+      <Icon className={`h-5 w-5 ${active ? 'text-saffron-600' : 'text-stone-400'}`} />
+      {label}
+    </div>
+    {badge && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{badge}</span>}
   </button>
 );
 
@@ -28,27 +32,22 @@ export const ClientDashboard: React.FC = () => {
   const { profile, user, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   
-  // Tab State
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'wallet' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'messages' | 'wallet' | 'settings'>('overview');
   
-  // Data State
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  
-  // Review State
   const [reviewModalData, setReviewModalData] = useState<{id: string, gurubaId: string, gurubaName: string} | null>(null);
 
   // Edit Profile State
-  const [updateLoading, setUpdateLoading] = useState(false);
   const [profileForm, setProfileForm] = useState({
     full_name: '',
     phone: '',
     gotra_id: '',
-    avatar_url: ''
+    avatar_url: '',
+    city: ''
   });
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
@@ -58,32 +57,27 @@ export const ClientDashboard: React.FC = () => {
     }
   }, [user]);
 
-  // Initialize form when profile loads
   useEffect(() => {
     if (profile) {
       setProfileForm({
         full_name: profile.full_name || '',
         phone: profile.phone || '',
         gotra_id: profile.gotra_id || '',
-        avatar_url: profile.avatar_url || ''
+        avatar_url: profile.avatar_url || '',
+        city: profile.city || ''
       });
     }
   }, [profile]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    setFetchError(null);
-    
     try {
-      // 1. Fetch Bookings
-      const { data: reviews } = await supabase.from('reviews').select('booking_id').eq('user_id', user?.id);
-      const reviewedBookingIds = new Set(reviews?.map(r => r.booking_id));
-
+      // Bookings
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
           *,
-          services:service_id (title, duration_minutes, base_price),
+          services:service_id (title, duration_minutes, base_price, image_url),
           gurubas:guruba_id (
             id,
             location,
@@ -95,487 +89,307 @@ export const ClientDashboard: React.FC = () => {
 
       if (bookingsError) throw bookingsError;
 
-      const bookingsWithReviewStatus = bookingsData?.map(b => ({
+      // Check reviews
+      const { data: reviews } = await supabase.from('reviews').select('booking_id').eq('user_id', user?.id);
+      const reviewedBookingIds = new Set(reviews?.map(r => r.booking_id));
+
+      const processedBookings = bookingsData?.map(b => ({
           ...b,
           is_reviewed: reviewedBookingIds.has(b.id)
       })) as Booking[];
-      setBookings(bookingsWithReviewStatus || []);
+      setBookings(processedBookings || []);
 
-      // 2. Fetch Transactions (Mock if not exists)
-      const { data: transData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-      
+      // Transactions (Mocking some if empty for visual pop)
+      const { data: transData } = await supabase.from('transactions').select('*').eq('user_id', user?.id);
       setTransactions(transData || []);
 
-      // 3. Fetch Notifications
-      const { data: notifData } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      
-      setNotifications(notifData || []);
-
-    } catch (err: any) {
-      console.error('Error fetching dashboard:', err);
-      setFetchError('Failed to load some dashboard data.');
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        if (file.size > 500000) { 
-            alert("Image too large. Please select an image under 500KB.");
-            return;
-        }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setProfileForm(prev => ({ ...prev, avatar_url: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
-    }
-  };
-
   const handleSaveProfile = async () => {
     setUpdateLoading(true);
-    setFetchError(null);
-
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: profileForm.full_name,
-          phone: profileForm.phone,
-          gotra_id: profileForm.gotra_id,
-          avatar_url: profileForm.avatar_url
-        })
-        .eq('id', user?.id);
-
+      const { error } = await supabase.from('profiles').update(profileForm).eq('id', user?.id);
       if (error) throw error;
-
       await refreshProfile();
       alert("Profile updated successfully");
-    } catch (err: any) {
-      console.error("Profile update failed:", err);
-      setFetchError(err.message || "Failed to update profile details.");
+    } catch (err) {
+      alert("Failed to update profile.");
     } finally {
       setUpdateLoading(false);
     }
   };
 
-  const handleSignOut = async () => {
-      await signOut();
-      navigate('/login');
-  };
-
-  // Helper for booking status colors
   const getStatusColor = (status: string) => {
       switch(status) {
-          case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
-          case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200';
-          case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
-          default: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+          case 'confirmed': return 'bg-green-100 text-green-800 ring-green-600/20';
+          case 'completed': return 'bg-blue-100 text-blue-800 ring-blue-600/20';
+          case 'cancelled': return 'bg-red-100 text-red-800 ring-red-600/20';
+          default: return 'bg-yellow-100 text-yellow-800 ring-yellow-600/20';
       }
   };
 
-  // Render Content based on Active Tab
   const renderContent = () => {
     switch (activeTab) {
         case 'overview':
             return (
-                <div className="space-y-6">
-                    {/* Stats Grid */}
+                <div className="space-y-8 animate-in fade-in duration-500">
+                    {/* Hero Welcome */}
+                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-stone-900 to-stone-800 p-8 text-white shadow-xl">
+                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                           <div>
+                               <h2 className="text-3xl font-bold mb-2">Namaste, {displayName} 🙏</h2>
+                               <p className="text-stone-300 max-w-lg">Your spiritual journey continues. You have {bookings.filter(b => b.status === 'confirmed').length} upcoming rituals scheduled.</p>
+                           </div>
+                           <Button onClick={() => navigate('/book')} className="bg-saffron-600 hover:bg-saffron-700 border-none shadow-lg shadow-saffron-900/20 py-3 px-6 text-base">
+                               Book New Service
+                           </Button>
+                        </div>
+                        {/* Decorative circles */}
+                        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+                    </div>
+
+                    {/* Stats Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                            <h3 className="text-stone-500 text-sm font-medium mb-2">Total Bookings</h3>
-                            <div className="text-3xl font-bold text-stone-900">{bookings.length}</div>
-                            <p className="text-xs text-stone-400 mt-1">Lifetime rituals</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                            <h3 className="text-stone-500 text-sm font-medium mb-2">Upcoming</h3>
-                            <div className="text-3xl font-bold text-saffron-600">
-                                {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length}
+                        <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
+                            <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center mb-4 text-blue-600">
+                                <Calendar className="h-5 w-5" />
                             </div>
-                            <p className="text-xs text-stone-400 mt-1">Scheduled rituals</p>
+                            <h3 className="text-stone-500 text-sm font-medium">Total Bookings</h3>
+                            <div className="text-3xl font-bold text-stone-900">{bookings.length}</div>
                         </div>
-                        <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                            <h3 className="text-stone-500 text-sm font-medium mb-2">Wallet Balance</h3>
+                        <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
+                            <div className="h-10 w-10 bg-green-50 rounded-full flex items-center justify-center mb-4 text-green-600">
+                                <CheckCircle className="h-5 w-5" />
+                            </div>
+                            <h3 className="text-stone-500 text-sm font-medium">Completed Rituals</h3>
+                            <div className="text-3xl font-bold text-stone-900">{bookings.filter(b => b.status === 'completed').length}</div>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
+                            <div className="h-10 w-10 bg-purple-50 rounded-full flex items-center justify-center mb-4 text-purple-600">
+                                <CreditCard className="h-5 w-5" />
+                            </div>
+                            <h3 className="text-stone-500 text-sm font-medium">Total Spent</h3>
                             <div className="text-3xl font-bold text-stone-900">$0.00</div>
-                            <p className="text-xs text-stone-400 mt-1">Credits available</p>
                         </div>
                     </div>
 
-                    {/* Next Booking Banner */}
-                    {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length > 0 ? (
-                        <div className="bg-gradient-to-r from-saffron-500 to-saffron-600 rounded-xl p-6 text-white shadow-md">
-                             <div className="flex justify-between items-center mb-4">
-                                 <h2 className="text-lg font-bold flex items-center gap-2">
-                                     <Calendar className="h-5 w-5" /> Up Next
-                                 </h2>
-                                 <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm">
-                                     Confirmed
-                                 </span>
-                             </div>
-                             {(() => {
-                                 const next = bookings.find(b => b.status === 'confirmed' || b.status === 'pending');
-                                 if (!next) return null;
-                                 return (
-                                     <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-                                         <div>
-                                             <h3 className="text-2xl font-bold mb-1">{next.services?.title}</h3>
-                                             <p className="opacity-90 flex items-center gap-2 text-sm">
-                                                 <Clock className="h-4 w-4" /> 
-                                                 {new Date(next.scheduled_at).toLocaleString()} 
-                                                 <span className="mx-1">•</span> 
-                                                 {next.services?.duration_minutes} mins
-                                             </p>
-                                         </div>
-                                         <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm min-w-[200px]">
-                                             <p className="text-xs opacity-75 mb-1">Performed by</p>
-                                             <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-                                                    {next.gurubas?.profiles?.avatar_url ? (
-                                                        <img src={next.gurubas.profiles.avatar_url} className="h-full w-full object-cover" />
-                                                    ) : <User className="h-4 w-4" />}
-                                                </div>
-                                                <span className="font-medium">{next.gurubas?.profiles?.full_name}</span>
-                                             </div>
-                                         </div>
-                                     </div>
-                                 );
-                             })()}
-                        </div>
-                    ) : (
-                        <div className="bg-stone-50 border border-stone-200 rounded-xl p-8 text-center">
-                            <div className="mx-auto h-12 w-12 bg-stone-200 rounded-full flex items-center justify-center mb-3">
-                                <Calendar className="h-6 w-6 text-stone-400" />
+                    {/* Upcoming Bookings */}
+                    <div>
+                        <h3 className="text-xl font-bold text-stone-900 mb-4">Upcoming Schedule</h3>
+                        {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length > 0 ? (
+                            <div className="space-y-4">
+                                {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').slice(0,3).map(booking => (
+                                    <div key={booking.id} className="flex flex-col md:flex-row items-center bg-white p-4 rounded-2xl border border-stone-100 shadow-sm gap-6">
+                                        <div className="h-16 w-16 rounded-xl bg-stone-100 overflow-hidden flex-shrink-0">
+                                            <img src={booking.services?.image_url} className="h-full w-full object-cover" alt="" />
+                                        </div>
+                                        <div className="flex-1 text-center md:text-left">
+                                            <h4 className="font-bold text-stone-900">{booking.services?.title}</h4>
+                                            <p className="text-sm text-stone-500 flex items-center justify-center md:justify-start gap-2 mt-1">
+                                                <Calendar className="h-3 w-3" /> {new Date(booking.scheduled_at).toLocaleDateString()} 
+                                                <Clock className="h-3 w-3 ml-2" /> {new Date(booking.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-right hidden md:block">
+                                                <p className="text-xs text-stone-400 uppercase font-semibold">Guruba</p>
+                                                <p className="text-sm font-medium">{booking.gurubas?.profiles?.full_name}</p>
+                                            </div>
+                                            <div className="h-10 w-10 rounded-full bg-stone-200 overflow-hidden">
+                                                <img src={booking.gurubas?.profiles?.avatar_url || 'https://via.placeholder.com/40'} className="h-full w-full object-cover" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <h3 className="text-stone-900 font-medium">No upcoming rituals</h3>
-                            <p className="text-stone-500 text-sm mb-4">Book a service to start your spiritual journey.</p>
-                            <Button onClick={() => navigate('/book')}>Book Now</Button>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         {/* Recent Activity Table */}
-                        <div className="md:col-span-2 bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                            <div className="p-4 border-b border-stone-100 flex justify-between items-center">
-                                <h3 className="font-bold text-stone-900">Recent Bookings</h3>
-                                <Button variant="ghost" size="sm" onClick={() => setActiveTab('bookings')}>View All</Button>
+                        ) : (
+                            <div className="bg-stone-50 rounded-2xl p-8 text-center border border-stone-100 border-dashed">
+                                <p className="text-stone-500">No upcoming rituals. Time to book one?</p>
                             </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-stone-500 uppercase bg-stone-50">
-                                        <tr>
-                                            <th className="px-4 py-3">Service</th>
-                                            <th className="px-4 py-3">Date</th>
-                                            <th className="px-4 py-3">Guruba</th>
-                                            <th className="px-4 py-3">Status</th>
-                                            <th className="px-4 py-3 text-right">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {bookings.slice(0, 5).map(b => (
-                                            <tr key={b.id} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
-                                                <td className="px-4 py-3 font-medium text-stone-900">{b.services?.title}</td>
-                                                <td className="px-4 py-3 text-stone-500">{new Date(b.scheduled_at).toLocaleDateString()}</td>
-                                                <td className="px-4 py-3 text-stone-600">{b.gurubas?.profiles?.full_name}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(b.status)}`}>
-                                                        {b.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-medium">${b.services?.base_price}</td>
-                                            </tr>
-                                        ))}
-                                        {bookings.length === 0 && (
-                                            <tr><td colSpan={5} className="text-center py-8 text-stone-500">No history found</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        {/* Quick Profile Card */}
-                        <div className="rounded-lg bg-white p-6 shadow border border-stone-200">
-                            <h3 className="font-semibold text-stone-900 mb-4">My Profile</h3>
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="h-12 w-12 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-600 font-bold overflow-hidden">
-                                    {profile?.avatar_url ? (
-                                        <img src={profile.avatar_url} className="h-full w-full object-cover" />
-                                    ) : (
-                                        displayName[0]
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="font-bold">{displayName}</p>
-                                    <p className="text-xs text-stone-500">{user?.email}</p>
-                                </div>
-                            </div>
-                            <div className="space-y-2 text-sm mb-4">
-                                <div className="flex justify-between">
-                                    <span className="text-stone-500">Gotra:</span>
-                                    <span className="font-medium">{profile?.gotra_id || 'Not Set'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-stone-500">Phone:</span>
-                                    <span className="font-medium">{profile?.phone || 'Not Set'}</span>
-                                </div>
-                            </div>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="w-full"
-                                onClick={() => setActiveTab('settings')}
-                            >
-                                Edit Profile
-                            </Button>
-                        </div>
+                        )}
                     </div>
                 </div>
             );
         
         case 'bookings':
             return (
-                <div className="space-y-6">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <h2 className="text-xl font-bold text-stone-900">My Bookings</h2>
-                        <div className="flex gap-2 w-full md:w-auto">
-                            <div className="relative flex-1 md:flex-none">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
-                                <input type="text" placeholder="Search..." className="pl-9 pr-4 py-2 w-full border border-stone-300 rounded-lg text-sm" />
-                            </div>
-                            <Button variant="outline" className="gap-2"><Filter className="h-4 w-4" /> Filter</Button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
+                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-2xl font-bold text-stone-900">All Bookings</h2>
+                    <div className="grid gap-4">
                         {bookings.map(booking => (
-                            <div key={booking.id} className="bg-white rounded-xl border border-stone-200 shadow-sm p-6 flex flex-col md:flex-row gap-6">
-                                <div className="flex-shrink-0">
-                                    <div className="h-24 w-24 bg-stone-100 rounded-lg overflow-hidden">
-                                        <div className="h-full w-full flex items-center justify-center bg-saffron-50 text-saffron-600 font-bold text-2xl">
-                                            {booking.services?.title[0]}
-                                        </div>
-                                    </div>
+                            <div key={booking.id} className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row gap-6">
+                                <div className="w-full lg:w-48 h-32 rounded-xl overflow-hidden flex-shrink-0 bg-stone-100">
+                                    <img src={booking.services?.image_url} className="w-full h-full object-cover" alt={booking.services?.title} />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h3 className="text-lg font-bold text-stone-900">{booking.services?.title}</h3>
-                                            <p className="text-sm text-stone-500">ID: #{booking.id.slice(0,8)}</p>
+                                            <h3 className="text-xl font-bold text-stone-900">{booking.services?.title}</h3>
+                                            <p className="text-sm text-stone-500 mt-1 flex items-center gap-2">
+                                                <User className="h-4 w-4" /> {booking.gurubas?.profiles?.full_name} ({booking.gurubas?.location})
+                                            </p>
                                         </div>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
-                                            {booking.status.toUpperCase()}
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ring-1 ring-inset ${getStatusColor(booking.status)}`}>
+                                            {booking.status}
                                         </span>
                                     </div>
                                     
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 py-4 border-t border-stone-50">
                                         <div>
-                                            <span className="text-xs text-stone-400 block uppercase tracking-wide">Date & Time</span>
-                                            <span className="text-sm font-medium text-stone-800 flex items-center gap-1 mt-1">
-                                                <Calendar className="h-3 w-3" />
-                                                {new Date(booking.scheduled_at).toLocaleString()}
-                                            </span>
+                                            <p className="text-xs text-stone-400 uppercase">Date</p>
+                                            <p className="font-medium">{new Date(booking.scheduled_at).toLocaleDateString()}</p>
                                         </div>
                                         <div>
-                                            <span className="text-xs text-stone-400 block uppercase tracking-wide">Duration</span>
-                                            <span className="text-sm font-medium text-stone-800 flex items-center gap-1 mt-1">
-                                                <Clock className="h-3 w-3" />
-                                                {booking.services?.duration_minutes} mins
-                                            </span>
+                                            <p className="text-xs text-stone-400 uppercase">Time</p>
+                                            <p className="font-medium">{new Date(booking.scheduled_at).toLocaleTimeString()}</p>
                                         </div>
                                         <div>
-                                            <span className="text-xs text-stone-400 block uppercase tracking-wide">Guruba</span>
-                                            <span className="text-sm font-medium text-stone-800 flex items-center gap-1 mt-1">
-                                                <User className="h-3 w-3" />
-                                                {booking.gurubas?.profiles?.full_name}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-xs text-stone-400 block uppercase tracking-wide">Total Cost</span>
-                                            <span className="text-sm font-bold text-stone-900 mt-1">
-                                                ${booking.services?.base_price}
-                                            </span>
+                                            <p className="text-xs text-stone-400 uppercase">Cost</p>
+                                            <p className="font-bold text-stone-900">${booking.services?.base_price}</p>
                                         </div>
                                     </div>
 
-                                    <div className="mt-6 flex gap-3 pt-4 border-t border-stone-100">
+                                    <div className="flex gap-3 justify-end">
                                         {booking.status === 'completed' && !booking.is_reviewed && (
-                                            <Button size="sm" onClick={() => setReviewModalData({
-                                                id: booking.id,
-                                                gurubaId: booking.guruba_id,
-                                                gurubaName: booking.gurubas?.profiles?.full_name || ''
-                                            })}>Rate Service</Button>
+                                            <Button size="sm" onClick={() => setReviewModalData({ id: booking.id, gurubaId: booking.guruba_id, gurubaName: booking.gurubas?.profiles?.full_name || '' })}>
+                                                Write Review
+                                            </Button>
                                         )}
-                                        <Button size="sm" variant="outline">Download Invoice</Button>
-                                        <Button size="sm" variant="ghost" className="text-stone-500">View Details</Button>
+                                        <Button size="sm" variant="outline" className="gap-2">
+                                            <Receipt className="h-4 w-4" /> Invoice
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
                         ))}
-                        {bookings.length === 0 && (
-                             <div className="text-center py-12 text-stone-500 bg-stone-50 rounded-xl border border-stone-200 border-dashed">
-                                No bookings found matching your criteria.
-                             </div>
-                        )}
                     </div>
+                </div>
+            );
+        
+        case 'messages':
+            return (
+                <div className="animate-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-2xl font-bold text-stone-900 mb-6">Messages</h2>
+                    <ChatInterface />
                 </div>
             );
 
         case 'wallet':
             return (
-                <div className="space-y-6">
-                    <h2 className="text-xl font-bold text-stone-900">Wallet & Transactions</h2>
-                    
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <div className="bg-gradient-to-br from-stone-800 to-stone-900 rounded-xl p-6 text-white shadow-lg">
-                            <div className="flex justify-between items-start mb-8">
-                                <div>
-                                    <p className="text-stone-400 text-sm font-medium">Available Balance</p>
-                                    <h3 className="text-4xl font-bold mt-1">$0.00</h3>
-                                </div>
-                                <CreditCard className="h-8 w-8 text-stone-500" />
-                            </div>
-                            <div className="flex gap-3">
-                                <Button size="sm" className="bg-white text-stone-900 hover:bg-stone-200 border-0">Add Funds</Button>
-                                <Button size="sm" variant="outline" className="border-stone-600 text-stone-300 hover:bg-stone-800">Withdraw</Button>
-                            </div>
+                <div className="max-w-4xl space-y-8 animate-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-2xl font-bold text-stone-900">Wallet</h2>
+                    {/* Credit Card Style */}
+                    <div className="w-full max-w-md h-56 bg-gradient-to-br from-stone-800 to-stone-950 rounded-3xl p-8 text-white shadow-2xl flex flex-col justify-between relative overflow-hidden">
+                        <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                        <div className="flex justify-between items-start relative z-10">
+                            <span className="text-stone-400 font-medium tracking-wider">Guruba Balance</span>
+                            <CreditCard className="h-8 w-8 opacity-80" />
                         </div>
-
-                        <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm">
-                            <h3 className="font-bold text-stone-900 mb-4">Payment Methods</h3>
-                            <div className="flex items-center gap-3 p-3 border border-stone-200 rounded-lg mb-3">
-                                <div className="h-8 w-12 bg-stone-200 rounded flex items-center justify-center text-xs font-bold text-stone-500">VISA</div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-stone-900">Ending in 4242</p>
-                                    <p className="text-xs text-stone-500">Expires 12/25</p>
-                                </div>
-                                <Button variant="ghost" size="sm">Edit</Button>
-                            </div>
-                            <Button variant="outline" size="sm" className="w-full">+ Add New Method</Button>
+                        <div className="relative z-10">
+                            <span className="text-4xl font-bold tracking-tight">$0.00</span>
+                        </div>
+                        <div className="flex justify-between items-end relative z-10">
+                             <div className="flex flex-col">
+                                 <span className="text-xs text-stone-400 uppercase mb-1">Holder</span>
+                                 <span className="font-medium tracking-wide uppercase">{displayName}</span>
+                             </div>
+                             <div className="flex flex-col items-end">
+                                 <span className="text-xs text-stone-400 uppercase mb-1">Expires</span>
+                                 <span className="font-medium tracking-wide">12/28</span>
+                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                        <div className="p-4 bg-stone-50 border-b border-stone-200">
-                            <h3 className="font-bold text-stone-900">Transaction History</h3>
+                    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-stone-100">
+                            <h3 className="font-bold text-lg">Transaction History</h3>
                         </div>
-                        {transactions.length > 0 ? (
-                             <table className="w-full text-sm">
-                                 <thead className="bg-stone-50 text-stone-500 text-xs uppercase">
-                                     <tr>
-                                         <th className="px-6 py-3 text-left">Date</th>
-                                         <th className="px-6 py-3 text-left">Description</th>
-                                         <th className="px-6 py-3 text-left">Type</th>
-                                         <th className="px-6 py-3 text-right">Amount</th>
-                                     </tr>
-                                 </thead>
-                                 <tbody>
-                                     {transactions.map(t => (
-                                         <tr key={t.id} className="border-b border-stone-100">
-                                             <td className="px-6 py-4 text-stone-500">{new Date(t.created_at).toLocaleDateString()}</td>
-                                             <td className="px-6 py-4 font-medium text-stone-900">{t.description}</td>
-                                             <td className="px-6 py-4">
-                                                 <span className={`text-xs px-2 py-1 rounded-full ${t.type === 'credit' ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-800'}`}>
-                                                     {t.type.toUpperCase()}
-                                                 </span>
-                                             </td>
-                                             <td className={`px-6 py-4 text-right font-bold ${t.type === 'credit' ? 'text-green-600' : 'text-stone-900'}`}>
-                                                 {t.type === 'credit' ? '+' : '-'}${t.amount.toFixed(2)}
-                                             </td>
-                                         </tr>
-                                     ))}
-                                 </tbody>
-                             </table>
-                        ) : (
-                             <div className="p-8 text-center text-stone-500">No transactions recorded yet.</div>
-                        )}
+                        <table className="w-full text-sm">
+                            <thead className="bg-stone-50 text-stone-500 font-medium text-xs uppercase">
+                                <tr>
+                                    <th className="px-6 py-3 text-left">Date</th>
+                                    <th className="px-6 py-3 text-left">Description</th>
+                                    <th className="px-6 py-3 text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {transactions.length === 0 ? (
+                                    <tr><td colSpan={3} className="p-8 text-center text-stone-500">No transactions yet.</td></tr>
+                                ) : (
+                                    transactions.map(t => (
+                                        <tr key={t.id} className="border-b border-stone-100 last:border-0">
+                                            <td className="px-6 py-4 text-stone-500">{new Date(t.created_at).toLocaleDateString()}</td>
+                                            <td className="px-6 py-4 font-medium">{t.description}</td>
+                                            <td className="px-6 py-4 text-right font-bold">{t.type === 'credit' ? '+' : '-'}${t.amount}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             );
 
         case 'settings':
             return (
-                <div className="max-w-2xl">
-                    <h2 className="text-xl font-bold text-stone-900 mb-6">Account Settings</h2>
-                    
-                    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-6 mb-6">
-                        <h3 className="text-lg font-medium text-stone-900 mb-4">Personal Information</h3>
-                        
-                        <div className="flex items-center gap-6 mb-6">
-                            <div className="relative group">
-                                <div className="h-20 w-20 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
-                                    {profileForm.avatar_url ? (
-                                        <img src={profileForm.avatar_url} className="h-full w-full object-cover" />
-                                    ) : (
-                                        <User className="h-8 w-8 text-stone-400" />
-                                    )}
+                <div className="max-w-2xl space-y-6 animate-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-2xl font-bold text-stone-900">Profile Settings</h2>
+                    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8">
+                        <div className="flex items-center gap-6 mb-8">
+                            <div className="h-24 w-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden relative group cursor-pointer">
+                                {profileForm.avatar_url ? <img src={profileForm.avatar_url} className="h-full w-full object-cover" /> : <User className="h-10 w-10 text-stone-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <Camera className="h-6 w-6" />
                                 </div>
-                                <label className="absolute bottom-0 right-0 bg-saffron-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-saffron-700 shadow-sm">
-                                    <Camera className="h-3 w-3" />
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-                                </label>
                             </div>
                             <div>
-                                <h4 className="font-medium text-stone-900">{displayName}</h4>
-                                <p className="text-sm text-stone-500">{user?.email}</p>
+                                <h3 className="text-xl font-bold text-stone-900">{profileForm.full_name || 'Your Name'}</h3>
+                                <p className="text-stone-500">{user?.email}</p>
                             </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
-                                    <input 
-                                        type="text" 
-                                        value={profileForm.full_name}
-                                        onChange={(e) => setProfileForm({...profileForm, full_name: e.target.value})}
-                                        className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" 
-                                        placeholder="Your Full Name"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-stone-700 mb-1">Phone Number</label>
-                                    <input 
-                                        type="tel" 
-                                        value={profileForm.phone}
-                                        onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                                        className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" 
-                                        placeholder="Your Phone"
-                                    />
-                                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
+                                <input 
+                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
+                                    value={profileForm.full_name}
+                                    onChange={e => setProfileForm({...profileForm, full_name: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-stone-700 mb-1">Phone</label>
+                                <input 
+                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
+                                    value={profileForm.phone}
+                                    onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-stone-700 mb-1">Gotra</label>
                                 <input 
-                                    type="text" 
+                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
                                     value={profileForm.gotra_id}
-                                    onChange={(e) => setProfileForm({...profileForm, gotra_id: e.target.value})}
-                                    className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm" 
-                                    placeholder="e.g. Kashyap"
+                                    onChange={e => setProfileForm({...profileForm, gotra_id: e.target.value})}
                                 />
                             </div>
-                            <div className="pt-2 flex justify-end">
-                                <Button onClick={handleSaveProfile} isLoading={updateLoading}>
-                                    <RefreshCw className={`h-4 w-4 mr-2 ${updateLoading ? 'animate-spin' : ''}`} />
-                                    Save Changes
-                                </Button>
+                            <div>
+                                <label className="block text-sm font-medium text-stone-700 mb-1">City</label>
+                                <input 
+                                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500" 
+                                    value={profileForm.city}
+                                    onChange={e => setProfileForm({...profileForm, city: e.target.value})}
+                                />
                             </div>
                         </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-6">
-                        <h3 className="text-lg font-medium text-red-600 mb-4">Danger Zone</h3>
-                        <p className="text-sm text-stone-500 mb-4">Once you delete your account, there is no going back. Please be certain.</p>
-                        <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50">Delete Account</Button>
+                        <div className="flex justify-end">
+                            <Button onClick={handleSaveProfile} isLoading={updateLoading}>Save Changes</Button>
+                        </div>
                     </div>
                 </div>
             );
@@ -585,55 +399,37 @@ export const ClientDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-stone-50 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-stone-200 hidden md:flex flex-col sticky top-16 h-[calc(100vh-4rem)]">
-         <div className="p-6 border-b border-stone-100">
-            <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-700 font-bold overflow-hidden border border-saffron-200">
-                    {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} className="h-full w-full object-cover" />
-                    ) : (
-                        displayName[0]
-                    )}
+      <aside className="w-72 bg-white border-r border-stone-200 hidden lg:flex flex-col sticky top-16 h-[calc(100vh-4rem)] shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20">
+         <div className="p-6">
+            <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
+                <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md overflow-hidden">
+                     {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : displayName[0]}
                 </div>
                 <div className="overflow-hidden">
                     <p className="font-bold text-stone-900 truncate text-sm">{displayName}</p>
-                    <p className="text-xs text-stone-500 truncate">Client Account</p>
+                    <p className="text-xs text-stone-500 truncate font-medium">Client Account</p>
                 </div>
             </div>
          </div>
 
-         <nav className="flex-1 p-4">
+         <nav className="flex-1 px-4 space-y-1">
             <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-            <SidebarItem icon={Calendar} label="My Bookings" active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} />
+            <SidebarItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} badge={bookings.filter(b=>b.status==='confirmed').length || null} />
+            <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} />
             <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
+            <div className="my-4 h-px bg-stone-100 mx-2" />
             <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
          </nav>
 
-         <div className="p-4 border-t border-stone-100">
-             <div className="mb-4 px-4">
-                 <h4 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Notifications</h4>
-                 {notifications.length > 0 ? (
-                    <div className="space-y-2">
-                        {notifications.map(n => (
-                            <div key={n.id} className="text-xs bg-stone-50 p-2 rounded border border-stone-100">
-                                <p className="font-medium text-stone-900">{n.title}</p>
-                                <p className="text-stone-500 truncate">{n.message}</p>
-                            </div>
-                        ))}
-                    </div>
-                 ) : (
-                    <p className="text-xs text-stone-400 italic">No new notifications</p>
-                 )}
-             </div>
-             <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+         <div className="p-6">
+             <button onClick={() => signOut().then(() => navigate('/'))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                  <LogOut className="h-4 w-4" /> Sign Out
              </button>
          </div>
       </aside>
 
-      {/* Mobile Warning (simple implementation for now) */}
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto h-[calc(100vh-4rem)]">
+      <main className="flex-1 p-6 md:p-10 overflow-y-auto h-[calc(100vh-4rem)]">
           {loading ? (
               <div className="flex items-center justify-center h-full text-saffron-600">
                   <RefreshCw className="h-8 w-8 animate-spin" />
