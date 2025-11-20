@@ -57,26 +57,39 @@ export const GurubaDashboard: React.FC = () => {
     
     try {
         // 1. Get Guruba Profile
-        let { data: gurubaData, error: gurubaError } = await supabase
+        // We use .select() instead of .single() or .maybeSingle() and handle array manually
+        // This avoids errors if there are accidentally multiple rows (which shouldn't happen with unique constraint, but safe to handle)
+        let { data: gurubaRows, error: gurubaError } = await supabase
             .from('gurubas')
             .select('*')
-            .eq('user_id', user?.id)
-            .maybeSingle(); // Use maybeSingle to avoid error on 0 rows immediately
+            .eq('user_id', user?.id);
+            
+        let gurubaData = gurubaRows?.[0];
 
         // Auto-provision if missing
-        if (!gurubaData && (!gurubaError || gurubaError.code === 'PGRST116')) {
+        if ((!gurubaRows || gurubaRows.length === 0) && !gurubaError) {
              const { data: newGuruba, error: createError } = await supabase
                 .from('gurubas')
                 .insert([{ user_id: user?.id }])
                 .select()
                 .single();
              
-             if (createError) throw createError;
-             gurubaData = newGuruba;
-             gurubaError = null;
+             if (createError) {
+                 // If insert failed because row already exists (race condition), try fetch again
+                 if (createError.code === '23505') {
+                     const { data: retryData } = await supabase.from('gurubas').select('*').eq('user_id', user?.id).single();
+                     gurubaData = retryData;
+                 } else {
+                     throw createError;
+                 }
+             } else {
+                 gurubaData = newGuruba;
+             }
+        } else if (gurubaError) {
+             throw gurubaError;
         }
 
-        if (gurubaError) throw new Error("Could not find Guruba profile.");
+        if (!gurubaData) throw new Error("Could not find or create Guruba profile. Please contact support.");
         
         setGuruba(gurubaData);
         setBio(gurubaData.bio || '');
@@ -116,8 +129,8 @@ export const GurubaDashboard: React.FC = () => {
         setSchedule(initialSchedule);
 
     } catch (e: any) {
-        console.error("Error:", e);
-        setError(e.message);
+        console.error("Dashboard Error:", e);
+        setError(e.message || "An unexpected error occurred");
     } finally {
         setLoading(false);
     }
@@ -442,7 +455,9 @@ export const GurubaDashboard: React.FC = () => {
                     <RefreshCw className="h-8 w-8 animate-spin" />
                 </div>
             ) : error ? (
-                <div className="text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>
+                <div className="text-red-600 bg-red-50 p-4 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" /> {error}
+                </div>
             ) : (
                 renderContent()
             )}
