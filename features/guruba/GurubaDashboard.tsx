@@ -8,7 +8,7 @@ import { ChatInterface } from '../messages/ChatInterface';
 import { 
     Calendar, Clock, DollarSign, MapPin, Star, Zap, RefreshCw, AlertCircle, Save, Check, 
     LayoutDashboard, ListChecks, User, LogOut, XCircle, CheckCircle, Settings, MessageSquare, BarChart3,
-    Briefcase, Users, BookOpen, Plus, Trash2, PlusCircle, Video
+    Briefcase, Users, BookOpen, Plus, Trash2, PlusCircle, Video, Menu, X
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -110,6 +110,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
 export const GurubaDashboard: React.FC = () => {
   const { profile, user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [guruba, setGuruba] = useState<Guruba | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -291,6 +292,11 @@ export const GurubaDashboard: React.FC = () => {
           }
       });
       return Object.values(clients);
+  };
+
+  const handleTabChange = (tab: typeof activeTab) => {
+      setActiveTab(tab);
+      setIsMobileMenuOpen(false);
   };
 
   const renderContent = () => {
@@ -685,9 +691,26 @@ export const GurubaDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 flex font-sans">
+        {/* Mobile Menu Backdrop */}
+        <div 
+            className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+            onClick={() => setIsMobileMenuOpen(false)}
+        />
+
         {/* Sidebar */}
-        <aside className="w-72 bg-white border-r border-stone-200 hidden lg:flex flex-col sticky top-16 h-[calc(100vh-4rem)] shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20">
+        <aside className={`
+            fixed top-0 left-0 z-50 h-full w-72 bg-white border-r border-stone-200 transition-transform duration-300 ease-in-out
+            lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16
+            ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+        `}>
             <div className="p-6 border-b border-stone-100">
+                <div className="flex justify-between items-center lg:hidden mb-4">
+                    <span className="font-bold text-lg text-stone-900">Menu</span>
+                    <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded-md hover:bg-stone-100">
+                        <X className="h-6 w-6 text-stone-500" />
+                    </button>
+                </div>
+
                 <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
                     <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md">
                         {profile?.full_name?.[0] || 'G'}
@@ -700,15 +723,15 @@ export const GurubaDashboard: React.FC = () => {
                 </div>
             </div>
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-                <SidebarItem icon={ListChecks} label="Requests" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} badge={pendingCount > 0 ? pendingCount : null} />
-                <SidebarItem icon={Briefcase} label="My Services" active={activeTab === 'services'} onClick={() => setActiveTab('services')} />
-                <SidebarItem icon={Users} label="My Clients" active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} />
-                <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} />
-                <SidebarItem icon={Calendar} label="Schedule" active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} />
-                <SidebarItem icon={BookOpen} label="Resources" active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} />
+                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
+                <SidebarItem icon={ListChecks} label="Requests" active={activeTab === 'requests'} onClick={() => handleTabChange('requests')} badge={pendingCount > 0 ? pendingCount : null} />
+                <SidebarItem icon={Briefcase} label="My Services" active={activeTab === 'services'} onClick={() => handleTabChange('services')} />
+                <SidebarItem icon={Users} label="My Clients" active={activeTab === 'clients'} onClick={() => handleTabChange('clients')} />
+                <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
+                <SidebarItem icon={Calendar} label="Schedule" active={activeTab === 'schedule'} onClick={() => handleTabChange('schedule')} />
+                <SidebarItem icon={BookOpen} label="Resources" active={activeTab === 'resources'} onClick={() => handleTabChange('resources')} />
                 <div className="my-4 h-px bg-stone-100 mx-2" />
-                <SidebarItem icon={Settings} label="Profile" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+                <SidebarItem icon={Settings} label="Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} />
             </nav>
             <div className="p-6 border-t border-stone-100">
                 <button onClick={() => signOut().then(() => window.location.reload())} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
@@ -719,6 +742,13 @@ export const GurubaDashboard: React.FC = () => {
 
         {/* Main Content */}
         <main className="flex-1 p-6 md:p-10 overflow-y-auto h-[calc(100vh-4rem)]">
+            <div className="lg:hidden mb-6 flex items-center gap-4">
+                <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600">
+                    <Menu className="h-6 w-6" />
+                </button>
+                <span className="font-bold text-stone-900 text-lg">Guruba Dashboard</span>
+            </div>
+
             {loading ? (
                 <div className="flex items-center justify-center h-full text-saffron-600">
                     <RefreshCw className="h-8 w-8 animate-spin" />

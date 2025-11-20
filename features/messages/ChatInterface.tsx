@@ -59,7 +59,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
     try {
         // Fetch all unique interactions. 
-        // Note: In a production app, a separate 'conversations' table updated via triggers is more performant.
         const { data: sent } = await supabase.from('messages').select('receiver_id').eq('sender_id', user.id);
         const { data: received } = await supabase.from('messages').select('sender_id').eq('receiver_id', user.id);
         

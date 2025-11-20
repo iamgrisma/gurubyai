@@ -23,8 +23,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const refreshNotifications = async () => {
     if (!user) return;
     
-    // Don't set loading true on refresh to avoid UI flicker, only if you want a spinner
-    // setLoading(true); 
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -33,10 +31,19 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
+      if (error) {
+        // Log stringified error to see the actual cause instead of [object Object]
+        console.warn('Supabase error fetching notifications:', JSON.stringify(error));
+        return;
+      }
+      
+      if (Array.isArray(data)) {
+        setNotifications(data);
+      }
+    } catch (error: any) {
+      // Handle unexpected errors (network, etc) safely
+      const errMsg = error?.message || JSON.stringify(error);
+      console.error('Unexpected error fetching notifications:', errMsg);
     } finally {
       setLoading(false);
     }
@@ -52,10 +59,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [user]);
 
-  // Simple polling every 30 seconds for demo purposes (Realtime subscription is better but requires DB setup)
+  // Simple polling every 60 seconds (increased to reduce load)
   useEffect(() => {
     if (!user) return;
-    const interval = setInterval(refreshNotifications, 30000);
+    const interval = setInterval(refreshNotifications, 60000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -64,13 +71,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Optimistic update
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
       
-      await supabase
+      const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('id', id);
-    } catch (error) {
-      console.error("Failed to mark read", error);
-      refreshNotifications(); // Revert on fail
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Failed to mark read:", error.message);
+      // Silently fail or revert if needed, but usually acceptable to just log
     }
   };
 
@@ -79,14 +88,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       
-      await supabase
+      const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
-    } catch (error) {
-      console.error("Failed to mark all read", error);
-      refreshNotifications();
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Failed to mark all read:", error.message);
     }
   };
 

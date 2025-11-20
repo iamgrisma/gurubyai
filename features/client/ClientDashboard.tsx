@@ -10,7 +10,7 @@ import { Booking, Transaction, Notification, Gotra } from '../../types';
 import { 
   Calendar, Clock, AlertCircle, RefreshCw,
   LayoutDashboard, CreditCard, Settings, LogOut, Search, Filter, User, Camera,
-  MessageSquare, CheckCircle, Receipt, Home, PlusCircle
+  MessageSquare, CheckCircle, Receipt, Home, PlusCircle, Menu, X
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
@@ -43,10 +43,6 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
     }, []);
 
     useEffect(() => {
-        // If the current value is set and we haven't typed yet, allow it to just be the value. 
-        // But if we want to search, we use searchTerm.
-        // We only sync value -> searchTerm if not editing. 
-        // Actually, let's keep it simple: input displays searchTerm, selection updates value.
         if (value && !searchTerm) {
              setSearchTerm(value);
         }
@@ -105,7 +101,6 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                         )}
                     </div>
                 )}
-                {/* Click outside close listener would ideally go here */}
             </div>
             {showDropdown && <div className="fixed inset-0 z-0" onClick={() => setShowDropdown(false)}></div>}
         </div>
@@ -118,6 +113,7 @@ export const ClientDashboard: React.FC = () => {
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'messages' | 'wallet' | 'settings'>('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -218,6 +214,11 @@ export const ClientDashboard: React.FC = () => {
       }
   };
 
+  const handleTabChange = (tab: typeof activeTab) => {
+      setActiveTab(tab);
+      setIsMobileMenuOpen(false);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
         case 'overview':
@@ -230,7 +231,7 @@ export const ClientDashboard: React.FC = () => {
                                <h2 className="text-3xl font-bold mb-2">Namaste, {displayName} 🙏</h2>
                                <p className="text-stone-300 max-w-lg">Your spiritual journey continues. You have {bookings.filter(b => b.status === 'confirmed').length} upcoming rituals scheduled.</p>
                            </div>
-                           <Button onClick={() => navigate('/book')} className="bg-saffron-600 hover:bg-saffron-700 border-none shadow-lg shadow-saffron-900/20 py-3 px-6 text-base">
+                           <Button onClick={() => navigate('/book')} className="bg-saffron-600 hover:bg-saffron-700 border-none shadow-lg shadow-saffron-900/20 py-3 px-6 text-base w-full md:w-auto">
                                Book New Service
                            </Button>
                         </div>
@@ -482,9 +483,26 @@ export const ClientDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 flex font-sans">
+      {/* Mobile Menu Backdrop */}
+      <div 
+        className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+        onClick={() => setIsMobileMenuOpen(false)}
+      />
+
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-stone-200 hidden lg:flex flex-col sticky top-16 h-[calc(100vh-4rem)] shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20">
+      <aside className={`
+        fixed top-0 left-0 z-50 h-full w-72 bg-white border-r border-stone-200 transition-transform duration-300 ease-in-out
+        lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16
+        ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+      `}>
          <div className="p-6">
+            <div className="flex justify-between items-center lg:hidden mb-4">
+                <span className="font-bold text-lg text-stone-900">Menu</span>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded-md hover:bg-stone-100">
+                    <X className="h-6 w-6 text-stone-500" />
+                </button>
+            </div>
+
             <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
                 <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md overflow-hidden">
                      {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : displayName[0]}
@@ -497,12 +515,12 @@ export const ClientDashboard: React.FC = () => {
          </div>
 
          <nav className="flex-1 px-4 space-y-1">
-            <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-            <SidebarItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} badge={bookings.filter(b=>b.status==='confirmed').length || null} />
-            <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} />
-            <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
+            <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
+            <SidebarItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => handleTabChange('bookings')} badge={bookings.filter(b=>b.status==='confirmed').length || null} />
+            <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
+            <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => handleTabChange('wallet')} />
             <div className="my-4 h-px bg-stone-100 mx-2" />
-            <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+            <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => handleTabChange('settings')} />
          </nav>
 
          <div className="p-6">
@@ -514,6 +532,13 @@ export const ClientDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto h-[calc(100vh-4rem)]">
+          <div className="lg:hidden mb-6 flex items-center gap-4">
+              <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600">
+                  <Menu className="h-6 w-6" />
+              </button>
+              <span className="font-bold text-stone-900 text-lg">Dashboard</span>
+          </div>
+
           {loading ? (
               <div className="flex items-center justify-center h-full text-saffron-600">
                   <RefreshCw className="h-8 w-8 animate-spin" />

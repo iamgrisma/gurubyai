@@ -7,7 +7,7 @@ import { Service, Gotra, UserProfile, Guruba } from '../../types';
 import { 
     Users, BookOpen, Settings, Activity, RefreshCw, AlertCircle, Search, Key, Mail, CheckCircle,
     LayoutDashboard, Layers, DollarSign, X, Plus, Edit, Trash, Star, ScrollText, Check, XCircle,
-    Briefcase, Calendar, Clock, UserPlus
+    Briefcase, Calendar, Clock, UserPlus, Menu
 } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
@@ -25,6 +25,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'concierge' | 'users' | 'services' | 'gotras' | 'financials'>('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Data State
   const [stats, setStats] = useState({ users: 0, gurubas: 0, bookings: 0, revenue: 0 });
@@ -295,6 +296,11 @@ export const AdminDashboard: React.FC = () => {
       } catch(e) {
           alert("Booking Failed.");
       }
+  };
+
+  const handleTabChange = (tab: typeof activeTab) => {
+      setActiveTab(tab);
+      setIsMobileMenuOpen(false);
   };
 
   const renderContent = () => {
@@ -621,21 +627,34 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-100 flex font-sans">
+        {/* Mobile Menu Backdrop */}
+        <div 
+            className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+            onClick={() => setIsMobileMenuOpen(false)}
+        />
+
         {/* Admin Sidebar */}
-        <aside className="w-64 bg-stone-900 text-stone-300 flex flex-col sticky top-0 h-screen">
-            <div className="p-6">
+        <aside className={`
+            fixed top-0 left-0 z-50 h-full w-64 bg-stone-900 text-stone-300 flex flex-col transition-transform duration-300 ease-in-out
+            lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16
+            ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+        `}>
+            <div className="p-6 flex justify-between items-center">
                 <div className="flex items-center gap-2 text-white font-bold text-xl">
                     <div className="h-8 w-8 bg-saffron-600 rounded flex items-center justify-center">A</div>
                     Admin
                 </div>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-stone-400 hover:text-white">
+                    <X className="h-6 w-6" />
+                </button>
             </div>
-            <nav className="flex-1 px-4 space-y-1">
-                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-                <SidebarItem icon={UserPlus} label="Concierge Booking" active={activeTab === 'concierge'} onClick={() => setActiveTab('concierge')} />
-                <SidebarItem icon={Users} label="Users & Gurubas" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-                <SidebarItem icon={Layers} label="Services" active={activeTab === 'services'} onClick={() => setActiveTab('services')} />
-                <SidebarItem icon={ScrollText} label="Gotras" active={activeTab === 'gotras'} onClick={() => setActiveTab('gotras')} />
-                <SidebarItem icon={DollarSign} label="Financials" active={activeTab === 'financials'} onClick={() => setActiveTab('financials')} />
+            <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
+                <SidebarItem icon={UserPlus} label="Concierge Booking" active={activeTab === 'concierge'} onClick={() => handleTabChange('concierge')} />
+                <SidebarItem icon={Users} label="Users & Gurubas" active={activeTab === 'users'} onClick={() => handleTabChange('users')} />
+                <SidebarItem icon={Layers} label="Services" active={activeTab === 'services'} onClick={() => handleTabChange('services')} />
+                <SidebarItem icon={ScrollText} label="Gotras" active={activeTab === 'gotras'} onClick={() => handleTabChange('gotras')} />
+                <SidebarItem icon={DollarSign} label="Financials" active={activeTab === 'financials'} onClick={() => handleTabChange('financials')} />
             </nav>
             <div className="p-4 border-t border-stone-800">
                 <div className="text-xs text-stone-500">v1.0.0 Admin Console</div>
@@ -643,7 +662,14 @@ export const AdminDashboard: React.FC = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8 overflow-y-auto h-screen">
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto h-[calc(100vh-4rem)]">
+            <div className="lg:hidden mb-6 flex items-center gap-4">
+                <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600">
+                    <Menu className="h-6 w-6" />
+                </button>
+                <span className="font-bold text-stone-900 text-lg">Admin Panel</span>
+            </div>
+
             {renderContent()}
         </main>
 
