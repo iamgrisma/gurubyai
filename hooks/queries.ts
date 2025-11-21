@@ -33,7 +33,8 @@ export const useServices = () => {
         .select('*')
         .order('title');
       if (error) throw error;
-      return data as Service[];
+      // FIX: Ensure we return an array even if data is null
+      return (data || []) as Service[];
     },
   });
 };
@@ -71,7 +72,8 @@ export const useGurubas = () => {
           )
         `);
       if (error) throw error;
-      return data as Guruba[];
+      // FIX: Ensure we return an array even if data is null
+      return (data || []) as Guruba[];
     },
   });
 };
@@ -98,6 +100,7 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
         .order('scheduled_at', { ascending: true });
 
       if (role === 'guruba') {
+        // For Gurubas, we need to find the guruba record first
         const { data: gurubaData } = await supabase.from('gurubas').select('id').eq('user_id', userId).single();
         if (gurubaData) {
             query = query.eq('guruba_id', gurubaData.id);
@@ -110,7 +113,8 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Booking[];
+      // FIX: Ensure we return an array even if data is null
+      return (data || []) as Booking[];
     },
     enabled: !!userId,
   });
@@ -147,6 +151,7 @@ export const useBookService = () => {
         location_lng?: number,
         location_address?: string
     }) => {
+        // Call the RPC function we created in SQL
         const { data, error } = await supabase.rpc('book_service', {
             p_user_id: params.user_id,
             p_guruba_id: params.guruba_id,
