@@ -81,10 +81,11 @@ export const ServiceSelection: React.FC = () => {
             </div>
         ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredServices.map((service) => (
+            {filteredServices.map((service, index) => (
                 <div 
-                key={service.id} 
-                className="group flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition-all hover:shadow-md border border-stone-200"
+                  key={service.id} 
+                  className="group flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition-all duration-300 hover:shadow-lg border border-stone-200 hover:-translate-y-1 animate-in fade-in"
+                  style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
                 >
                 <div className="aspect-video w-full overflow-hidden bg-stone-200 relative">
                     <img 

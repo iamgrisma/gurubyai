@@ -56,6 +56,7 @@ export interface Guruba {
   location: string;
   specialties: string[];
   is_verified?: boolean;
+  guruba_type?: 'brahmin' | 'non_brahmin' | 'astrologer'; // Added type
   languages?: string[];
   email?: string;
   // Joined data from profiles table

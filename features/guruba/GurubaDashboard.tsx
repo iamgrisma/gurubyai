@@ -12,23 +12,27 @@ import { useBookings, useServices, useUpdateBookingStatus } from '../../hooks/qu
 import { 
     Calendar, Clock, DollarSign, MapPin, Star, RefreshCw, AlertCircle, Save, Check, 
     LayoutDashboard, ListChecks, User, LogOut, CheckCircle, Settings, MessageSquare,
-    Briefcase, Users, BookOpen, PlusCircle, Video, Menu, X, Edit3, Link as LinkIcon, XCircle
+    Briefcase, Users, BookOpen, PlusCircle, Video, Menu, X, Edit3, Link as LinkIcon, XCircle,
+    BadgeCheck, ShieldAlert, Sparkles, ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
+const SidebarItem = ({ icon: Icon, label, active, onClick, badge, isCollapsed }: any) => (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-all duration-200 rounded-xl mb-1 ${
-        active ? 'bg-saffron-50 text-saffron-700 shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:translate-x-1'
+      className={`w-full flex items-center py-3 text-sm font-medium transition-all duration-200 rounded-xl mb-1 group ${
+        isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+      } ${
+        active ? 'bg-saffron-50 text-saffron-700 shadow-sm' : 'text-stone-600 hover:bg-stone-100'
       }`}
+      title={isCollapsed ? label : ''}
     >
-      <div className="flex items-center gap-3">
-        <Icon className={`h-5 w-5 ${active ? 'text-saffron-600' : 'text-stone-400'}`} />
-        {label}
+      <div className={`flex items-center gap-3 ${isCollapsed ? 'transform transition-transform group-hover:scale-110' : ''}`}>
+        <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-saffron-600' : 'text-stone-400'}`} />
+        {!isCollapsed && <span className="flex-1 text-left">{label}</span>}
       </div>
-      {badge && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{badge}</span>}
+      {!isCollapsed && badge && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{badge}</span>}
     </button>
 );
 
@@ -115,6 +119,7 @@ export const GurubaDashboard: React.FC = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // --- Queries ---
   
@@ -172,8 +177,12 @@ export const GurubaDashboard: React.FC = () => {
   // Profile Edit
   const [bio, setBio] = useState('');
   const [gotraId, setGotraId] = useState('');
+  const [gurubaType, setGurubaType] = useState<'brahmin' | 'non_brahmin' | 'astrologer'>('brahmin');
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+
+  // My Services filter
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState('All');
 
   // Sync Schedule state when availability loads
   useEffect(() => {
@@ -194,6 +203,7 @@ export const GurubaDashboard: React.FC = () => {
       if (guruba) {
           setBio(guruba.bio || '');
           setGotraId(guruba.profiles?.gotra_id || '');
+          setGurubaType(guruba.guruba_type || 'brahmin');
       }
   }, [guruba]);
 
@@ -238,6 +248,18 @@ export const GurubaDashboard: React.FC = () => {
 
   const saveSchedule = async () => {
     if (!guruba) return;
+    
+    // Validate that end time is after start time
+    const invalidDays = Object.entries(schedule)
+        // FIX: Cast `val` to `any` to resolve properties. This is a common workaround for `Object.entries` on objects with numeric keys.
+        .filter(([, val]) => (val as any).enabled && (val as any).start >= (val as any).end)
+        .map(([day]) => DAYS_OF_WEEK[parseInt(day)]);
+
+    if (invalidDays.length > 0) {
+        alert(`Error: End time must be after start time for ${invalidDays.join(', ')}.`);
+        return;
+    }
+
     setSavingSchedule(true);
     try {
         const upsertRows = Object.entries(schedule)
@@ -301,7 +323,7 @@ export const GurubaDashboard: React.FC = () => {
       if (!guruba) return;
       setSavingProfile(true);
       try {
-          await supabase.from('gurubas').update({ bio }).eq('id', guruba.id);
+          await supabase.from('gurubas').update({ bio, guruba_type: gurubaType }).eq('id', guruba.id);
           await supabase.from('profiles').update({ gotra_id: gotraId }).eq('id', user?.id);
           queryClient.invalidateQueries({ queryKey: ['gurubaProfile'] });
           alert("Profile updated!");
@@ -341,6 +363,8 @@ export const GurubaDashboard: React.FC = () => {
   };
 
   const loading = gurubaLoading || bookingsLoading;
+  
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
   const renderContent = () => {
       switch(activeTab) {
@@ -520,7 +544,7 @@ export const GurubaDashboard: React.FC = () => {
                                                   {b.status === 'confirmed' && (
                                                       <div className="mt-2 pt-2 border-t border-stone-200 flex items-center gap-2">
                                                           <Video className="h-4 w-4 text-blue-500" />
-                                                          <span className="text-sm text-stone-600">Link: {b.meeting_link ? <a href={b.meeting_link} className="text-blue-600 hover:underline" target="_blank">Open Link</a> : <span className="text-stone-400 italic">No link added</span>}</span>
+                                                          <span className="text-sm text-stone-600">Link: {b.meeting_link ? <a href={b.meeting_link} className="text-blue-600 hover:underline" target="_blank" rel="noreferrer">Open Link</a> : <span className="text-stone-400 italic">No link added</span>}</span>
                                                           <button onClick={() => { setLinkBookingId(b.id); setMeetingLink(b.meeting_link || ''); }} className="ml-auto text-xs text-stone-500 hover:text-stone-900 border px-2 py-1 rounded">
                                                               {b.meeting_link ? 'Edit' : 'Add'}
                                                           </button>
@@ -648,236 +672,197 @@ export const GurubaDashboard: React.FC = () => {
                       </div>
                   </div>
               );
-            
-          case 'services':
-              return (
-                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                      <h2 className="text-2xl font-bold text-stone-900 mb-2">My Services</h2>
-                      <p className="text-stone-600 mb-6">Select the rituals you are qualified to perform.</p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {allServices.map(service => {
-                              const myService = myServices.find(s => s.service_id === service.id);
-                              const isActive = !!myService;
-                              const isOnline = myService?.is_online || false;
-
-                              return (
-                                  <div 
-                                    key={service.id} 
-                                    className={`relative p-6 rounded-xl border-2 transition-all duration-200 ${
-                                        isActive 
-                                        ? 'border-saffron-500 bg-white shadow-md' 
-                                        : 'border-stone-200 bg-stone-50 hover:border-stone-300'
-                                    }`}
-                                  >
-                                      <div className="flex justify-between items-start mb-3">
-                                          <h3 className={`font-bold text-lg ${isActive ? 'text-saffron-900' : 'text-stone-500'}`}>{service.title}</h3>
-                                          <div onClick={() => toggleService(service.id, isActive)} className={`cursor-pointer h-6 w-6 rounded-full flex items-center justify-center transition-colors ${isActive ? 'bg-saffron-500 text-white' : 'border-2 border-stone-300'}`}>
-                                              {isActive && <Check className="h-4 w-4" />}
-                                          </div>
-                                      </div>
-                                      <p className="text-sm text-stone-500 line-clamp-2 mb-3">{service.description}</p>
-                                      
-                                      <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-                                            <div className="flex items-center gap-3 text-xs font-medium text-stone-400">
-                                                <span>Rs. {service.base_price}</span>
-                                                <span>•</span>
-                                                <span>{service.duration_minutes} min</span>
-                                            </div>
-                                            {isActive && service.is_online_enabled && (
-                                                <div 
-                                                    onClick={() => toggleOnlineService(service.id, isOnline)}
-                                                    className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full cursor-pointer select-none transition-colors ${isOnline ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-stone-100 text-stone-400 border border-stone-200'}`}
-                                                >
-                                                    <Video className="h-3 w-3" />
-                                                    {isOnline ? 'Online' : 'Offline'}
-                                                </div>
-                                            )}
-                                      </div>
-                                  </div>
-                              );
-                          })}
-                      </div>
-                  </div>
-              );
-
-          case 'clients':
-              return (
-                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                       <h2 className="text-2xl font-bold text-stone-900">My Clients</h2>
-                       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-                           <table className="w-full text-left text-sm">
-                               <thead className="bg-stone-50 text-stone-500 uppercase font-bold text-xs border-b border-stone-100">
-                                   <tr>
-                                       <th className="px-6 py-4">Client Name</th>
-                                       <th className="px-6 py-4">Contact</th>
-                                       <th className="px-6 py-4 text-center">Bookings</th>
-                                       <th className="px-6 py-4 text-right">Total Spend</th>
-                                       <th className="px-6 py-4 text-right">Last Seen</th>
-                                   </tr>
-                               </thead>
-                               <tbody className="divide-y divide-stone-100">
-                                   {getUniqueClients().map((client: any) => (
-                                       <tr key={client.id} className="hover:bg-stone-50 transition-colors">
-                                           <td className="px-6 py-4">
-                                               <div className="flex items-center gap-3">
-                                                   <div className="h-8 w-8 rounded-full bg-stone-200 overflow-hidden">
-                                                       <img src={client.avatar_url || 'https://via.placeholder.com/40'} className="h-full w-full object-cover" />
-                                                   </div>
-                                                   <span className="font-bold text-stone-900">{client.full_name}</span>
-                                               </div>
-                                           </td>
-                                           <td className="px-6 py-4 text-stone-500">
-                                               <div className="flex flex-col">
-                                                   <span>{client.phone || 'N/A'}</span>
-                                                   <span className="text-xs opacity-70">{client.email}</span>
-                                               </div>
-                                           </td>
-                                           <td className="px-6 py-4 text-center font-medium">{client.booking_count}</td>
-                                           <td className="px-6 py-4 text-right font-bold text-green-600">Rs. {(client.total_spend || 0).toLocaleString()}</td>
-                                           <td className="px-6 py-4 text-right text-stone-500">{new Date(client.last_booking).toLocaleDateString()}</td>
-                                       </tr>
-                                   ))}
-                                   {getUniqueClients().length === 0 && (
-                                       <tr><td colSpan={5} className="px-6 py-8 text-center text-stone-400">No clients yet.</td></tr>
-                                   )}
-                               </tbody>
-                           </table>
-                       </div>
-                  </div>
-              );
-
-          case 'resources':
-              return (
-                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                      <h2 className="text-2xl font-bold text-stone-900">Vedic Resources</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          {[
-                              { title: "Satyanarayan Katha (Sanskrit)", type: "PDF", size: "2.4 MB" },
-                              { title: "Swasthani Brata Katha (Nepali)", type: "PDF", size: "5.1 MB" },
-                              { title: "Griha Pravesh Samagri Checklist", type: "List", size: "150 KB" },
-                          ].map((res, i) => (
-                              <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all group cursor-pointer">
-                                  <div className="flex justify-between items-start mb-4">
-                                      <div className="h-10 w-10 bg-saffron-50 rounded-lg flex items-center justify-center text-saffron-600 group-hover:bg-saffron-500 group-hover:text-white transition-colors">
-                                          <BookOpen className="h-5 w-5" />
-                                      </div>
-                                      <span className="text-xs font-bold bg-stone-100 text-stone-500 px-2 py-1 rounded">{res.type}</span>
-                                  </div>
-                                  <h3 className="font-bold text-stone-900 mb-1">{res.title}</h3>
-                                  <p className="text-xs text-stone-400">{res.size}</p>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-              );
-
-          case 'profile':
-              return (
-                  <div className="max-w-3xl space-y-8 animate-in slide-in-from-right-4 duration-300">
-                      <h2 className="text-2xl font-bold text-stone-900">Public Profile</h2>
-                      
-                      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8">
-                          <div className="space-y-6">
-                              <div>
-                                  <label className="block text-sm font-bold text-stone-900 mb-2">Bio & Experience</label>
-                                  <textarea 
-                                      value={bio}
-                                      onChange={(e) => setBio(e.target.value)}
-                                      rows={6}
-                                      className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 text-base p-4"
-                                      placeholder="Describe your lineage (Gotra), vedic education (Gurukul), and experience..."
-                                  />
-                              </div>
-                              
-                              <GotraSelect 
-                                  value={gotraId}
-                                  onChange={setGotraId}
-                              />
-
-                              <div>
-                                  <label className="block text-sm font-bold text-stone-900 mb-2">Active Services</label>
-                                  <div className="flex flex-wrap gap-2 p-4 bg-stone-50 rounded-xl border border-stone-200 min-h-[60px]">
-                                      {myServices.length === 0 ? <span className="text-stone-400 text-sm italic">No services selected. Go to 'Services' tab to add.</span> : 
-                                      myServices.map(s => {
-                                          const serviceName = allServices.find(as => as.id === s.service_id)?.title || 'Unknown Service';
-                                          return (
-                                              <span key={s.service_id} className="bg-white border border-stone-200 px-3 py-1 rounded-full text-sm font-medium text-stone-700 shadow-sm flex items-center gap-1">
-                                                  {serviceName}
-                                                  {s.is_online && <Video className="h-3 w-3 text-blue-500 ml-1" />}
-                                              </span>
-                                          )
-                                      })}
-                                  </div>
-                              </div>
-                              <div className="pt-4 flex justify-end">
-                                  <Button onClick={saveProfile} isLoading={savingProfile} size="lg">Update Profile</Button>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              );
+        case 'services':
+            const myServiceIds = new Set(myServices.map(s => s.service_id));
+            const serviceCategories = ['All', ...new Set(allServices.map(s => s.category).filter(Boolean) as string[])];
+            const filteredServices = selectedServiceCategory === 'All'
+                ? allServices
+                : allServices.filter(s => s.category === selectedServiceCategory);
+            return (
+                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                    <div>
+                        <h2 className="text-2xl font-bold text-stone-900">My Service Catalog</h2>
+                        <p className="text-sm text-stone-500 mt-1">Select the services you are qualified to perform. This will appear on your public profile.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {serviceCategories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setSelectedServiceCategory(cat!)}
+                                className={`px-4 py-2 text-sm font-medium rounded-full border ${selectedServiceCategory === cat ? 'bg-saffron-600 text-white border-saffron-700' : 'bg-white text-stone-600 hover:bg-stone-50'}`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredServices.map(s => {
+                            const isSelected = myServiceIds.has(s.id);
+                            const myService = myServices.find(ms => ms.service_id === s.id);
+                            return (
+                                <div key={s.id} className={`p-4 rounded-xl border transition-all ${isSelected ? 'bg-green-50 border-green-200 shadow-sm' : 'bg-white border-stone-200'}`}>
+                                    <h4 className="font-bold text-stone-900">{s.title}</h4>
+                                    <p className="text-xs text-stone-500 mt-1">{s.category}</p>
+                                    <div className="mt-4 flex flex-col gap-2">
+                                        <Button size="sm" variant={isSelected ? 'secondary' : 'primary'} onClick={() => toggleService(s.id, isSelected)}>
+                                            {isSelected ? <><XCircle className="h-4 w-4 mr-2" />Remove</> : <><PlusCircle className="h-4 w-4 mr-2"/>Add to my services</>}
+                                        </Button>
+                                        {isSelected && (
+                                            <button onClick={() => toggleOnlineService(s.id, myService!.is_online)} className={`text-xs p-2 rounded-lg flex items-center justify-center gap-2 w-full ${myService!.is_online ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-600'}`}>
+                                                <Video className="h-4 w-4"/> Available for Online Ritual? {myService!.is_online ? <Check className="h-4 w-4" /> : ''}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        case 'clients':
+            const uniqueClients = getUniqueClients();
+            return (
+                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-2xl font-bold text-stone-900">My Clients</h2>
+                    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead className="bg-stone-50 text-stone-500 uppercase text-xs">
+                                <tr>
+                                    <th className="px-6 py-3 text-left">Client</th>
+                                    <th className="px-6 py-3 text-left">Last Booking</th>
+                                    <th className="px-6 py-3 text-right">Total Dakshina</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {uniqueClients.map(c => (
+                                    <tr key={c.id} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
+                                        <td className="px-6 py-4">
+                                            <p className="font-bold text-stone-900">{c.full_name}</p>
+                                            <p className="text-xs text-stone-500">{c.email}</p>
+                                        </td>
+                                        <td className="px-6 py-4 text-stone-600">{new Date(c.last_booking).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 text-right font-bold text-green-700">Rs. {c.total_spend.toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        case 'resources':
+            return (
+                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-2xl font-bold text-stone-900">Resources</h2>
+                    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8 text-center">
+                        <p className="text-stone-500">Coming soon: Resources and guides for Gurubas.</p>
+                    </div>
+                </div>
+            );
+        case 'profile':
+            return (
+                 <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-2xl font-bold text-stone-900">My Guruba Profile</h2>
+                     <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="md:col-span-2">
+                               <label className="block text-sm font-bold text-stone-900 mb-2">Bio / Introduction</label>
+                               <textarea
+                                   className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 p-3 border"
+                                   rows={4}
+                                   value={bio}
+                                   onChange={(e) => setBio(e.target.value)}
+                                   placeholder="Tell clients about your experience, lineage, and approach..."
+                               />
+                            </div>
+                            <GotraSelect value={gotraId} onChange={setGotraId} />
+                            <div>
+                               <label className="block text-sm font-bold text-stone-900 mb-2">Guruba Type</label>
+                               <select
+                                   className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 p-3 border"
+                                   value={gurubaType}
+                                   onChange={(e) => setGurubaType(e.target.value as any)}
+                               >
+                                   <option value="brahmin">Brahmin</option>
+                                   <option value="non_brahmin">Non-Brahmin</option>
+                                   <option value="astrologer">Astrologer</option>
+                               </select>
+                            </div>
+                         </div>
+                         <div className="flex justify-end mt-6">
+                            <Button onClick={saveProfile} isLoading={savingProfile}>
+                                <Save className="h-4 w-4 mr-2" /> Save Profile
+                            </Button>
+                         </div>
+                     </div>
+                 </div>
+            );
       }
   };
 
   return (
     <div className="min-h-screen bg-stone-50 flex font-sans">
-        {/* Mobile Menu Backdrop */}
         <div 
             className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
             onClick={() => setIsMobileMenuOpen(false)}
         />
 
-        {/* Sidebar */}
         <aside className={`
-            fixed top-0 left-0 z-50 h-full w-72 bg-white border-r border-stone-200 transition-transform duration-300 ease-in-out
+            fixed top-0 left-0 z-50 h-full bg-white border-r border-stone-200 flex flex-col
+            transition-transform lg:transition-all duration-300 ease-in-out
             lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16
-            ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+            ${isMobileMenuOpen ? 'translate-x-0 w-72 shadow-2xl' : '-translate-x-full w-72'}
+            ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-72'}
         `}>
-            <div className="p-6 border-b border-stone-100">
+            <div className={`p-6 border-b border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
                 <div className="flex justify-between items-center lg:hidden mb-4">
                     <span className="font-bold text-lg text-stone-900">Menu</span>
                     <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded-md hover:bg-stone-100">
                         <X className="h-6 w-6 text-stone-500" />
                     </button>
                 </div>
-
-                <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
-                    <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md">
-                        {profile?.full_name?.[0] || 'G'}
+                <div className={`flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100 transition-all ${isSidebarCollapsed ? 'lg:justify-center lg:p-0 lg:py-4 lg:bg-transparent lg:border-none' : ''}`}>
+                    <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md overflow-hidden shrink-0">
+                        {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : displayName[0]}
                     </div>
-                    <div className="overflow-hidden">
-                        <p className="font-bold text-stone-900 text-sm truncate">{profile?.full_name}</p>
-                        {profile?.email && <p className="text-xs text-stone-500 truncate">{profile.email}</p>}
-                        <p className="text-xs text-saffron-600 font-medium">Verified Guruba</p>
-                    </div>
+                    {!isSidebarCollapsed && (
+                        <div className="overflow-hidden">
+                            <p className="font-bold text-stone-900 truncate text-sm">{displayName}</p>
+                            <p className="text-xs text-stone-500 truncate font-medium">Guruba</p>
+                        </div>
+                    )}
                 </div>
             </div>
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
-                <SidebarItem icon={ListChecks} label="Requests" active={activeTab === 'requests'} onClick={() => handleTabChange('requests')} badge={pendingCount > 0 ? pendingCount : null} />
-                <SidebarItem icon={Briefcase} label="My Services" active={activeTab === 'services'} onClick={() => handleTabChange('services')} />
-                <SidebarItem icon={Users} label="My Clients" active={activeTab === 'clients'} onClick={() => handleTabChange('clients')} />
-                <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
-                <SidebarItem icon={Calendar} label="Schedule" active={activeTab === 'schedule'} onClick={() => handleTabChange('schedule')} />
-                <SidebarItem icon={BookOpen} label="Resources" active={activeTab === 'resources'} onClick={() => handleTabChange('resources')} />
-                <div className="my-4 h-px bg-stone-100 mx-2" />
-                <SidebarItem icon={Settings} label="Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} />
+                <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={ListChecks} label="Booking Requests" active={activeTab === 'requests'} onClick={() => handleTabChange('requests')} badge={pendingCount || null} isCollapsed={isSidebarCollapsed} />
+                <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={Calendar} label="Availability" active={activeTab === 'schedule'} onClick={() => handleTabChange('schedule')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={Briefcase} label="My Services" active={activeTab === 'services'} onClick={() => handleTabChange('services')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={Users} label="My Clients" active={activeTab === 'clients'} onClick={() => handleTabChange('clients')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={BookOpen} label="Resources" active={activeTab === 'resources'} onClick={() => handleTabChange('resources')} isCollapsed={isSidebarCollapsed}/>
+                {!isSidebarCollapsed && <div className="my-4 h-px bg-stone-100 mx-2" />}
+                <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} isCollapsed={isSidebarCollapsed}/>
             </nav>
-            <div className="p-6 border-t border-stone-100">
-                <button onClick={() => signOut().then(() => window.location.reload())} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                    <LogOut className="h-4 w-4" /> Sign Out
-                </button>
+            <div className={`p-6 border-t border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
+                 <button 
+                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                   className="hidden lg:flex w-full items-center justify-center p-3 text-sm font-medium text-stone-500 hover:bg-stone-100 rounded-xl transition-colors mb-2"
+                   title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                 >
+                   {isSidebarCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
+                 </button>
+                 <button onClick={() => signOut()} className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors ${isSidebarCollapsed ? 'lg:px-2' : ''}`}>
+                     <LogOut className="h-5 w-5 shrink-0" /> {!isSidebarCollapsed && 'Sign Out'}
+                 </button>
             </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-6 md:p-10 overflow-y-auto h-[calc(100vh-4rem)]">
             <div className="lg:hidden mb-6 flex items-center gap-4">
                 <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600">
                     <Menu className="h-6 w-6" />
                 </button>
-                <span className="font-bold text-stone-900 text-lg">Guruba Dashboard</span>
+                <span className="font-bold text-stone-900 text-lg capitalize">{activeTab}</span>
             </div>
 
             {loading ? (

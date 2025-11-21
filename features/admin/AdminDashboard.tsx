@@ -7,29 +7,36 @@ import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
 import { Service, Gotra, UserProfile, Guruba, Transaction } from '../../types';
 import { useServices } from '../../hooks/queries';
+import { GurubaVerificationBadge } from '../../components/shared/GurubaVerificationBadge';
 import { 
-    Users, BookOpen, Settings, Activity, RefreshCw, AlertCircle, Search, Key, Mail, CheckCircle,
-    LayoutDashboard, Layers, DollarSign, X, Plus, Edit, Trash, Star, ScrollText, Check,
-    Briefcase, Calendar, UserPlus, Menu, CreditCard, PlusCircle
+    Users, Settings, Activity, RefreshCw, Search, 
+    LayoutDashboard, DollarSign, X, Plus, Edit, Trash, Star, ScrollText, Check,
+    UserPlus, Menu, PlusCircle, ChevronsLeft, ChevronsRight, Layers, LogOut, CheckCircle
 } from 'lucide-react';
 
-const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
+const SidebarItem = ({ icon: Icon, label, active, onClick, isCollapsed }: any) => (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors rounded-lg mb-1 ${
-        active ? 'bg-stone-800 text-white' : 'text-stone-400 hover:bg-stone-800 hover:text-white'
+      className={`w-full flex items-center py-3 text-sm font-medium transition-all duration-200 rounded-xl mb-1 group ${
+        isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+      } ${
+        active ? 'bg-saffron-50 text-saffron-700 shadow-sm' : 'text-stone-600 hover:bg-stone-100'
       }`}
+      title={isCollapsed ? label : ''}
     >
-      <Icon className={`h-5 w-5`} />
-      {label}
+      <div className={`flex items-center gap-3 ${isCollapsed ? 'transform transition-transform group-hover:scale-110' : ''}`}>
+        <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-saffron-600' : 'text-stone-400'}`} />
+        {!isCollapsed && <span className="flex-1 text-left">{label}</span>}
+      </div>
     </button>
 );
 
 export const AdminDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'overview' | 'concierge' | 'users' | 'services' | 'gotras' | 'financials'>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // --- Queries ---
 
@@ -52,7 +59,7 @@ export const AdminDashboard: React.FC = () => {
       queryKey: ['adminUsers'],
       queryFn: async () => {
         const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(50);
-        const { data: gurubas } = await supabase.from('gurubas').select('user_id, is_verified');
+        const { data: gurubas } = await supabase.from('gurubas').select('user_id, is_verified, guruba_type');
         
         // Join guruba status manually
         return profiles?.map(p => ({
@@ -332,14 +339,14 @@ export const AdminDashboard: React.FC = () => {
 
                       {bookingStep === 1 && (
                           <div className="space-y-4 max-w-xl">
-                              <h3 className="text-lg font-semibold">Step 1: Select Client</h3>
+                              <h3 className="text-lg font-semibold text-stone-900">Step 1: Select Client</h3>
                               <div className="relative">
                                   <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
-                                  <input className="w-full pl-10 p-3 border rounded-lg" placeholder="Search by email..." value={clientSearch} onChange={e => searchClients(e.target.value)} />
+                                  <input className="w-full pl-10 p-3 border rounded-lg bg-white text-stone-900" placeholder="Search by email..." value={clientSearch} onChange={e => searchClients(e.target.value)} />
                               </div>
                               {filteredClients.map(c => (
                                   <div key={c.id} onClick={() => { setSelectedClient(c); setBookingStep(2); }} className="p-3 border rounded-lg hover:bg-stone-50 cursor-pointer flex justify-between">
-                                      <span>{c.email}</span><span className="text-stone-500 text-sm">{c.full_name}</span>
+                                      <span className="text-stone-900">{c.email}</span><span className="text-stone-500 text-sm">{c.full_name}</span>
                                   </div>
                               ))}
                           </div>
@@ -347,11 +354,11 @@ export const AdminDashboard: React.FC = () => {
 
                       {bookingStep === 2 && (
                           <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">Step 2: Select Service</h3>
+                              <h3 className="text-lg font-semibold text-stone-900">Step 2: Select Service</h3>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                   {services.map(s => (
                                       <div key={s.id} onClick={() => { setSelectedService(s); setBookingStep(3); fetchAvailableGurubas(); }} className="p-4 border rounded-lg hover:border-saffron-500 cursor-pointer">
-                                          <p className="font-bold">{s.title}</p>
+                                          <p className="font-bold text-stone-900">{s.title}</p>
                                       </div>
                                   ))}
                               </div>
@@ -360,12 +367,12 @@ export const AdminDashboard: React.FC = () => {
 
                       {bookingStep === 3 && (
                           <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">Step 3: Select Guruba</h3>
+                              <h3 className="text-lg font-semibold text-stone-900">Step 3: Select Guruba</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {filteredGurubas.map(g => (
                                       <div key={g.id} onClick={() => { setSelectedGuruba(g); setBookingStep(4); }} className="p-4 border rounded-lg hover:border-saffron-500 cursor-pointer flex gap-4">
-                                          <div className="h-10 w-10 rounded-full bg-stone-200 flex items-center justify-center font-bold">{g.profiles?.full_name?.[0]}</div>
-                                          <div><p className="font-bold">{g.profiles?.full_name}</p><p className="text-xs text-stone-500">{g.location}</p></div>
+                                          <div className="h-10 w-10 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-700">{g.profiles?.full_name?.[0]}</div>
+                                          <div><p className="font-bold text-stone-900">{g.profiles?.full_name}</p><p className="text-xs text-stone-500">{g.location}</p></div>
                                       </div>
                                   ))}
                               </div>
@@ -374,13 +381,13 @@ export const AdminDashboard: React.FC = () => {
 
                       {bookingStep === 4 && (
                           <div className="space-y-6 max-w-xl">
-                              <h3 className="text-lg font-semibold">Step 4: Schedule</h3>
+                              <h3 className="text-lg font-semibold text-stone-900">Step 4: Schedule</h3>
                               <div className="flex gap-4">
-                                  <input type="date" className="border p-2 rounded flex-1" value={bookingDate} onChange={e => setBookingDate(e.target.value)} onBlur={checkAvailability} />
+                                  <input type="date" className="border p-2 rounded flex-1 bg-white text-stone-900" value={bookingDate} onChange={e => setBookingDate(e.target.value)} onBlur={checkAvailability} />
                               </div>
                               <div className="grid grid-cols-4 gap-2">
                                   {availableSlots.map(slot => (
-                                      <button key={slot} onClick={() => setBookingTime(slot)} className={`p-2 text-sm border rounded ${bookingTime === slot ? 'bg-saffron-600 text-white' : 'hover:bg-stone-50'}`}>{slot}</button>
+                                      <button key={slot} onClick={() => setBookingTime(slot)} className={`p-2 text-sm border rounded ${bookingTime === slot ? 'bg-saffron-600 text-white' : 'bg-white text-stone-900 hover:bg-stone-50'}`}>{slot}</button>
                                   ))}
                               </div>
                               <Button onClick={handleConciergeBooking} disabled={!bookingTime} className="w-full">Confirm Booking</Button>
@@ -412,12 +419,15 @@ export const AdminDashboard: React.FC = () => {
                                           <p className="font-medium text-stone-900">{u.full_name}</p>
                                           <p className="text-xs text-stone-500">{u.email}</p>
                                       </td>
-                                      <td className="px-6 py-4"><span className="uppercase text-xs font-bold bg-gray-100 px-2 py-1 rounded">{u.role}</span></td>
+                                      <td className="px-6 py-4"><span className="uppercase text-xs font-bold bg-gray-100 px-2 py-1 rounded text-stone-700">{u.role}</span></td>
                                       <td className="px-6 py-4 font-mono font-bold text-green-700">{u.credits}</td>
                                       <td className="px-6 py-4">
                                           {u.role === 'guruba' && (
                                               u.gurubas?.[0]?.is_verified 
-                                              ? <span className="text-green-600 text-xs font-bold flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Verified</span>
+                                              ? <div className="flex items-center gap-2">
+                                                  <span className="text-green-600 text-xs font-bold flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Verified</span>
+                                                  <GurubaVerificationBadge isVerified={true} gurubaType={u.gurubas?.[0]?.guruba_type} />
+                                                </div>
                                               : <button onClick={() => handleVerifyGuruba(u.id)} className="text-blue-600 hover:underline text-xs bg-blue-50 px-2 py-1 rounded">Verify Now</button>
                                           )}
                                       </td>
@@ -446,10 +456,10 @@ export const AdminDashboard: React.FC = () => {
                           {services.map(service => (
                               <div key={service.id} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden group relative">
                                   <div className="h-32 bg-stone-200 relative">
-                                      <img src={service.image_url} className="h-full w-full object-cover" />
+                                      <img src={service.image_url} className="h-full w-full object-cover" alt="" />
                                       {service.is_featured && <div className="absolute top-2 right-2 bg-saffron-500 text-white text-xs px-2 py-1 rounded font-bold">Featured</div>}
                                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                          <button onClick={() => openServiceModal(service)} className="p-2 bg-white rounded-full hover:scale-110"><Edit className="h-4 w-4" /></button>
+                                          <button onClick={() => openServiceModal(service)} className="p-2 bg-white rounded-full hover:scale-110"><Edit className="h-4 w-4 text-stone-800" /></button>
                                           <button onClick={() => handleDeleteService(service.id)} className="p-2 bg-white rounded-full text-red-600 hover:scale-110"><Trash className="h-4 w-4" /></button>
                                       </div>
                                   </div>
@@ -472,7 +482,12 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex justify-between items-center">
                           <h2 className="text-xl font-bold text-stone-900">Gotra Management</h2>
                           <form onSubmit={handleAddGotra} className="flex gap-2">
-                              <input placeholder="Add new Gotra..." className="border rounded-md px-3 py-1.5 text-sm" value={newGotraName} onChange={e => setNewGotraName(e.target.value)} />
+                              <input 
+                                placeholder="Add new Gotra..." 
+                                className="border border-stone-300 rounded-lg px-4 py-2 text-sm bg-white text-stone-900 focus:ring-2 focus:ring-saffron-500 focus:border-saffron-500 outline-none" 
+                                value={newGotraName} 
+                                onChange={e => setNewGotraName(e.target.value)} 
+                              />
                               <Button size="sm" type="submit">Add</Button>
                           </form>
                       </div>
@@ -481,16 +496,21 @@ export const AdminDashboard: React.FC = () => {
                               <thead className="bg-stone-50 text-stone-500 uppercase text-xs"><tr><th className="px-6 py-3">Gotra Name</th><th className="px-6 py-3">Status</th><th className="px-6 py-3 text-right">Actions</th></tr></thead>
                               <tbody>
                                   {gotras.map(g => (
-                                      <tr key={g.id} className="hover:bg-stone-50">
-                                          <td className="px-6 py-4 font-medium">{g.name}</td>
+                                      <tr key={g.id} className="hover:bg-stone-50 border-b border-stone-100 last:border-0">
+                                          <td className="px-6 py-4 font-bold text-stone-900 flex items-center gap-3">
+                                              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-400">
+                                                  <ScrollText className="h-4 w-4" />
+                                              </div>
+                                              {g.name}
+                                          </td>
                                           <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs font-bold uppercase ${g.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{g.status}</span></td>
                                           <td className="px-6 py-4 text-right">
                                               {g.status === 'pending' ? (
                                                   <div className="flex justify-end gap-2">
-                                                      <button onClick={() => gotraMutation.mutate({id: g.id, action: 'approve'})} className="p-1 text-green-600"><Check className="h-4 w-4"/></button>
-                                                      <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="p-1 text-red-600"><X className="h-4 w-4"/></button>
+                                                      <button onClick={() => gotraMutation.mutate({id: g.id, action: 'approve'})} className="p-2 bg-green-50 text-green-600 rounded hover:bg-green-100"><Check className="h-4 w-4"/></button>
+                                                      <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100"><X className="h-4 w-4"/></button>
                                                   </div>
-                                              ) : <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="text-stone-400 hover:text-red-600"><Trash className="h-4 w-4"/></button>}
+                                              ) : <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash className="h-4 w-4"/></button>}
                                           </td>
                                       </tr>
                                   ))}
@@ -516,10 +536,10 @@ export const AdminDashboard: React.FC = () => {
                               </thead>
                               <tbody>
                                   {transactions.map(t => (
-                                      <tr key={t.id} className="border-b border-stone-100">
-                                          <td className="px-6 py-4">{new Date(t.created_at).toLocaleDateString()}</td>
-                                          <td className="px-6 py-4 text-xs text-stone-400">{t.user_id}</td>
-                                          <td className="px-6 py-4">{t.description}</td>
+                                      <tr key={t.id} className="border-b border-stone-100 hover:bg-stone-50">
+                                          <td className="px-6 py-4 text-stone-900">{new Date(t.created_at).toLocaleDateString()}</td>
+                                          <td className="px-6 py-4 text-xs text-stone-500">{t.user_id}</td>
+                                          <td className="px-6 py-4 text-stone-800">{t.description}</td>
                                           <td className={`px-6 py-4 text-right font-bold ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
                                               {t.type === 'credit' ? '+' : '-'}{t.amount}
                                           </td>
@@ -534,39 +554,82 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 flex font-sans">
+    <div className="min-h-screen bg-stone-50 flex font-sans">
         <div className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsMobileMenuOpen(false)}/>
-        <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-stone-900 text-stone-300 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
-            <div className="p-6 flex justify-between items-center"><div className="flex items-center gap-2 text-white font-bold text-xl"><div className="h-8 w-8 bg-saffron-600 rounded flex items-center justify-center">A</div>Admin</div><button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-stone-400 hover:text-white"><X className="h-6 w-6" /></button></div>
-            <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
-                <SidebarItem icon={UserPlus} label="Concierge Booking" active={activeTab === 'concierge'} onClick={() => handleTabChange('concierge')} />
-                <SidebarItem icon={Users} label="Users & Credits" active={activeTab === 'users'} onClick={() => handleTabChange('users')} />
-                <SidebarItem icon={Layers} label="Services" active={activeTab === 'services'} onClick={() => handleTabChange('services')} />
-                <SidebarItem icon={ScrollText} label="Gotras" active={activeTab === 'gotras'} onClick={() => handleTabChange('gotras')} />
-                <SidebarItem icon={DollarSign} label="Financials" active={activeTab === 'financials'} onClick={() => handleTabChange('financials')} />
+        
+        {/* Collapsible Sidebar (Same style as Client/Guruba Dashboard) */}
+        <aside className={`
+            fixed top-0 left-0 z-50 h-full bg-white border-r border-stone-200 flex flex-col
+            transition-transform lg:transition-all duration-300 ease-in-out
+            lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16
+            ${isMobileMenuOpen ? 'translate-x-0 w-72 shadow-2xl' : '-translate-x-full w-72'}
+            ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-72'}
+        `}>
+            <div className={`p-6 border-b border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
+                <div className="flex justify-between items-center lg:hidden mb-4">
+                    <span className="font-bold text-lg text-stone-900">Menu</span>
+                    <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded-md hover:bg-stone-100">
+                        <X className="h-6 w-6 text-stone-500" />
+                    </button>
+                </div>
+                <div className={`flex items-center gap-4 p-4 bg-stone-900 rounded-2xl text-white shadow-lg transition-all ${isSidebarCollapsed ? 'lg:justify-center lg:p-0 lg:py-4 lg:rounded-xl' : ''}`}>
+                    <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md shrink-0">
+                        A
+                    </div>
+                    {!isSidebarCollapsed && (
+                        <div className="overflow-hidden">
+                            <p className="font-bold text-white truncate text-sm">Admin Panel</p>
+                            <p className="text-xs text-stone-400 truncate">Super User</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+            <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+                <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={UserPlus} label="Concierge Booking" active={activeTab === 'concierge'} onClick={() => handleTabChange('concierge')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={Users} label="Users & Credits" active={activeTab === 'users'} onClick={() => handleTabChange('users')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={Layers} label="Services" active={activeTab === 'services'} onClick={() => handleTabChange('services')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={ScrollText} label="Gotras" active={activeTab === 'gotras'} onClick={() => handleTabChange('gotras')} isCollapsed={isSidebarCollapsed}/>
+                <SidebarItem icon={DollarSign} label="Financials" active={activeTab === 'financials'} onClick={() => handleTabChange('financials')} isCollapsed={isSidebarCollapsed}/>
             </nav>
+            <div className={`p-6 border-t border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
+                 <button 
+                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                   className="hidden lg:flex w-full items-center justify-center p-3 text-sm font-medium text-stone-500 hover:bg-stone-100 rounded-xl transition-colors mb-2"
+                   title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                 >
+                   {isSidebarCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
+                 </button>
+                 <button onClick={() => signOut()} className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors ${isSidebarCollapsed ? 'lg:px-2' : ''}`}>
+                     <LogOut className="h-5 w-5 shrink-0" /> {!isSidebarCollapsed && 'Sign Out'}
+                 </button>
+            </div>
         </aside>
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto h-[calc(100vh-4rem)]">
-            <div className="lg:hidden mb-6 flex items-center gap-4"><button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600"><Menu className="h-6 w-6" /></button><span className="font-bold text-stone-900 text-lg">Admin Panel</span></div>
+
+        <main className="flex-1 p-6 md:p-10 overflow-y-auto h-[calc(100vh-4rem)]">
+            <div className="lg:hidden mb-6 flex items-center gap-4">
+                <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600">
+                    <Menu className="h-6 w-6" />
+                </button>
+                <span className="font-bold text-stone-900 text-lg capitalize">{activeTab}</span>
+            </div>
             {renderContent()}
         </main>
-        {/* Service Modal Omitted for Brevity - Logic handled above */}
+
         {isServiceModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-                    <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold">{editingService ? 'Edit Service' : 'New Service'}</h3><button onClick={() => setIsServiceModalOpen(false)}><X className="h-5 w-5 text-stone-400" /></button></div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+                    <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-stone-900">{editingService ? 'Edit Service' : 'New Service'}</h3><button onClick={() => setIsServiceModalOpen(false)}><X className="h-5 w-5 text-stone-400" /></button></div>
                     <form onSubmit={handleServiceSubmit} className="space-y-4">
-                        {/* Form fields mapped to serviceForm state */}
-                        <input placeholder="Title" className="w-full border p-2 rounded" value={serviceForm.title} onChange={e => setServiceForm({...serviceForm, title: e.target.value})} required />
-                        <textarea placeholder="Description" className="w-full border p-2 rounded" value={serviceForm.description} onChange={e => setServiceForm({...serviceForm, description: e.target.value})} required />
+                        <input placeholder="Title" className="w-full border border-stone-300 p-2 rounded text-stone-900 bg-white" value={serviceForm.title} onChange={e => setServiceForm({...serviceForm, title: e.target.value})} required />
+                        <textarea placeholder="Description" className="w-full border border-stone-300 p-2 rounded text-stone-900 bg-white" value={serviceForm.description} onChange={e => setServiceForm({...serviceForm, description: e.target.value})} required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input type="number" placeholder="Price" className="w-full border p-2 rounded" value={serviceForm.base_price} onChange={e => setServiceForm({...serviceForm, base_price: +e.target.value})} required />
-                            <input type="number" placeholder="Duration (min)" className="w-full border p-2 rounded" value={serviceForm.duration_minutes} onChange={e => setServiceForm({...serviceForm, duration_minutes: +e.target.value})} required />
+                            <input type="number" placeholder="Price" className="w-full border border-stone-300 p-2 rounded text-stone-900 bg-white" value={serviceForm.base_price} onChange={e => setServiceForm({...serviceForm, base_price: +e.target.value})} required />
+                            <input type="number" placeholder="Duration (min)" className="w-full border border-stone-300 p-2 rounded text-stone-900 bg-white" value={serviceForm.duration_minutes} onChange={e => setServiceForm({...serviceForm, duration_minutes: +e.target.value})} required />
                         </div>
-                        <input placeholder="Image URL" className="w-full border p-2 rounded" value={serviceForm.image_url} onChange={e => setServiceForm({...serviceForm, image_url: e.target.value})} />
-                        <input placeholder="Category" className="w-full border p-2 rounded" value={serviceForm.category} onChange={e => setServiceForm({...serviceForm, category: e.target.value})} />
-                        <div className="flex items-center gap-4 mt-2">
+                        <input placeholder="Image URL" className="w-full border border-stone-300 p-2 rounded text-stone-900 bg-white" value={serviceForm.image_url} onChange={e => setServiceForm({...serviceForm, image_url: e.target.value})} />
+                        <input placeholder="Category" className="w-full border border-stone-300 p-2 rounded text-stone-900 bg-white" value={serviceForm.category} onChange={e => setServiceForm({...serviceForm, category: e.target.value})} />
+                        <div className="flex items-center gap-4 mt-2 text-stone-700">
                              <label className="flex items-center gap-2"><input type="checkbox" checked={serviceForm.is_featured} onChange={e => setServiceForm({...serviceForm, is_featured: e.target.checked})} /> Featured</label>
                              <label className="flex items-center gap-2"><input type="checkbox" checked={serviceForm.is_online_enabled} onChange={e => setServiceForm({...serviceForm, is_online_enabled: e.target.checked})} /> Online</label>
                         </div>

@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthProvider';
 import { NotificationBell } from '../../features/notifications/NotificationBell';
 import { Button } from '../ui/Button';
-import { Menu, X, User, LogOut, Coins } from 'lucide-react';
+import { Menu, X, User, LogOut, Coins, BookOpen, Users, Bell } from 'lucide-react';
 
 export const PublicHeader: React.FC = () => {
   const { session, profile, signOut } = useAuth();
@@ -93,6 +93,8 @@ export const PublicHeader: React.FC = () => {
           <button
             className="md:hidden p-2 text-stone-600 hover:bg-stone-100 rounded-md"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle navigation menu"
+            aria-expanded={isMenuOpen}
           >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -101,45 +103,47 @@ export const PublicHeader: React.FC = () => {
 
       {/* Mobile Nav */}
       {isMenuOpen && (
-        <div className="md:hidden border-t border-stone-200 bg-white p-4 shadow-xl animate-in slide-in-from-top-5 absolute w-full">
-          <div className="flex flex-col gap-4">
-            <Link to="/" className="text-base font-medium text-stone-700 p-2 rounded hover:bg-stone-50" onClick={() => setIsMenuOpen(false)}>
-              Services
+        <div className="md:hidden border-t border-stone-200 bg-white/95 backdrop-blur-md p-4 shadow-xl animate-in slide-in-from-top-5 absolute w-full">
+          <div className="flex flex-col gap-2">
+            <Link to="/" className="flex items-center gap-3 text-base font-medium text-stone-700 p-3 rounded-lg hover:bg-stone-50" onClick={() => setIsMenuOpen(false)}>
+              <BookOpen className="h-5 w-5 text-stone-500" />
+              <span>Services</span>
             </Link>
-            <Link to="/gurubas" className="text-base font-medium text-stone-700 p-2 rounded hover:bg-stone-50" onClick={() => setIsMenuOpen(false)}>
-              Find a Guruba
+            <Link to="/gurubas" className="flex items-center gap-3 text-base font-medium text-stone-700 p-3 rounded-lg hover:bg-stone-50" onClick={() => setIsMenuOpen(false)}>
+              <Users className="h-5 w-5 text-stone-500" />
+              <span>Find a Guruba</span>
             </Link>
             
-            <div className="h-px bg-stone-200 my-1" />
+            <div className="h-px bg-stone-200 my-2" />
             
             {session ? (
-              <>
-                 <div className="flex items-center justify-between px-2">
-                    <span className="text-sm font-bold text-stone-500">Notifications</span>
+              <div className="flex flex-col gap-2">
+                 <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-sm font-bold text-stone-500 flex items-center gap-3"><Bell className="h-5 w-5 text-stone-500"/>Notifications</span>
                     <NotificationBell />
                  </div>
                  {isClient && (
-                     <div className="flex items-center justify-between px-2 py-2 bg-stone-50 rounded-lg">
-                         <span className="text-sm font-medium text-stone-600">Your Balance</span>
-                         <span className="font-bold text-saffron-600 flex items-center gap-1"><Coins className="h-4 w-4"/> {profile?.credits || 0}</span>
+                     <div className="flex items-center justify-between px-3 py-3 bg-stone-50 rounded-lg">
+                         <span className="text-sm font-medium text-stone-600 flex items-center gap-3"><Coins className="h-5 w-5 text-stone-500"/>Your Balance</span>
+                         <span className="font-bold text-saffron-600 flex items-center gap-1">{profile?.credits || 0}</span>
                      </div>
                  )}
                  <Link to={getDashboardPath()} onClick={() => setIsMenuOpen(false)}>
-                    <Button className="w-full justify-start gap-2" variant="ghost">
-                        <User className="h-4 w-4" /> Dashboard
+                    <Button className="w-full justify-start gap-3 p-3 h-auto text-base" variant="ghost">
+                        <User className="h-5 w-5 text-stone-500" /> Dashboard
                     </Button>
                  </Link>
-                <Button variant="outline" className="w-full justify-start gap-2 text-red-600 border-red-100 hover:bg-red-50" onClick={handleSignOut}>
-                  <LogOut className="h-4 w-4" /> Sign Out
+                <Button variant="outline" className="w-full justify-start gap-3 text-red-600 border-stone-200 hover:bg-red-50 p-3 h-auto text-base" onClick={handleSignOut}>
+                  <LogOut className="h-5 w-5" /> Sign Out
                 </Button>
-              </>
+              </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full border border-stone-200">Log In</Button>
+                  <Button variant="ghost" className="w-full border border-stone-200 h-12 text-base">Log In</Button>
                 </Link>
                 <Link to="/register" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="primary" className="w-full">Sign Up</Button>
+                  <Button variant="primary" className="w-full h-12 text-base">Sign Up</Button>
                 </Link>
               </div>
             )}

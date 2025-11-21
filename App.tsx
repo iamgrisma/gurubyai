@@ -1,7 +1,9 @@
+
+
 // App.tsx
 
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './features/auth/AuthProvider';
 import { NotificationProvider } from './features/notifications/NotificationContext';
@@ -16,6 +18,7 @@ import { ServiceSelection } from './features/booking/ServiceSelection';
 import { ServiceDetailsPage } from './features/services/ServiceDetailsPage';
 import { GurubaSelection } from './features/booking/GurubaSelection';
 import { BookingSuccessPage } from './features/booking/BookingSuccess';
+import { GurubaDirectory } from './features/public/GurubaDirectory';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -29,11 +32,14 @@ const queryClient = new QueryClient({
 
 // Layout that includes the Header
 const PublicLayout = () => {
+  const location = useLocation();
   return (
     <div className="min-h-screen flex flex-col font-sans text-stone-900">
       <PublicHeader />
       <main className="flex-grow">
-        <Outlet />
+        <div key={location.pathname} className="animate-in fade-in duration-300">
+          <Outlet />
+        </div>
       </main>
       <footer className="bg-stone-900 py-8 text-center text-stone-400">
         <p>&copy; {new Date().getFullYear()} Guruba Connect. All rights reserved.</p>
@@ -76,6 +82,7 @@ const App: React.FC = () => {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                 <Route path="/gurubas" element={<GurubaDirectory />} />
               </Route>
 
               {/* Client Routes */}

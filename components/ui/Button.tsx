@@ -15,10 +15,10 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none";
+  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none transform hover:-translate-y-px active:translate-y-0";
   
   const variants = {
-    primary: "bg-saffron-600 text-white hover:bg-saffron-700 focus-visible:ring-saffron-600",
+    primary: "bg-saffron-600 text-white hover:bg-saffron-700 focus-visible:ring-saffron-600 hover:shadow-md",
     secondary: "bg-stone-100 text-stone-900 hover:bg-stone-200 focus-visible:ring-stone-500",
     outline: "border border-stone-200 hover:bg-stone-100 hover:text-stone-900",
     ghost: "hover:bg-stone-100 hover:text-stone-900",

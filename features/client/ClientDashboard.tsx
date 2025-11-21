@@ -9,27 +9,32 @@ import { ReviewModal } from './ReviewModal';
 import { ChatInterface } from '../messages/ChatInterface';
 import { useBookings, useProfile } from '../../hooks/queries';
 import { 
-  Calendar, CreditCard, User, LogOut, Menu, X, RefreshCw, LayoutDashboard, MessageSquare
+  Calendar, CreditCard, User, LogOut, Menu, X, RefreshCw, LayoutDashboard, MessageSquare,
+  ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 import { DashboardOverview } from './dashboard/Overview';
 import { DashboardBookings } from './dashboard/Bookings';
 import { DashboardWallet } from './dashboard/Wallet';
 import { DashboardProfile } from './dashboard/Profile';
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
+const SidebarItem = ({ icon: Icon, label, active, onClick, badge, isCollapsed }: any) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-all duration-200 rounded-xl mb-1 ${
-      active ? 'bg-saffron-50 text-saffron-700 shadow-sm' : 'text-stone-600 hover:bg-stone-100 hover:translate-x-1'
+    className={`w-full flex items-center py-3 text-sm font-medium transition-all duration-200 rounded-xl mb-1 group ${
+      isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+    } ${
+      active ? 'bg-saffron-50 text-saffron-700 shadow-sm' : 'text-stone-600 hover:bg-stone-100'
     }`}
+    title={isCollapsed ? label : ''}
   >
-    <div className="flex items-center gap-3">
-      <Icon className={`h-5 w-5 ${active ? 'text-saffron-600' : 'text-stone-400'}`} />
-      {label}
+    <div className={`flex items-center gap-3 ${isCollapsed ? 'transform transition-transform group-hover:scale-110' : ''}`}>
+      <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-saffron-600' : 'text-stone-400'}`} />
+      {!isCollapsed && <span className="flex-1 text-left">{label}</span>}
     </div>
-    {badge && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{badge}</span>}
+    {!isCollapsed && badge && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{badge}</span>}
   </button>
 );
+
 
 type ActiveTab = 'overview' | 'bookings' | 'messages' | 'wallet' | 'profile';
 
@@ -40,6 +45,7 @@ export const ClientDashboard: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [reviewModalData, setReviewModalData] = useState<{id: string, gurubaId: string, gurubaName: string} | null>(null);
 
   // --- Queries ---
@@ -117,38 +123,49 @@ export const ClientDashboard: React.FC = () => {
       />
 
       <aside className={`
-        fixed top-0 left-0 z-50 h-full w-72 bg-white border-r border-stone-200 transition-transform duration-300 ease-in-out
+        fixed top-0 left-0 z-50 h-full bg-white border-r border-stone-200 flex flex-col
+        transition-transform lg:transition-all duration-300 ease-in-out
         lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16
-        ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+        ${isMobileMenuOpen ? 'translate-x-0 w-72 shadow-2xl' : '-translate-x-full w-72'}
+        ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-72'}
       `}>
-         <div className="p-6">
+         <div className={`p-6 border-b border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
             <div className="flex justify-between items-center lg:hidden mb-4">
                 <span className="font-bold text-lg text-stone-900">Menu</span>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded-md hover:bg-stone-100">
                     <X className="h-6 w-6 text-stone-500" />
                 </button>
             </div>
-            <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
-                <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md overflow-hidden">
+            <div className={`flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100 transition-all ${isSidebarCollapsed ? 'lg:justify-center lg:p-0 lg:py-4 lg:bg-transparent lg:border-none' : ''}`}>
+                <div className="h-10 w-10 rounded-full bg-saffron-500 text-white flex items-center justify-center font-bold shadow-md overflow-hidden shrink-0">
                      {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : displayName[0]}
                 </div>
-                <div className="overflow-hidden">
-                    <p className="font-bold text-stone-900 truncate text-sm">{displayName}</p>
-                    <p className="text-xs text-stone-500 truncate font-medium">Credits: {profile?.credits || 0}</p>
-                </div>
+                {!isSidebarCollapsed && (
+                    <div className="overflow-hidden">
+                        <p className="font-bold text-stone-900 truncate text-sm">{displayName}</p>
+                        <p className="text-xs text-stone-500 truncate font-medium">Credits: {profile?.credits || 0}</p>
+                    </div>
+                )}
             </div>
          </div>
-         <nav className="flex-1 px-4 space-y-1">
-            <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
-            <SidebarItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => handleTabChange('bookings')} badge={bookings.filter(b=>b.status==='confirmed').length || null} />
-            <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} />
-            <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => handleTabChange('wallet')} />
-            <div className="my-4 h-px bg-stone-100 mx-2" />
-            <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} />
+         <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+            <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} isCollapsed={isSidebarCollapsed}/>
+            <SidebarItem icon={Calendar} label="Bookings" active={activeTab === 'bookings'} onClick={() => handleTabChange('bookings')} badge={bookings.filter(b=>b.status==='confirmed').length || null} isCollapsed={isSidebarCollapsed} />
+            <SidebarItem icon={MessageSquare} label="Messages" active={activeTab === 'messages'} onClick={() => handleTabChange('messages')} isCollapsed={isSidebarCollapsed}/>
+            <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => handleTabChange('wallet')} isCollapsed={isSidebarCollapsed}/>
+            {!isSidebarCollapsed && <div className="my-4 h-px bg-stone-100 mx-2" />}
+            <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} isCollapsed={isSidebarCollapsed}/>
          </nav>
-         <div className="p-6">
-             <button onClick={() => signOut().then(() => navigate('/'))} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                 <LogOut className="h-4 w-4" /> Sign Out
+         <div className={`p-6 border-t border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
+             <button 
+               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+               className="hidden lg:flex w-full items-center justify-center p-3 text-sm font-medium text-stone-500 hover:bg-stone-100 rounded-xl transition-colors mb-2"
+               title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+             >
+               {isSidebarCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
+             </button>
+             <button onClick={() => signOut().then(() => navigate('/'))} className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors ${isSidebarCollapsed ? 'lg:px-2' : ''}`}>
+                 <LogOut className="h-5 w-5 shrink-0" /> {!isSidebarCollapsed && 'Sign Out'}
              </button>
          </div>
       </aside>
@@ -158,7 +175,7 @@ export const ClientDashboard: React.FC = () => {
               <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600">
                   <Menu className="h-6 w-6" />
               </button>
-              <span className="font-bold text-stone-900 text-lg">Dashboard</span>
+              <span className="font-bold text-stone-900 text-lg capitalize">{activeTab}</span>
           </div>
 
           {loading ? (

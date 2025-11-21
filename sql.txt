@@ -97,6 +97,7 @@ create table if not exists public.gurubas (
   location text,
   specialties text[] default '{}', 
   is_verified boolean default false,
+  guruba_type text default 'brahmin', -- Added guruba_type
   languages text[] default '{}',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -109,6 +110,9 @@ begin
   end if;
    if not exists (select 1 from information_schema.columns where table_name = 'gurubas' and column_name = 'languages') then
     alter table public.gurubas add column languages text[] default '{}';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'gurubas' and column_name = 'guruba_type') then
+    alter table public.gurubas add column guruba_type text default 'brahmin';
   end if;
 end $$;
 

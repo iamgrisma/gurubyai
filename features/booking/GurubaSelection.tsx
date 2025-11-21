@@ -1,7 +1,7 @@
 // features/booking/GurubaSelection.tsx
 
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { Guruba } from '../../types';
@@ -9,10 +9,13 @@ import { Button } from '../../components/ui/Button';
 import { BookingModal } from './BookingModal';
 import { useService, useGurubas } from '../../hooks/queries';
 import { Star, MapPin, Award, User, ArrowLeft, Calendar, Filter, Info, RefreshCw } from 'lucide-react';
+import { GurubaVerificationBadge } from '../../components/shared/GurubaVerificationBadge';
 
 export const GurubaSelection: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedGurubaId = searchParams.get('gurubaId');
   
   // --- Queries ---
   const { data: service, isLoading: serviceLoading } = useService(serviceId);
@@ -21,6 +24,16 @@ export const GurubaSelection: React.FC = () => {
   // Local State
   const [selectedGuruba, setSelectedGuruba] = useState<Guruba | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+
+  // --- Auto-select logic ---
+  useEffect(() => {
+      if (preselectedGurubaId && allGurubas.length > 0 && !selectedGuruba) {
+          const found = allGurubas.find(g => g.id === preselectedGurubaId);
+          if (found) {
+              setSelectedGuruba(found);
+          }
+      }
+  }, [preselectedGurubaId, allGurubas, selectedGuruba]);
 
   // --- Availability Query ---
   // Only runs when a date is selected
@@ -130,7 +143,9 @@ export const GurubaSelection: React.FC = () => {
             {filteredGurubas.map((guruba) => (
               <div 
                 key={guruba.id} 
-                className="flex flex-col md:flex-row rounded-xl bg-white p-6 shadow-sm border border-stone-200 transition-all hover:shadow-md items-start md:items-center gap-6"
+                className={`flex flex-col md:flex-row rounded-xl bg-white p-6 shadow-sm border transition-all hover:shadow-md items-start md:items-center gap-6 ${
+                    selectedGuruba?.id === guruba.id ? 'border-saffron-500 ring-1 ring-saffron-500' : 'border-stone-200'
+                }`}
               >
                 <div className="h-16 w-16 flex-shrink-0 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-600 text-xl font-bold overflow-hidden">
                   {guruba.profiles?.avatar_url ? (
@@ -143,14 +158,12 @@ export const GurubaSelection: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl font-bold text-stone-900">{guruba.profiles?.full_name}</h3>
+                    <GurubaVerificationBadge isVerified={guruba.is_verified} gurubaType={guruba.guruba_type} />
                     <div className="flex items-center text-sm text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-100">
                       <Star className="h-3 w-3 mr-1 fill-current" />
                       <span className="font-bold">{guruba.rating}</span>
                       <span className="text-stone-400 ml-1 font-normal">({guruba.review_count || 0})</span>
                     </div>
-                    {guruba.is_verified && (
-                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium border border-green-200">Verified</span>
-                    )}
                   </div>
                   
                   <div className="mt-1 flex flex-wrap gap-4 text-sm text-stone-500">

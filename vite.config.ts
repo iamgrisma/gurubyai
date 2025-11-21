@@ -1,52 +1,32 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
-import tailwindcss from '@tailwindcss/postcss';
-import autoprefixer from 'autoprefixer';
+// vite.config.ts
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
-      manifest: {
-        name: 'Guruba',
-        short_name: 'Guruba',
-        description: 'Guruba - Connecting you with spiritual guides',
-        theme_color: '#ffffff',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
-    })
-  ],
-  css: {
-    postcss: {
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default defineConfig(({ mode }) => {
+    const env = loadEnv(mode, '.', '');
+    return {
+      server: {
+        port: 3000,
+        host: '0.0.0.0',
+      },
       plugins: [
-        tailwindcss,
-        autoprefixer,
+        react()
+        // VitePWA plugin removed
       ],
-    },
-  },
-  resolve: {
-    alias: {
-      "@": "/src",
-      "@components": "/src/components",
-      "@features": "/src/features",
-      "@lib": "/src/lib",
-      "@hooks": "/src/hooks",
-      "@assets": "/src/assets",
-    },
-  },
-})
+      build: {
+        outDir: 'dist',
+        emptyOutDir: true,
+      },
+      resolve: {
+        alias: {
+          '@': path.resolve(__dirname, '.'),
+        }
+      }
+    };
+});
