@@ -1,10 +1,11 @@
+
 // features/auth/LoginPage.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '../../components/ui/Button';
-import { AlertTriangle, CheckCircle, Mail } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Mail, Sparkles } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showResend, setShowResend] = useState(false);
@@ -29,6 +31,26 @@ export const LoginPage: React.FC = () => {
     if (state?.successMessage) setSuccessMessage(state.successMessage);
   }, [location]);
 
+  const checkUserRoleAndRedirect = async (userId: string) => {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+        
+        // Check for redirect state
+        const from = (location.state as any)?.from;
+        if (from) {
+            navigate(from);
+            return;
+        }
+
+        const role = profile?.role || 'client';
+        if (role === 'admin') navigate('/admin');
+        else if (role === 'guruba') navigate('/guruba');
+        else navigate('/client'); 
+  };
+
   const performLogin = async (loginEmail: string, loginPass: string) => {
     setLoading(true);
     setError(null);
@@ -44,25 +66,7 @@ export const LoginPage: React.FC = () => {
       if (authError) throw authError;
       
       if (data.user) {
-        // Check if there's a saved location to redirect back to
-        const from = (location.state as any)?.from;
-
-        if (from) {
-            navigate(from);
-            return;
-        }
-
-        // Default redirect based on role
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', data.user.id)
-            .single();
-        
-        const role = profile?.role || 'client';
-        if (role === 'admin') navigate('/admin');
-        else if (role === 'guruba') navigate('/guruba');
-        else navigate('/client'); 
+        await checkUserRoleAndRedirect(data.user.id);
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -79,6 +83,32 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMagicLinkLogin = async () => {
+      if (!email) {
+          setError("Please enter your email address first.");
+          return;
+      }
+      setMagicLinkLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      try {
+          const { error } = await supabase.auth.signInWithOtp({
+              email: email.trim(),
+              options: {
+                  shouldCreateUser: false,
+                  emailRedirectTo: window.location.origin
+              }
+          });
+          if (error) throw error;
+          setSuccessMessage("Magic Link sent! Check your email to log in instantly.");
+      } catch (err: any) {
+          setError(err.message || "Failed to send Magic Link.");
+      } finally {
+          setMagicLinkLoading(false);
+      }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -136,7 +166,7 @@ export const LoginPage: React.FC = () => {
                 name="password"
                 type="password"
                 autoComplete="current-password"
-                required
+                required={!magicLinkLoading} // Not required if clicking magic link
                 className="relative block w-full rounded-b-md border-0 bg-stone-800 py-3 text-white placeholder:text-stone-500 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-saffron-500 sm:text-sm sm:leading-6 px-4 transition-all"
                 placeholder="Password"
                 value={password}
@@ -166,9 +196,27 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full bg-gradient-to-r from-saffron-600 to-orange-600 hover:from-saffron-700 hover:to-orange-700 text-white font-bold py-3 rounded-lg shadow-lg shadow-saffron-500/25 transform transition-all active:scale-95" isLoading={loading}>
-              Sign in
-          </Button>
+          <div className="space-y-3">
+            <Button type="submit" className="w-full bg-gradient-to-r from-saffron-600 to-orange-600 hover:from-saffron-700 hover:to-orange-700 text-white font-bold py-3 rounded-lg shadow-lg shadow-saffron-500/25 transform transition-all active:scale-95" isLoading={loading}>
+                Sign in
+            </Button>
+            
+            <div className="relative flex items-center justify-center text-sm">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-stone-200"></div></div>
+                <span className="relative bg-white px-2 text-stone-500">OR</span>
+            </div>
+
+            <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full border-stone-300 hover:bg-stone-50 text-stone-700"
+                onClick={handleMagicLinkLogin}
+                isLoading={magicLinkLoading}
+            >
+                <Sparkles className="h-4 w-4 mr-2 text-purple-500" />
+                Email me a one-time login link
+            </Button>
+          </div>
         </form>
         
         <div className="text-center">

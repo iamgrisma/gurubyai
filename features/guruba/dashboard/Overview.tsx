@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { DollarSign, Star, AlertCircle, Clock, User, Video } from 'lucide-react';
+import { DollarSign, Star, AlertCircle, Clock, User, Video, CheckCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Booking, Guruba } from '../../../types';
+import { supabase } from '../../../lib/supabaseClient';
 
 interface OverviewProps {
   guruba: Guruba | null;
@@ -20,6 +21,28 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const earnings = bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.services?.base_price || 0), 0);
 
+  const handleVerificationRequest = async () => {
+      if (!guruba) return;
+      try {
+          // For MVP, we simulate a request by notifying the admin
+          // In real app, this would upload files.
+          const { data: admin } = await supabase.from('profiles').select('id').eq('role', 'admin').single();
+          
+          if (admin) {
+              await supabase.from('notifications').insert({
+                  user_id: admin.id,
+                  title: "Verification Request",
+                  message: `Guruba ${guruba.profiles?.full_name} has requested verification. Please check their profile details.`
+              });
+              alert("Verification request sent to Admin! They will review your profile.");
+          } else {
+              alert("Request noted. Admin will review shortly.");
+          }
+      } catch (e) {
+          alert("Failed to send request.");
+      }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
         {!guruba?.is_verified && (
@@ -29,9 +52,11 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
                 </div>
                 <div className="flex-1 text-center sm:text-left">
                     <p className="font-bold text-lg">Complete Your Verification</p>
-                    <p className="text-sm mt-1 opacity-90">Upload your citizenship and Vedic certificates to get the "Verified" badge.</p>
+                    <p className="text-sm mt-1 opacity-90">Click the button to notify admins to review your profile for the "Verified" badge.</p>
                 </div>
-                <Button variant="outline" className="bg-white border-yellow-300 text-yellow-900 hover:bg-yellow-100 whitespace-nowrap">Start Verification</Button>
+                <Button onClick={handleVerificationRequest} variant="outline" className="bg-white border-yellow-300 text-yellow-900 hover:bg-yellow-100 whitespace-nowrap">
+                    Request Verification
+                </Button>
             </div>
         )}
 

@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
 import { Button } from '../../../components/ui/Button';
-import { Search, PlusCircle } from 'lucide-react';
+import { Search, PlusCircle, KeyRound } from 'lucide-react';
 import { GurubaVerificationBadge } from '../../../components/shared/GurubaVerificationBadge';
 
 export const AdminUsers: React.FC = () => {
@@ -42,6 +42,21 @@ export const AdminUsers: React.FC = () => {
       },
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      }
+  });
+
+  const resetPasswordMutation = useMutation({
+      mutationFn: async (email: string) => {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+              redirectTo: `${window.location.origin}/login`
+          });
+          if (error) throw error;
+      },
+      onSuccess: () => {
+          alert("Password reset email sent to user.");
+      },
+      onError: (e: any) => {
+          alert("Failed to send reset email: " + e.message);
       }
   });
 
@@ -123,9 +138,14 @@ export const AdminUsers: React.FC = () => {
                                       )}
                                   </td>
                                   <td className="px-6 py-4 text-right">
-                                      <Button size="sm" variant="outline" onClick={() => handleAddCredits(u.id)} title="Add Credits" className="opacity-0 group-hover:opacity-100 transition-opacity border-stone-300 hover:bg-stone-100">
-                                          <PlusCircle className="h-4 w-4 mr-1" /> Add Credit
-                                      </Button>
+                                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <Button size="sm" variant="outline" onClick={() => resetPasswordMutation.mutate(u.email)} title="Reset Password" className="border-stone-300 hover:bg-stone-100 text-stone-500">
+                                              <KeyRound className="h-4 w-4" />
+                                          </Button>
+                                          <Button size="sm" variant="outline" onClick={() => handleAddCredits(u.id)} title="Add Credits" className="border-stone-300 hover:bg-stone-100">
+                                              <PlusCircle className="h-4 w-4 mr-1" /> Add Credit
+                                          </Button>
+                                      </div>
                                   </td>
                               </tr>
                           ))}

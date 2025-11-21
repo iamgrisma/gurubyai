@@ -11,15 +11,25 @@ export const useProfile = (userId?: string) => {
     queryKey: ['profile', userId],
     queryFn: async () => {
       if (!userId) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      if (error) throw error;
-      return data as UserProfile;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle(); // Use maybeSingle to avoid error if no row exists
+        
+        if (error) {
+            console.error("Error fetching profile:", error);
+            return null;
+        }
+        return data as UserProfile;
+      } catch (e) {
+        console.error("Exception fetching profile:", e);
+        return null;
+      }
     },
     enabled: !!userId,
+    retry: 1,
   });
 };
 
@@ -65,6 +75,7 @@ export const useGurubas = () => {
         .select(`
           *,
           profiles:user_id (
+            id,
             full_name,
             gotra_id,
             avatar_url
@@ -90,10 +101,11 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
           services:service_id (title, duration_minutes, base_price, image_url),
           gurubas:guruba_id (
             id,
+            user_id,
             location,
-            profiles:user_id (full_name, avatar_url, phone)
+            profiles:user_id (id, full_name, avatar_url, phone)
           ),
-          profiles:user_id (full_name, avatar_url, phone, email) 
+          profiles:user_id (id, full_name, avatar_url, phone, email) 
         `)
         .order('scheduled_at', { ascending: true });
 
@@ -103,17 +115,23 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
         if (gurubaData) {
             query = query.eq('guruba_id', gurubaData.id);
         } else {
+            // User is a guruba but no guruba record exists yet
             return [];
         }
-      } else {
+      } else if (role === 'client') {
         query = query.eq('user_id', userId);
       }
+      // If admin, return all or filter differently (not implemented here for admin specific logic)
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+          console.error("Error fetching bookings:", error);
+          return [];
+      }
       return (data || []) as Booking[];
     },
     enabled: !!userId,
+    retry: 1,
   });
 };
 
@@ -125,6 +143,9 @@ export const useUpdateBookingStatus = () => {
     mutationFn: async ({ id, status, meeting_link }: { id: string, status: string, meeting_link?: string }) => {
       const updateData: any = { status };
       if (meeting_link) updateData.meeting_link = meeting_link;
+      if (status === 'confirmed' && !meeting_link) {
+          // keep existing meeting link if not provided
+      }
       
       const { error } = await supabase.from('bookings').update(updateData).eq('id', id);
       if (error) throw error;
@@ -148,7 +169,7 @@ export const useBookService = () => {
         location_lng?: number,
         location_address?: string
     }) => {
-        // Call the RPC function we created in SQL
+        // Call the RPC function
         const { data, error } = await supabase.rpc('book_service', {
             p_user_id: params.user_id,
             p_guruba_id: params.guruba_id,

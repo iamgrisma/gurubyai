@@ -76,6 +76,7 @@ export interface Guruba {
   languages?: string[];
   email?: string;
   profiles?: {
+    id?: string;
     full_name: string;
     gotra_id: string;
     avatar_url?: string;

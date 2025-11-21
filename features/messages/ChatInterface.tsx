@@ -5,8 +5,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
-import { Message, UserProfile } from '../../types';
-import { Send, User, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw } from 'lucide-react';
+import { Message, UserProfile, Booking } from '../../types';
+import { Send, User, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw, Calendar, CheckCircle, XCircle, Edit3 } from 'lucide-react';
+import { useBookings, useProfile, useUpdateBookingStatus } from '../../hooks/queries';
+import { Button } from '../../components/ui/Button';
 
 interface ChatInterfaceProps {
   defaultReceiverId?: string;
@@ -19,8 +21,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const [newMessage, setNewMessage] = useState('');
   const [retentionHours, setRetentionHours] = useState<number | undefined>(120); // Vanish Mode (5 days default)
   const [showRetentionMenu, setShowRetentionMenu] = useState(false);
+  const [proposedTime, setProposedTime] = useState('');
+  const [isProposing, setIsProposing] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: currentUserProfile } = useProfile(user?.id);
+  const isClient = currentUserProfile?.role === 'client';
 
   // --- Query: Fetch Conversations ---
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery({
@@ -53,22 +60,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       }
   }, [conversations, activeConversation]);
 
-  // --- Mark as Read & Seen Logic ---
-  const markMessagesAsRead = async (msgs: Message[]) => {
-      if (!user) return;
-      const unreadIds = msgs
-        .filter(m => m.receiver_id === user.id && !m.is_read)
-        .map(m => m.id);
-      
-      if (unreadIds.length > 0) {
-          await supabase
-            .from('messages')
-            .update({ is_read: true, seen_at: new Date().toISOString() }) // Mark seen now
-            .in('id', unreadIds);
-          queryClient.invalidateQueries({ queryKey: ['messages', user.id, activeConversation] });
-      }
-  };
-
   // --- Query: Fetch Messages for Active Conversation ---
   const { data: messages = [] } = useQuery({
       queryKey: ['messages', user?.id, activeConversation],
@@ -80,118 +71,108 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
             .or(`and(sender_id.eq.${user.id},receiver_id.eq.${activeConversation}),and(sender_id.eq.${activeConversation},receiver_id.eq.${user.id})`)
             .order('created_at', { ascending: true });
             
-          // Sync retention settings from last message
           if (data && data.length > 0) {
               const lastMsg = data[data.length - 1];
               setRetentionHours(lastMsg.retention_hours ?? 120);
               // Side effect: Mark read
-              markMessagesAsRead(data as Message[]);
+              const unreadIds = data.filter(m => m.receiver_id === user.id && !m.is_read).map(m => m.id);
+              if (unreadIds.length > 0) {
+                  await supabase.from('messages').update({ is_read: true, seen_at: new Date().toISOString() }).in('id', unreadIds);
+              }
           }
           return (data || []) as Message[];
       },
       enabled: !!user && !!activeConversation,
-      refetchInterval: 5000 // Poll to check for new messages / seen status
+      refetchInterval: 5000
   });
 
   // --- Realtime Subscription ---
   useEffect(() => {
     if (!user || !activeConversation) return;
-
-    const channel = supabase
-      .channel(`chat:${activeConversation}`)
-      .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'messages'
-      }, (payload) => {
-           // Re-fetch on any change (insert or update seen status)
+    const channel = supabase.channel(`chat:${activeConversation}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
            queryClient.invalidateQueries({ queryKey: ['messages', user.id, activeConversation] });
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [user, activeConversation, queryClient]);
 
-  // Scroll on load
   useEffect(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // --- Mutation: Send Message ---
+  // --- Booking Context Integration ---
+  const { data: allBookings = [] } = useBookings(user?.id, isClient ? 'client' : 'guruba');
+  const updateStatusMutation = useUpdateBookingStatus();
+
+  const activeBooking = allBookings.find(b => {
+      if (b.status === 'completed' || b.status === 'cancelled') return false;
+      // Match conversation partner
+      if (isClient) {
+          return b.gurubas?.profiles?.id === activeConversation || b.gurubas?.user_id === activeConversation;
+      } else {
+          return b.user_id === activeConversation;
+      }
+  });
+
+  const handleBookingAction = (bookingId: string, action: string, proposed?: string) => {
+      if (action === 'propose_new_time') {
+          // Logic handled by state
+      } else if (action === 'confirm_proposal') {
+          updateStatusMutation.mutate({ id: bookingId, status: 'confirmed' });
+          // Need to update time? currently API doesn't support changing scheduled_at in status update mutation easily
+          // We should use a custom update
+          if (proposed) {
+             supabase.from('bookings').update({ scheduled_at: proposed, status: 'confirmed' }).eq('id', bookingId).then(() => {
+                 queryClient.invalidateQueries({ queryKey: ['bookings'] });
+             });
+          }
+      } else {
+          updateStatusMutation.mutate({ id: bookingId, status: action });
+      }
+  };
+
+  const submitProposal = async () => {
+      if (!activeBooking || !proposedTime) return;
+      await supabase.from('bookings').update({ 
+          status: 'awaiting_client_confirmation',
+          proposed_time: proposedTime,
+          confirmation_deadline: new Date(Date.now() + 3600000).toISOString()
+      }).eq('id', activeBooking.id);
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      setIsProposing(false);
+      setProposedTime('');
+  };
+
+  // --- Send Message ---
   const sendMessageMutation = useMutation({
       mutationFn: async () => {
           if (!user || !activeConversation || !newMessage.trim()) return;
-          const { error } = await supabase.from('messages').insert({
+          await supabase.from('messages').insert({
               sender_id: user.id,
               receiver_id: activeConversation,
               content: newMessage.trim(),
               retention_hours: retentionHours
           });
-          if (error) throw error;
-      },
-      onMutate: async () => {
-          const msgContent = newMessage.trim();
-          setNewMessage(''); // Clear input immediately
-          
-          // Optimistic Update
-          await queryClient.cancelQueries({ queryKey: ['messages', user?.id, activeConversation] });
-          const previousMessages = queryClient.getQueryData(['messages', user?.id, activeConversation]);
-
-          const optimisticMsg: Message = {
-              id: 'temp-' + Date.now(),
-              sender_id: user!.id,
-              receiver_id: activeConversation!,
-              content: msgContent,
-              is_read: false,
-              created_at: new Date().toISOString(),
-              retention_hours: retentionHours
-          };
-
-          queryClient.setQueryData(['messages', user?.id, activeConversation], (old: Message[] = []) => [...old, optimisticMsg]);
-
-          return { previousMessages };
-      },
-      onError: (err, vars, context) => {
-          queryClient.setQueryData(['messages', user?.id, activeConversation], context?.previousMessages);
-          alert("Failed to send message");
-      },
-      onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
-      }
-  });
-
-  // --- Mutation: Delete Message ---
-  const deleteMessageMutation = useMutation({
-      mutationFn: async (messageId: string) => {
-          const { error } = await supabase.from('messages').delete().eq('id', messageId);
-          if (error) throw error;
       },
       onSuccess: () => {
+          setNewMessage('');
           queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
       }
   });
 
   const getActiveUser = () => conversations.find(c => c.id === activeConversation);
-
-  // Vanish Logic: Delete after specified hours pass AFTER message is seen
   const isMessageExpired = (msg: Message) => {
-      if (!msg.retention_hours) return false;
-      if (!msg.seen_at) return false; // Hasn't been seen yet, so don't expire
-      
-      const seenTime = new Date(msg.seen_at).getTime();
-      const now = new Date().getTime();
-      const expiryTime = seenTime + (msg.retention_hours * 60 * 60 * 1000);
-      
-      return now > expiryTime;
+      if (!msg.retention_hours || !msg.seen_at) return false;
+      return new Date().getTime() > new Date(msg.seen_at).getTime() + (msg.retention_hours * 3600000);
   };
-
   const filteredMessages = messages.filter(m => !isMessageExpired(m));
 
   if (conversationsLoading) return <div className="flex h-[600px] items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-stone-400"/></div>;
 
   return (
     <div className="flex h-[600px] bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
-        {/* Sidebar List */}
+        {/* Sidebar */}
         <div className="w-80 border-r border-stone-100 flex flex-col bg-stone-50 hidden md:flex">
             <div className="p-4 border-b border-stone-100 bg-white">
                 <h3 className="font-bold text-stone-900">Messages</h3>
@@ -211,16 +192,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                 activeConversation === c.id ? 'bg-white border-l-4 border-l-saffron-500 shadow-sm' : 'hover:bg-stone-100 border-l-4 border-l-transparent'
                             }`}
                         >
-                            <div className="relative">
-                                <div className="h-10 w-10 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden">
-                                    {c.avatar_url ? <img src={c.avatar_url} className="h-full w-full object-cover" alt="" /> : <User className="h-5 w-5 text-stone-400" />}
-                                </div>
-                                {/* Online indicator mock */}
-                                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white"></span>
+                            <div className="h-10 w-10 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden">
+                                {c.avatar_url ? <img src={c.avatar_url} className="h-full w-full object-cover" alt="" /> : <User className="h-5 w-5 text-stone-400" />}
                             </div>
                             <div className="text-left overflow-hidden flex-1">
                                 <p className="font-bold text-sm text-stone-900 truncate">{c.full_name}</p>
-                                <p className="text-xs text-stone-500 truncate">Click to view chat</p>
+                                <p className="text-xs text-stone-500 truncate">View chat</p>
                             </div>
                         </button>
                     ))
@@ -232,6 +209,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
         <div className="flex-1 flex flex-col bg-white relative">
             {activeConversation && getActiveUser() ? (
                 <>
+                    {/* Header */}
                     <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-white z-10 shadow-sm">
                         <div className="flex items-center gap-3">
                              <div className="h-8 w-8 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden">
@@ -242,74 +220,82 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                  <p className="text-xs text-green-600 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-600"></span> Online</p>
                              </div>
                         </div>
-                        
-                        {/* Vanish Mode Settings */}
                         <div className="relative">
-                            <button 
-                                onClick={() => setShowRetentionMenu(!showRetentionMenu)}
-                                className={`p-2 rounded-full transition-colors flex items-center gap-2 ${retentionHours ? 'bg-red-50 text-red-600' : 'hover:bg-stone-100 text-stone-400'}`}
-                                title="Vanish Mode / Message Retention"
-                            >
+                            <button onClick={() => setShowRetentionMenu(!showRetentionMenu)} className={`p-2 rounded-full transition-colors flex items-center gap-2 ${retentionHours ? 'bg-red-50 text-red-600' : 'hover:bg-stone-100 text-stone-400'}`}>
                                 {retentionHours ? <EyeOff className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-                                <span className="text-xs font-bold hidden sm:block">
-                                    {retentionHours === 120 ? '5 Days' : retentionHours ? `${retentionHours}h` : 'Off'}
-                                </span>
                             </button>
                             {showRetentionMenu && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-20">
-                                    <p className="px-4 py-2 text-xs font-bold text-stone-400 uppercase">Delete After Seen</p>
-                                    {[1, 3, 6, 12, 24, 48, 120].map(h => (
-                                        <button 
-                                            key={h}
-                                            onClick={() => { setRetentionHours(h); setShowRetentionMenu(false); }}
-                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-stone-50 ${retentionHours === h ? 'text-saffron-600 font-bold' : 'text-stone-700'}`}
-                                        >
-                                            {h >= 24 ? `${h/24} Days` : `${h} Hours`}
-                                        </button>
-                                    ))}
-                                    <div className="border-t border-stone-100 my-1"></div>
-                                    <button 
-                                        onClick={() => { setRetentionHours(undefined); setShowRetentionMenu(false); }}
-                                        className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 text-stone-500"
-                                    >
-                                        Off (Keep Forever)
-                                    </button>
+                                    <p className="px-4 py-2 text-xs font-bold text-stone-400 uppercase">Vanish Mode</p>
+                                    {[1, 24, 120].map(h => <button key={h} onClick={() => { setRetentionHours(h); setShowRetentionMenu(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50">{h} Hours</button>)}
+                                    <button onClick={() => { setRetentionHours(undefined); setShowRetentionMenu(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 text-stone-500">Off</button>
                                 </div>
                             )}
                         </div>
                     </div>
 
+                    {/* Active Booking Action Card */}
+                    {activeBooking && (
+                        <div className="bg-saffron-50 border-b border-saffron-100 p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div className="text-sm text-saffron-900 flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                <span>
+                                    <strong>{activeBooking.services?.title}</strong>: 
+                                    {activeBooking.status === 'pending' ? ' Requested for ' : 
+                                     activeBooking.status === 'awaiting_client_confirmation' ? ' New Time Proposed: ' : 
+                                     ' Scheduled: '}
+                                    {activeBooking.status === 'awaiting_client_confirmation' 
+                                      ? new Date(activeBooking.proposed_time!).toLocaleString()
+                                      : new Date(activeBooking.scheduled_at).toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="flex gap-2">
+                                {activeBooking.status === 'pending' && !isClient && (
+                                    <>
+                                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'confirmed')}>Accept</Button>
+                                        <Button size="sm" variant="secondary" className="text-xs h-8" onClick={() => setIsProposing(true)}>Propose Time</Button>
+                                        <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'cancelled')}>Decline</Button>
+                                    </>
+                                )}
+                                {activeBooking.status === 'awaiting_client_confirmation' && isClient && (
+                                    <>
+                                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'confirm_proposal', activeBooking.proposed_time)}>Confirm</Button>
+                                        <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'cancelled')}>Reject</Button>
+                                    </>
+                                )}
+                                {activeBooking.status === 'confirmed' && (
+                                    <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Confirmed</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Propose Time Modal Inline */}
+                    {isProposing && (
+                        <div className="absolute top-16 left-0 right-0 bg-white p-4 border-b shadow-md z-20 animate-in slide-in-from-top-2">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Clock className="h-4 w-4 text-saffron-600"/> <span className="text-sm font-bold">Propose New Time</span>
+                            </div>
+                            <input type="datetime-local" className="w-full border rounded p-2 text-sm mb-2" value={proposedTime} onChange={e => setProposedTime(e.target.value)} />
+                            <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="ghost" onClick={() => setIsProposing(false)}>Cancel</Button>
+                                <Button size="sm" onClick={submitProposal}>Send Proposal</Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Messages */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-stone-50/50">
                         {filteredMessages.map((msg, idx) => {
                             const isMe = msg.sender_id === user?.id;
                             return (
                                 <div key={msg.id || idx} className={`flex group ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm relative ${
-                                        isMe ? 'bg-saffron-600 text-white rounded-tr-none' : 'bg-white text-stone-800 border border-stone-100 rounded-tl-none'
-                                    }`}>
+                                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm relative ${isMe ? 'bg-saffron-600 text-white rounded-tr-none' : 'bg-white text-stone-800 border border-stone-100 rounded-tl-none'}`}>
                                         <p className="text-sm leading-relaxed pr-4">{msg.content}</p>
                                         <div className={`text-[10px] mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-saffron-200' : 'text-stone-400'}`}>
-                                            {msg.retention_hours && (
-                                                <span title={`Expires ${msg.retention_hours}h after seen`}>
-                                                    <EyeOff className="h-3 w-3 mr-1" />
-                                                </span>
-                                            )}
                                             {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                            {isMe && (
-                                                <CheckCheck className={`h-3 w-3 ${msg.is_read ? 'text-blue-300' : 'opacity-70'}`} />
-                                            )}
+                                            {isMe && <CheckCheck className={`h-3 w-3 ${msg.is_read ? 'text-blue-300' : 'opacity-70'}`} />}
                                         </div>
-                                        
-                                        {/* Delete Button (Only for my messages) */}
-                                        {isMe && !msg.id.startsWith('temp') && (
-                                            <button 
-                                                onClick={() => deleteMessageMutation.mutate(msg.id)}
-                                                className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-stone-300 hover:text-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                                title="Delete Message"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                             );
@@ -317,25 +303,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                         <div ref={messagesEndRef} />
                     </div>
 
+                    {/* Input */}
                     <div className="p-4 bg-white border-t border-stone-100">
-                        {retentionHours && (
-                            <div className="mb-2 text-xs text-center text-red-500 bg-red-50 p-1 rounded">
-                                Vanish Mode On: Messages delete {retentionHours}h after being seen.
-                            </div>
-                        )}
-                        <form onSubmit={(e) => sendMessageMutation.mutate(undefined, { onSuccess: () => {} })} className="flex items-center gap-2">
+                        <form onSubmit={(e) => { e.preventDefault(); sendMessageMutation.mutate(); }} className="flex items-center gap-2">
                             <input 
-                                type="text" 
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                placeholder="Type your message..."
+                                type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type your message..."
                                 className="flex-1 rounded-full border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-saffron-500 focus:ring-saffron-500 focus:bg-white transition-all"
                             />
-                            <button 
-                                type="submit" 
-                                disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                                className="h-10 w-10 bg-saffron-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-saffron-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105"
-                            >
+                            <button type="submit" disabled={!newMessage.trim()} className="h-10 w-10 bg-saffron-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-saffron-700 disabled:opacity-50 transition-all">
                                 <Send className="h-4 w-4 ml-0.5" />
                             </button>
                         </form>
@@ -345,7 +320,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                 <div className="flex-1 flex flex-col items-center justify-center text-stone-400 bg-stone-50/30">
                     <MessageSquare className="h-16 w-16 mb-4 opacity-10" />
                     <p className="text-lg font-medium text-stone-500">Select a conversation</p>
-                    <p className="text-sm opacity-60">Choose a contact from the sidebar to start chatting.</p>
                 </div>
             )}
         </div>
