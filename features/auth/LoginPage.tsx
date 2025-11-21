@@ -44,7 +44,15 @@ export const LoginPage: React.FC = () => {
       if (authError) throw authError;
       
       if (data.user) {
-        // Fetch role to redirect correctly
+        // Check if there's a saved location to redirect back to
+        const from = (location.state as any)?.from;
+
+        if (from) {
+            navigate(from);
+            return;
+        }
+
+        // Default redirect based on role
         const { data: profile } = await supabase
             .from('profiles')
             .select('role')

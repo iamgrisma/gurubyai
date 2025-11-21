@@ -1,3 +1,4 @@
+
 // components/shared/GurubaVerificationBadge.tsx
 
 import React from 'react';
@@ -11,41 +12,46 @@ interface BadgeProps {
 export const GurubaVerificationBadge: React.FC<BadgeProps> = ({ isVerified, gurubaType }) => {
   if (!isVerified) {
     return (
-      <ShieldAlert
-        className="h-5 w-5 text-yellow-500"
-        title="Unverified Guruba"
-      />
+      <span title="Unverified Guruba" className="inline-flex">
+        <ShieldAlert
+          className="h-5 w-5 text-yellow-500"
+        />
+      </span>
     );
   }
 
   switch (gurubaType) {
     case 'brahmin':
       return (
-        <BadgeCheck
-          className="h-5 w-5 text-saffron-600 fill-saffron-100"
-          title="Verified Brahmin Guruba"
-        />
+        <span title="Verified Brahmin Guruba" className="inline-flex">
+          <BadgeCheck
+            className="h-5 w-5 text-saffron-600 fill-saffron-100"
+          />
+        </span>
       );
     case 'non_brahmin':
       return (
-        <BadgeCheck
-          className="h-5 w-5 text-blue-600 fill-blue-100"
-          title="Verified Non-Brahmin Guruba"
-        />
+        <span title="Verified Non-Brahmin Guruba" className="inline-flex">
+          <BadgeCheck
+            className="h-5 w-5 text-blue-600 fill-blue-100"
+          />
+        </span>
       );
     case 'astrologer':
       return (
-        <Sparkles
-          className="h-5 w-5 text-purple-600 fill-purple-100"
-          title="Verified Astrologer"
-        />
+        <span title="Verified Astrologer" className="inline-flex">
+          <Sparkles
+            className="h-5 w-5 text-purple-600 fill-purple-100"
+          />
+        </span>
       );
     default:
       return (
-        <BadgeCheck
-          className="h-5 w-5 text-gray-400 fill-gray-100"
-          title="Verified"
-        />
+        <span title="Verified" className="inline-flex">
+          <BadgeCheck
+            className="h-5 w-5 text-gray-400 fill-gray-100"
+          />
+        </span>
       );
   }
 };

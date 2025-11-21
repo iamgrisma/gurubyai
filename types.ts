@@ -1,3 +1,4 @@
+
 // types.ts
 
 export interface UserProfile {
@@ -6,12 +7,27 @@ export interface UserProfile {
   full_name?: string;
   role: 'client' | 'guruba' | 'admin';
   phone?: string;
-  gotra_id?: string; // Storing the Name string for simplicity in this architecture
+  gotra_id?: string; 
   avatar_url?: string;
   city?: string;
   languages?: string[];
-  credits: number; // Added: Wallet System
+  credits: number; 
+  // Location
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  
   created_at?: string;
+}
+
+export interface SavedLocation {
+  id: string;
+  user_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  created_at: string;
 }
 
 export interface Service {
@@ -48,33 +64,35 @@ export interface Review {
 
 export interface Guruba {
   id: string;
-  user_id: string; // links to UserProfile
+  user_id: string; 
   bio: string;
   years_experience: number;
-  rating: number; // Average rating
+  rating: number; 
   review_count?: number;
   location: string;
   specialties: string[];
   is_verified?: boolean;
-  guruba_type?: 'brahmin' | 'non_brahmin' | 'astrologer'; // Added type
+  guruba_type?: 'brahmin' | 'non_brahmin' | 'astrologer';
   languages?: string[];
   email?: string;
-  // Joined data from profiles table
   profiles?: {
     full_name: string;
     gotra_id: string;
     avatar_url?: string;
     email?: string;
     phone?: string;
+    latitude?: number;
+    longitude?: number;
+    address?: string;
   };
 }
 
 export interface Availability {
   id?: string;
   guruba_id: string;
-  day_of_week: number; // 0 = Sunday, 1 = Monday, etc.
-  start_time: string; // HH:mm:ss
-  end_time: string;   // HH:mm:ss
+  day_of_week: number; 
+  start_time: string; 
+  end_time: string;   
 }
 
 export interface Booking {
@@ -87,13 +105,17 @@ export interface Booking {
   is_reviewed?: boolean;
   services?: Service;
   gurubas?: Guruba;
-  profiles?: UserProfile; // The client profile
+  profiles?: UserProfile; 
   
-  // Negotiation fields
   proposed_time?: string;
   confirmation_deadline?: string;
   platform_fee?: number;
-  meeting_link?: string; // Added: Video Call Link (WhatsApp/Meet)
+  meeting_link?: string;
+  
+  // Booking specific location
+  location_lat?: number;
+  location_lng?: number;
+  location_address?: string;
   
   created_at: string;
 }
@@ -123,9 +145,10 @@ export interface Message {
   receiver_id: string;
   content: string;
   is_read: boolean;
-  retention_hours?: number; // Vanish mode
+  retention_hours?: number; 
+  seen_at?: string; 
   created_at: string;
-  sender?: UserProfile; // Joined
+  sender?: UserProfile; 
 }
 
 export interface Gotra {
@@ -133,4 +156,13 @@ export interface Gotra {
   name: string;
   status: 'approved' | 'pending';
   created_at: string;
+}
+
+export interface TopupRequest {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  profiles?: UserProfile;
 }

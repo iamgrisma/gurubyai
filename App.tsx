@@ -1,5 +1,3 @@
-
-
 // App.tsx
 
 import React from 'react';
@@ -51,13 +49,15 @@ const PublicLayout = () => {
 // Route guard for authenticated users
 const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: string[] }) => {
   const { session, loading, profile } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-saffron-600">Loading...</div>;
   }
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    // Save the current location they were trying to access
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Simple role based access control

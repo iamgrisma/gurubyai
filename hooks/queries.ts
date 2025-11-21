@@ -1,3 +1,4 @@
+
 // hooks/queries.ts
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -97,9 +98,6 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
         .order('scheduled_at', { ascending: true });
 
       if (role === 'guruba') {
-        // For Gurubas, we need to find the guruba record first or join differently.
-        // Assuming the userId passed here is the Auth ID. 
-        // We need to match the auth ID to the guruba record.
         const { data: gurubaData } = await supabase.from('gurubas').select('id').eq('user_id', userId).single();
         if (gurubaData) {
             query = query.eq('guruba_id', gurubaData.id);
@@ -139,14 +137,25 @@ export const useUpdateBookingStatus = () => {
 export const useBookService = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { user_id: string, guruba_id: string, service_id: string, scheduled_at: string, platform_fee: number }) => {
-        // Call the RPC function we created in SQL
+    mutationFn: async (params: { 
+        user_id: string, 
+        guruba_id: string, 
+        service_id: string, 
+        scheduled_at: string, 
+        platform_fee: number,
+        location_lat?: number,
+        location_lng?: number,
+        location_address?: string
+    }) => {
         const { data, error } = await supabase.rpc('book_service', {
             p_user_id: params.user_id,
             p_guruba_id: params.guruba_id,
             p_service_id: params.service_id,
             p_scheduled_at: params.scheduled_at,
-            p_platform_fee: params.platform_fee
+            p_platform_fee: params.platform_fee,
+            p_location_lat: params.location_lat || null,
+            p_location_lng: params.location_lng || null,
+            p_location_address: params.location_address || null
         });
         
         if (error) throw error;
@@ -154,7 +163,7 @@ export const useBookService = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] }); // Update credits
+      queryClient.invalidateQueries({ queryKey: ['profile'] }); 
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
     }
   });

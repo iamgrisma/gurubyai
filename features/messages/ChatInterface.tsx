@@ -1,3 +1,4 @@
+
 // features/messages/ChatInterface.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -5,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
 import { Message, UserProfile } from '../../types';
-import { Send, User, MoreVertical, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw } from 'lucide-react';
+import { Send, User, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw } from 'lucide-react';
 
 interface ChatInterfaceProps {
   defaultReceiverId?: string;
@@ -52,6 +53,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       }
   }, [conversations, activeConversation]);
 
+  // --- Mark as Read & Seen Logic ---
+  const markMessagesAsRead = async (msgs: Message[]) => {
+      if (!user) return;
+      const unreadIds = msgs
+        .filter(m => m.receiver_id === user.id && !m.is_read)
+        .map(m => m.id);
+      
+      if (unreadIds.length > 0) {
+          await supabase
+            .from('messages')
+            .update({ is_read: true, seen_at: new Date().toISOString() }) // Mark seen now
+            .in('id', unreadIds);
+          queryClient.invalidateQueries({ queryKey: ['messages', user.id, activeConversation] });
+      }
+  };
+
   // --- Query: Fetch Messages for Active Conversation ---
   const { data: messages = [] } = useQuery({
       queryKey: ['messages', user?.id, activeConversation],
@@ -67,12 +84,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
           if (data && data.length > 0) {
               const lastMsg = data[data.length - 1];
               setRetentionHours(lastMsg.retention_hours ?? 120);
+              // Side effect: Mark read
+              markMessagesAsRead(data as Message[]);
           }
           return data as Message[];
       },
       enabled: !!user && !!activeConversation,
-      // Mark read side-effect could go here or in a separate mutation, 
-      // but for simplicity we rely on the user opening the chat to trigger a "mark read" visually or logic elsewhere.
+      refetchInterval: 5000 // Poll to check for new messages / seen status
   });
 
   // --- Realtime Subscription ---
@@ -82,20 +100,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
     const channel = supabase
       .channel(`chat:${activeConversation}`)
       .on('postgres_changes', { 
-          event: 'INSERT', 
+          event: '*', 
           schema: 'public', 
           table: 'messages'
       }, (payload) => {
-           const newMsg = payload.new as Message;
-           // Check if this message belongs to the current conversation
-           if (
-               (newMsg.sender_id === user.id && newMsg.receiver_id === activeConversation) ||
-               (newMsg.sender_id === activeConversation && newMsg.receiver_id === user.id)
-           ) {
-               queryClient.setQueryData(['messages', user.id, activeConversation], (old: Message[] = []) => [...old, newMsg]);
-               // Scroll to bottom
-               setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-           }
+           // Re-fetch on any change (insert or update seen status)
+           queryClient.invalidateQueries({ queryKey: ['messages', user.id, activeConversation] });
       })
       .subscribe();
 
@@ -163,11 +173,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
   const getActiveUser = () => conversations.find(c => c.id === activeConversation);
 
+  // Vanish Logic: Delete after specified hours pass AFTER message is seen
   const isMessageExpired = (msg: Message) => {
       if (!msg.retention_hours) return false;
-      const created = new Date(msg.created_at).getTime();
+      if (!msg.seen_at) return false; // Hasn't been seen yet, so don't expire
+      
+      const seenTime = new Date(msg.seen_at).getTime();
       const now = new Date().getTime();
-      const expiryTime = created + (msg.retention_hours * 60 * 60 * 1000);
+      const expiryTime = seenTime + (msg.retention_hours * 60 * 60 * 1000);
+      
       return now > expiryTime;
   };
 
@@ -243,7 +257,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                             </button>
                             {showRetentionMenu && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-20">
-                                    <p className="px-4 py-2 text-xs font-bold text-stone-400 uppercase">Auto-Delete After</p>
+                                    <p className="px-4 py-2 text-xs font-bold text-stone-400 uppercase">Delete After Seen</p>
                                     {[1, 3, 6, 12, 24, 48, 120].map(h => (
                                         <button 
                                             key={h}
@@ -275,7 +289,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                     }`}>
                                         <p className="text-sm leading-relaxed pr-4">{msg.content}</p>
                                         <div className={`text-[10px] mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-saffron-200' : 'text-stone-400'}`}>
-                                            {msg.retention_hours && <EyeOff className="h-3 w-3 mr-1" />}
+                                            {msg.retention_hours && (
+                                                <span title={`Expires ${msg.retention_hours}h after seen`}>
+                                                    <EyeOff className="h-3 w-3 mr-1" />
+                                                </span>
+                                            )}
                                             {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                             {isMe && (
                                                 <CheckCheck className={`h-3 w-3 ${msg.is_read ? 'text-blue-300' : 'opacity-70'}`} />
@@ -286,7 +304,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                         {isMe && !msg.id.startsWith('temp') && (
                                             <button 
                                                 onClick={() => deleteMessageMutation.mutate(msg.id)}
-                                                className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-stone-300 hover:text-red-50 opacity-0 group-hover:opacity-100 transition-all"
                                                 title="Delete Message"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -302,7 +320,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                     <div className="p-4 bg-white border-t border-stone-100">
                         {retentionHours && (
                             <div className="mb-2 text-xs text-center text-red-500 bg-red-50 p-1 rounded">
-                                Vanish Mode On: Messages auto-delete after {retentionHours >= 24 ? `${retentionHours/24} days` : `${retentionHours} hours`}
+                                Vanish Mode On: Messages delete {retentionHours}h after being seen.
                             </div>
                         )}
                         <form onSubmit={(e) => sendMessageMutation.mutate(undefined, { onSuccess: () => {} })} className="flex items-center gap-2">
