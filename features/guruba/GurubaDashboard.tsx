@@ -8,10 +8,11 @@ import { supabase } from '../../lib/supabaseClient';
 import { Availability, Booking, Guruba, Service, Gotra, GurubaService } from '../../types';
 import { ChatInterface } from '../messages/ChatInterface';
 import { useBookings, useServices, useUpdateBookingStatus } from '../../hooks/queries';
+// FIX: Added XCircle to lucide-react imports
 import { 
     Calendar, Clock, DollarSign, MapPin, Star, RefreshCw, AlertCircle, Save, Check, 
     LayoutDashboard, ListChecks, User, LogOut, CheckCircle, Settings, MessageSquare,
-    Briefcase, Users, BookOpen, PlusCircle, Video, Menu, X, Edit3, Link as LinkIcon
+    Briefcase, Users, BookOpen, PlusCircle, Video, Menu, X, Edit3, Link as LinkIcon, XCircle
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -159,8 +160,7 @@ export const GurubaDashboard: React.FC = () => {
   
   // Schedule Edit State
   const [schedule, setSchedule] = useState<{ [key: number]: { start: string, end: string, enabled: boolean } }>({});
-  const [busyMode, setBusyMode] = useState(false);
-
+  
   // Negotiation State
   const [proposingBookingId, setProposingBookingId] = useState<string | null>(null);
   const [proposedTime, setProposedTime] = useState('');
@@ -180,10 +180,10 @@ export const GurubaDashboard: React.FC = () => {
     if (availability) {
         const initialSchedule: any = {};
         DAYS_OF_WEEK.forEach((_, index) => {
-            const found = availability?.find(a => a.day_of_week === index);
+            const found = availability.find(a => a.day_of_week === index);
             initialSchedule[index] = found 
                 ? { start: found.start_time.slice(0, 5), end: found.end_time.slice(0, 5), enabled: true }
-                : { start: '05:00', end: '21:00', enabled: true }; 
+                : { start: '09:00', end: '17:00', enabled: false }; // Default to OFF
         });
         setSchedule(initialSchedule);
     }
@@ -237,25 +237,48 @@ export const GurubaDashboard: React.FC = () => {
   };
 
   const saveSchedule = async () => {
-      if (!guruba) return;
-      setSavingSchedule(true);
-      try {
-          await supabase.from('guruba_availability').delete().eq('guruba_id', guruba.id);
-          const rows = Object.entries(schedule)
-            .filter(([_, val]) => (val as any).enabled)
-            .map(([day, val]) => {
-                const v = val as any;
-                return {
-                    guruba_id: guruba.id,
-                    day_of_week: parseInt(day),
-                    start_time: v.start,
-                    end_time: v.end
-                };
-            });
-          if (rows.length > 0) await supabase.from('guruba_availability').insert(rows);
-          queryClient.invalidateQueries({ queryKey: ['availability'] });
-          alert("Schedule updated!");
-      } catch (e) { alert("Failed"); } finally { setSavingSchedule(false); }
+    if (!guruba) return;
+    setSavingSchedule(true);
+    try {
+        const upsertRows = Object.entries(schedule)
+            .filter(([, val]) => (val as any).enabled)
+            .map(([day, val]) => ({
+                guruba_id: guruba.id,
+                day_of_week: parseInt(day),
+                start_time: (val as any).start,
+                end_time: (val as any).end,
+            }));
+
+        const deleteDays = Object.entries(schedule)
+            .filter(([, val]) => !(val as any).enabled)
+            .map(([day]) => parseInt(day));
+
+        // Perform deletions for disabled days
+        if (deleteDays.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('guruba_availability')
+                .delete()
+                .eq('guruba_id', guruba.id)
+                .in('day_of_week', deleteDays);
+            if (deleteError) throw deleteError;
+        }
+
+        // Perform upserts for enabled days
+        if (upsertRows.length > 0) {
+            const { error: upsertError } = await supabase
+                .from('guruba_availability')
+                .upsert(upsertRows, { onConflict: 'guruba_id, day_of_week' });
+            if (upsertError) throw upsertError;
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['availability'] });
+        alert("Schedule updated successfully!");
+    } catch (e: any) { 
+        console.error("Failed to update schedule:", e);
+        alert(`Failed to update schedule: ${e.message}`);
+    } finally { 
+        setSavingSchedule(false); 
+    }
   };
 
   const toggleService = async (serviceId: string, currentStatus: boolean) => {
@@ -571,16 +594,12 @@ export const GurubaDashboard: React.FC = () => {
           case 'schedule':
               return (
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                           <div>
                               <h2 className="text-2xl font-bold text-stone-900">Availability Settings</h2>
-                              <p className="text-sm text-stone-500">Default availability is 05:00 AM - 09:00 PM.</p>
+                              <p className="text-sm text-stone-500 mt-1">Set your weekly working hours. Clients will only be able to book you during these times.</p>
                           </div>
-                          <div className="flex items-center gap-3 bg-white p-1 rounded-lg border border-stone-200 shadow-sm">
-                              <button onClick={() => setBusyMode(false)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!busyMode ? 'bg-saffron-100 text-saffron-800' : 'text-stone-500 hover:bg-stone-50'}`}>Set Working Hours</button>
-                              <button onClick={() => setBusyMode(true)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${busyMode ? 'bg-red-100 text-red-800' : 'text-stone-500 hover:bg-stone-50'}`}>Set Busy/Off</button>
-                          </div>
-                          <Button onClick={saveSchedule} isLoading={savingSchedule} className="gap-2">
+                          <Button onClick={saveSchedule} isLoading={savingSchedule} className="gap-2 w-full md:w-auto">
                               <Save className="h-4 w-4" /> Save Changes
                           </Button>
                       </div>
@@ -622,7 +641,7 @@ export const GurubaDashboard: React.FC = () => {
                                           </div>
                                       </div>
                                   ) : (
-                                      <span className="text-sm font-bold text-stone-400 bg-stone-100 px-3 py-1 rounded-full uppercase tracking-wide">Day Off / Busy</span>
+                                      <span className="text-sm font-bold text-stone-400 bg-stone-100 px-3 py-1 rounded-full uppercase tracking-wide">Day Off</span>
                                   )}
                               </div>
                           ))}

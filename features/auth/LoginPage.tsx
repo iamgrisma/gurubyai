@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
-import { useAuth } from './AuthProvider';
 import { Button } from '../../components/ui/Button';
-import { AlertTriangle, CheckCircle, Mail, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Mail } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { loginWithFallback } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -80,13 +78,6 @@ export const LoginPage: React.FC = () => {
     performLogin(email, password);
   };
 
-  const handleDemoLogin = async (role: 'client' | 'guruba' | 'admin') => {
-      await loginWithFallback(`demo.${role}@guruba.com`, role);
-      if (role === 'admin') navigate('/admin');
-      else if (role === 'guruba') navigate('/guruba');
-      else navigate('/client');
-  };
-
   const handleResendVerification = async () => {
     try {
         const { error } = await supabase.auth.resend({ type: 'signup', email });
@@ -100,7 +91,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-500 via-red-500 to-purple-600 px-4 py-12 sm:px-6 lg:px-8 animate-gradient-x">
-      <div className="w-full max-w-md space-y-6 bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-white/20">
+      <div className="w-full max-w-md space-y-8 bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-white/20">
         <div className="text-center">
             <div className="mx-auto h-14 w-14 rounded-xl bg-gradient-to-br from-saffron-500 to-orange-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-saffron-500/30 transform -rotate-3">
                 G
@@ -108,29 +99,9 @@ export const LoginPage: React.FC = () => {
             <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-stone-900">
                 Welcome Back
             </h2>
-        </div>
-
-        {/* Demo Login Section */}
-        <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
-            <p className="text-xs font-bold text-stone-500 uppercase text-center mb-3 flex items-center justify-center gap-1">
-                <Zap className="h-3 w-3 text-saffron-500" /> Quick Demo Access
+            <p className="mt-2 text-sm text-stone-500">
+                Sign in to continue to Guruba Connect
             </p>
-            <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => handleDemoLogin('client')} className="px-2 py-2 bg-white border border-stone-200 rounded-lg text-xs font-medium hover:border-saffron-400 hover:text-saffron-600 transition-colors shadow-sm">
-                    Client Demo
-                </button>
-                <button onClick={() => handleDemoLogin('guruba')} className="px-2 py-2 bg-white border border-stone-200 rounded-lg text-xs font-medium hover:border-saffron-400 hover:text-saffron-600 transition-colors shadow-sm">
-                    Guruba Demo
-                </button>
-                <button onClick={() => handleDemoLogin('admin')} className="px-2 py-2 bg-white border border-stone-200 rounded-lg text-xs font-medium hover:border-saffron-400 hover:text-saffron-600 transition-colors shadow-sm">
-                    Admin Demo
-                </button>
-            </div>
-        </div>
-
-        <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-stone-200" /></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-stone-400">Or login with email</span></div>
         </div>
 
         <form className="space-y-6" onSubmit={handleLogin}>
