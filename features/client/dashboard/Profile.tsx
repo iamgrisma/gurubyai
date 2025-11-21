@@ -117,7 +117,7 @@ export const DashboardProfile: React.FC<ProfileProps> = ({ user, profile }) => {
         queryFn: async () => {
             if (!user?.id) return [];
             const { data } = await supabase.from('saved_locations').select('*').eq('user_id', user.id).order('created_at');
-            return data as SavedLocation[];
+            return (data || []) as SavedLocation[];
         },
         enabled: !!user?.id
     });

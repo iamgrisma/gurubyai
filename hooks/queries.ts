@@ -33,7 +33,6 @@ export const useServices = () => {
         .select('*')
         .order('title');
       if (error) throw error;
-      // FIX: Ensure we return an array even if data is null
       return (data || []) as Service[];
     },
   });
@@ -72,7 +71,6 @@ export const useGurubas = () => {
           )
         `);
       if (error) throw error;
-      // FIX: Ensure we return an array even if data is null
       return (data || []) as Guruba[];
     },
   });
@@ -113,7 +111,6 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
 
       const { data, error } = await query;
       if (error) throw error;
-      // FIX: Ensure we return an array even if data is null
       return (data || []) as Booking[];
     },
     enabled: !!userId,

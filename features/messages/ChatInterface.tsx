@@ -41,7 +41,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
           if (uniqueIds.length === 0) return [];
 
           const { data: profiles } = await supabase.from('profiles').select('*').in('id', uniqueIds);
-          return profiles as UserProfile[];
+          return (profiles || []) as UserProfile[];
       },
       enabled: !!user
   });
@@ -87,7 +87,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
               // Side effect: Mark read
               markMessagesAsRead(data as Message[]);
           }
-          return data as Message[];
+          return (data || []) as Message[];
       },
       enabled: !!user && !!activeConversation,
       refetchInterval: 5000 // Poll to check for new messages / seen status

@@ -65,7 +65,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ service, guruba, ini
       queryFn: async () => {
           if (!user?.id) return [];
           const { data } = await supabase.from('saved_locations').select('*').eq('user_id', user.id).order('created_at');
-          return data as SavedLocation[];
+          return (data || []) as SavedLocation[];
       },
       enabled: !!user?.id
   });

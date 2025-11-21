@@ -33,7 +33,7 @@ export const GurubaSchedule: React.FC<ScheduleProps> = ({ guruba }) => {
       queryFn: async () => {
           if (!guruba?.id) return [];
           const { data } = await supabase.from('guruba_availability').select('*').eq('guruba_id', guruba.id);
-          return data as Availability[];
+          return (data || []) as Availability[];
       },
       enabled: !!guruba?.id
   });

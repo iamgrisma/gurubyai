@@ -10,7 +10,7 @@ export const AdminFinancials: React.FC = () => {
       queryKey: ['adminTransactions'],
       queryFn: async () => {
           const { data } = await supabase.from('transactions').select('*, profiles:user_id(full_name)').order('created_at', { ascending: false }).limit(50);
-          return data as (Transaction & { profiles: { full_name: string } })[];
+          return (data || []) as (Transaction & { profiles: { full_name: string } })[];
       }
   });
 

@@ -14,7 +14,7 @@ export const AdminGotras: React.FC = () => {
       queryKey: ['adminGotras'],
       queryFn: async () => {
           const { data } = await supabase.from('gotras').select('*').order('name');
-          return data as Gotra[];
+          return (data || []) as Gotra[];
       }
   });
 
