@@ -1,4 +1,4 @@
-name = "guruba-connect"
+name = "gurubyai"
 main = "worker.ts"
 compatibility_date = "2024-09-23"
 account_id = "a1e06deacecf6766d2d406a29a50046b"
