@@ -1,10 +1,7 @@
-// src/hooks/queries.ts
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../lib/supabaseClient';
-import { Booking, Guruba, Service, UserProfile } from '../types';
+import { supabase } from '@/lib/supabaseClient';
+import { UserProfile, Service, Guruba, Booking } from '@/types';
 
-// --- PROFILES ---
 export const useProfile = (userId?: string) => {
   return useQuery({
     queryKey: ['profile', userId],
@@ -81,7 +78,7 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
     queryKey: ['bookings', userId, role],
     queryFn: async () => {
       if (!userId) return [];
-      
+
       let query = supabase
         .from('bookings')
         .select(`
@@ -100,9 +97,9 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
         // For Gurubas, we need to find the guruba record first
         const { data: gurubaData } = await supabase.from('gurubas').select('id').eq('user_id', userId).single();
         if (gurubaData) {
-            query = query.eq('guruba_id', gurubaData.id);
+          query = query.eq('guruba_id', gurubaData.id);
         } else {
-            return [];
+          return [];
         }
       } else {
         query = query.eq('user_id', userId);
@@ -124,7 +121,7 @@ export const useUpdateBookingStatus = () => {
     mutationFn: async ({ id, status, meeting_link }: { id: string, status: string, meeting_link?: string }) => {
       const updateData: any = { status };
       if (meeting_link) updateData.meeting_link = meeting_link;
-      
+
       const { error } = await supabase.from('bookings').update(updateData).eq('id', id);
       if (error) throw error;
     },
@@ -138,17 +135,17 @@ export const useBookService = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: { user_id: string, guruba_id: string, service_id: string, scheduled_at: string, platform_fee: number }) => {
-        // Call the RPC function we created in SQL
-        const { data, error } = await supabase.rpc('book_service', {
-            p_user_id: params.user_id,
-            p_guruba_id: params.guruba_id,
-            p_service_id: params.service_id,
-            p_scheduled_at: params.scheduled_at,
-            p_platform_fee: params.platform_fee
-        });
-        
-        if (error) throw error;
-        return data;
+      // Call the RPC function we created in SQL
+      const { data, error } = await supabase.rpc('book_service', {
+        p_user_id: params.user_id,
+        p_guruba_id: params.guruba_id,
+        p_service_id: params.service_id,
+        p_scheduled_at: params.scheduled_at,
+        p_platform_fee: params.platform_fee
+      });
+
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });

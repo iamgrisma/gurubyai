@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
-import { Service, Guruba, SavedLocation, CustomService } from '../../types';
+import { Service, Guruba, SavedLocation } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { useProfile, useBookService } from '../../hooks/queries';
 import {
@@ -12,12 +12,9 @@ import {
     Clock,
     AlertTriangle,
     X,
-    MapPin,
     CreditCard,
     Wallet,
     Navigation,
-    Info,
-    CheckCircle,
 } from 'lucide-react';
 import { CustomServiceModal } from './CustomServiceModal';
 import { LocationPicker } from '../../components/ui/LocationPicker';
@@ -620,19 +617,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     )}
                 </div>
             </div>
+            {showCustomServiceModal && (
+                <CustomServiceModal
+                    isOpen={showCustomServiceModal}
+                    onClose={() => setShowCustomServiceModal(false)}
+                    onCreated={(id) => {
+                        setSelectedServiceIds([...selectedServiceIds, id]);
+                    }}
+                />
+            )}
         </div>
     );
 };
-
-// Custom Service Request Modal
-{
-    showCustomServiceModal && (
-        <CustomServiceModal
-            isOpen={showCustomServiceModal}
-            onClose={() => setShowCustomServiceModal(false)}
-            onCreated={(id) => {
-                setSelectedServiceIds([...selectedServiceIds, id]);
-            }}
-        />
-    )
-}

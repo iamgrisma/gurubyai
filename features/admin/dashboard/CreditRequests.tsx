@@ -36,8 +36,8 @@ export const CreditRequests: React.FC = () => {
     });
 
     // Approve mutation (calls RPC)
-    const approveMutation = useMutation(
-        async ({ requestId, newAmount }: { requestId: string; newAmount: number }) => {
+    const approveMutation = useMutation({
+        mutationFn: async ({ requestId, newAmount }: { requestId: string; newAmount: number }) => {
             const { data, error } = await supabase.rpc('approve_credit_request', {
                 p_request_id: requestId,
                 p_new_amount: newAmount,
@@ -45,28 +45,26 @@ export const CreditRequests: React.FC = () => {
             if (error) throw error;
             return data;
         },
-        {
-            onSuccess: () => {
-                queryClient.invalidateQueries(['creditRequests', 'pending']);
-                showMessage({
-                    type: 'success',
-                    title: 'Credit Request Approved',
-                    content: 'The credit request has been approved.',
-                });
-            },
-            onError: (err: any) => {
-                showMessage({
-                    type: 'error',
-                    title: 'Approval Failed',
-                    content: err.message || 'Failed to approve credit request.',
-                });
-            },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['creditRequests', 'pending'] });
+            showMessage({
+                type: 'success',
+                title: 'Credit Request Approved',
+                content: 'The credit request has been approved.',
+            });
         },
-    );
+        onError: (err: any) => {
+            showMessage({
+                type: 'error',
+                title: 'Approval Failed',
+                content: err.message || 'Failed to approve credit request.',
+            });
+        },
+    });
 
     // Reject mutation (calls RPC)
-    const rejectMutation = useMutation(
-        async ({ requestId, reason }: { requestId: string; reason: string }) => {
+    const rejectMutation = useMutation({
+        mutationFn: async ({ requestId, reason }: { requestId: string; reason: string }) => {
             const { data, error } = await supabase.rpc('reject_credit_request', {
                 p_request_id: requestId,
                 p_reason: reason,
@@ -74,24 +72,22 @@ export const CreditRequests: React.FC = () => {
             if (error) throw error;
             return data;
         },
-        {
-            onSuccess: () => {
-                queryClient.invalidateQueries(['creditRequests', 'pending']);
-                showMessage({
-                    type: 'success',
-                    title: 'Credit Request Rejected',
-                    content: 'The credit request has been rejected.',
-                });
-            },
-            onError: (err: any) => {
-                showMessage({
-                    type: 'error',
-                    title: 'Rejection Failed',
-                    content: err.message || 'Failed to reject credit request.',
-                });
-            },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['creditRequests', 'pending'] });
+            showMessage({
+                type: 'success',
+                title: 'Credit Request Rejected',
+                content: 'The credit request has been rejected.',
+            });
         },
-    );
+        onError: (err: any) => {
+            showMessage({
+                type: 'error',
+                title: 'Rejection Failed',
+                content: err.message || 'Failed to reject credit request.',
+            });
+        },
+    });
 
     // Local UI state for modals
     const [approveId, setApproveId] = useState<string | null>(null);

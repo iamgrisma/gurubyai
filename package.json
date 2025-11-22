@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "worker:dev": "wrangler dev",
-    "worker:deploy": "wrangler deploy"
+    "worker:deploy": "wrangler deploy",
+    "pages:dev": "wrangler pages dev ./dist",
+    "pages:deploy": "npm run build && wrangler pages deploy ./dist"
   },
   "dependencies": {
     "@cloudflare/kv-asset-handler": "^0.3.0",
