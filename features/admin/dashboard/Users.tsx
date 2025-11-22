@@ -1,33 +1,72 @@
 
 // features/admin/dashboard/Users.tsx
 
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
 import { Button } from '../../../components/ui/Button';
 import { Search, PlusCircle, KeyRound } from 'lucide-react';
 import { GurubaVerificationBadge } from '../../../components/shared/GurubaVerificationBadge';
+import { Pagination } from '../../../components/ui/Pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 export const AdminUsers: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
 
-  const { data: users = [], isLoading: usersLoading } = useQuery({
-      queryKey: ['adminUsers'],
+  // Handle Search Change (Reset Page)
+  const handleSearch = (term: string) => {
+      setSearchTerm(term);
+      setPage(1);
+  };
+
+  // Server-side Pagination & Search Query
+  const { data, isLoading: usersLoading } = useQuery({
+      queryKey: ['adminUsers', page, searchTerm],
       queryFn: async () => {
-        const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-        const { data: gurubas } = await supabase.from('gurubas').select('user_id, is_verified, guruba_type');
+        let query = supabase.from('profiles').select('*', { count: 'exact' });
+
+        // Apply Search (Server-side)
+        if (searchTerm) {
+            // Search by email or name
+            query = query.or(`email.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`);
+        }
+
+        // Apply Pagination
+        const from = (page - 1) * ITEMS_PER_PAGE;
+        const to = from + ITEMS_PER_PAGE - 1;
         
-        return profiles?.map(p => ({
+        const { data: profiles, count, error } = await query
+            .range(from, to)
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+
+        // Fetch associated guruba details for ONLY the displayed profiles
+        // This avoids fetching the entire guruba table
+        const profileIds = profiles?.map(p => p.id) || [];
+        const { data: gurubas } = await supabase
+            .from('gurubas')
+            .select('user_id, is_verified, guruba_type')
+            .in('user_id', profileIds);
+        
+        const mappedUsers = profiles?.map(p => ({
             ...p,
             gurubas: gurubas?.filter(g => g.user_id === p.id) || []
         })) || [];
-      }
+
+        return { users: mappedUsers, total: count || 0 };
+      },
+      placeholderData: keepPreviousData // Keep showing old data while fetching new page
   });
+
+  const users = data?.users || [];
+  const totalUsers = data?.total || 0;
 
   const addCreditsMutation = useMutation({
       mutationFn: async ({ userId, amount }: { userId: string, amount: number }) => {
-          // Use secure RPC
           const { error } = await supabase.rpc('admin_add_credits', {
               target_user_id: userId,
               amount: amount
@@ -49,7 +88,7 @@ export const AdminUsers: React.FC = () => {
           if (error) throw error;
       },
       onSuccess: () => {
-          alert("Password reset email sent to user. They will receive a link to reset it.");
+          alert("Password reset email sent to user.");
       },
       onError: (e: any) => {
           alert("Failed to send reset email: " + e.message);
@@ -63,21 +102,12 @@ export const AdminUsers: React.FC = () => {
       }
   };
 
-  const filteredUsers = useMemo(() => {
-      return users.filter((u: any) => 
-          u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-  }, [users, searchTerm]);
-
-  if (usersLoading) return <div>Loading...</div>;
-
   return (
       <div className="space-y-6 animate-in fade-in duration-300">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
               <div>
                   <h2 className="text-2xl font-bold text-stone-900">User Details</h2>
-                  <p className="text-stone-500">Comprehensive list of all users and their details.</p>
+                  <p className="text-stone-500">Manage users and permissions.</p>
               </div>
               <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
@@ -85,13 +115,13 @@ export const AdminUsers: React.FC = () => {
                       className="w-full pl-10 pr-4 py-2 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-saffron-500 focus:border-saffron-500 outline-none transition-all"
                       placeholder="Search users..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => handleSearch(e.target.value)}
                   />
               </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-full">
+              <div className="overflow-x-auto flex-1">
                   <table className="w-full text-sm text-left">
                       <thead className="bg-stone-50 text-stone-600 font-semibold uppercase text-xs tracking-wider">
                           <tr>
@@ -103,51 +133,63 @@ export const AdminUsers: React.FC = () => {
                           </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
-                          {filteredUsers.map((u: any) => (
-                              <tr key={u.id} className="hover:bg-stone-50 transition-colors group">
-                                  <td className="px-6 py-4">
-                                      <div className="flex flex-col">
-                                          <span className="font-bold text-stone-900">{u.full_name}</span>
-                                          <span className="text-xs text-stone-500">{u.email}</span>
-                                      </div>
-                                  </td>
-                                  <td className="px-6 py-4">
-                                      <span className={`uppercase text-[10px] font-bold px-2 py-1 rounded border ${
-                                          u.role === 'admin' ? 'bg-stone-800 text-white border-stone-900' :
-                                          u.role === 'guruba' ? 'bg-saffron-50 text-saffron-700 border-saffron-200' :
-                                          'bg-blue-50 text-blue-700 border-blue-200'
-                                      }`}>
-                                          {u.role}
-                                      </span>
-                                  </td>
-                                  <td className="px-6 py-4 font-mono font-bold text-stone-700">
-                                      {(u.credits || 0).toLocaleString()} CR
-                                  </td>
-                                  <td className="px-6 py-4">
-                                      {u.role === 'guruba' && (
-                                          u.gurubas?.[0]?.is_verified 
-                                          ? <div className="flex items-center gap-2">
-                                              <GurubaVerificationBadge isVerified={true} gurubaType={u.gurubas?.[0]?.guruba_type} />
-                                              <span className="text-xs font-medium text-stone-600 capitalize">{u.gurubas[0].guruba_type?.replace('_', ' ')}</span>
-                                            </div>
-                                          : <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pending</span>
-                                      )}
-                                  </td>
-                                  <td className="px-6 py-4 text-right">
-                                      <div className="flex justify-end gap-2">
-                                          <Button size="sm" variant="outline" onClick={() => resetPasswordMutation.mutate(u.email)} title="Reset Password" className="border-stone-300 hover:bg-stone-100 text-stone-500">
-                                              <KeyRound className="h-4 w-4" />
-                                          </Button>
-                                          <Button size="sm" variant="outline" onClick={() => handleAddCredits(u.id)} title="Add Credits" className="border-stone-300 hover:bg-stone-100">
-                                              <PlusCircle className="h-4 w-4 mr-1" /> Add Credit
-                                          </Button>
-                                      </div>
-                                  </td>
-                              </tr>
-                          ))}
+                          {usersLoading ? (
+                              <tr><td colSpan={5} className="p-8 text-center text-stone-500">Loading...</td></tr>
+                          ) : users.length === 0 ? (
+                              <tr><td colSpan={5} className="p-8 text-center text-stone-500">No users found.</td></tr>
+                          ) : (
+                              users.map((u: any) => (
+                                  <tr key={u.id} className="hover:bg-stone-50 transition-colors group">
+                                      <td className="px-6 py-4">
+                                          <div className="flex flex-col">
+                                              <span className="font-bold text-stone-900">{u.full_name}</span>
+                                              <span className="text-xs text-stone-500">{u.email}</span>
+                                          </div>
+                                      </td>
+                                      <td className="px-6 py-4">
+                                          <span className={`uppercase text-[10px] font-bold px-2 py-1 rounded border ${
+                                              u.role === 'admin' ? 'bg-stone-800 text-white border-stone-900' :
+                                              u.role === 'guruba' ? 'bg-saffron-50 text-saffron-700 border-saffron-200' :
+                                              'bg-blue-50 text-blue-700 border-blue-200'
+                                          }`}>
+                                              {u.role}
+                                          </span>
+                                      </td>
+                                      <td className="px-6 py-4 font-mono font-bold text-stone-700">
+                                          {(u.credits || 0).toLocaleString()} CR
+                                      </td>
+                                      <td className="px-6 py-4">
+                                          {u.role === 'guruba' && (
+                                              u.gurubas?.[0]?.is_verified 
+                                              ? <div className="flex items-center gap-2">
+                                                  <GurubaVerificationBadge isVerified={true} gurubaType={u.gurubas?.[0]?.guruba_type} />
+                                                  <span className="text-xs font-medium text-stone-600 capitalize">{u.gurubas[0].guruba_type?.replace('_', ' ')}</span>
+                                                </div>
+                                              : <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pending</span>
+                                          )}
+                                      </td>
+                                      <td className="px-6 py-4 text-right">
+                                          <div className="flex justify-end gap-2">
+                                              <Button size="sm" variant="outline" onClick={() => resetPasswordMutation.mutate(u.email)} title="Reset Password" className="border-stone-300 hover:bg-stone-100 text-stone-500">
+                                                  <KeyRound className="h-4 w-4" />
+                                              </Button>
+                                              <Button size="sm" variant="outline" onClick={() => handleAddCredits(u.id)} title="Add Credits" className="border-stone-300 hover:bg-stone-100">
+                                                  <PlusCircle className="h-4 w-4 mr-1" /> Credit
+                                              </Button>
+                                          </div>
+                                      </td>
+                                  </tr>
+                              ))
+                          )}
                       </tbody>
                   </table>
               </div>
+              <Pagination 
+                  currentPage={page}
+                  totalItems={totalUsers}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                  onPageChange={setPage}
+              />
           </div>
       </div>
   );

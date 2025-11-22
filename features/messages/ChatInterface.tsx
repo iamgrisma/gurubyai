@@ -235,7 +235,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                      activeBooking.status === 'awaiting_client_confirmation' ? ' New Time Proposed: ' : 
                                      ' Scheduled: '}
                                     {activeBooking.status === 'awaiting_client_confirmation' 
-                                      ? new Date(activeBooking.proposed_time!).toLocaleString()
+                                      ? (activeBooking.proposed_time ? new Date(activeBooking.proposed_time).toLocaleString() : 'N/A')
                                       : new Date(activeBooking.scheduled_at).toLocaleString()}
                                 </span>
                             </div>

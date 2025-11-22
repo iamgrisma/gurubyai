@@ -38,15 +38,20 @@ export const useServices = () => {
   return useQuery({
     queryKey: ['services'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('title');
-      if (error) {
-          console.error(error);
-          return [];
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .order('title');
+        if (error) {
+            console.error(error);
+            return [];
+        }
+        return (data || []) as Service[];
+      } catch (e) {
+        console.error("Exception fetching services:", e);
+        return [];
       }
-      return (data || []) as Service[];
     },
   });
 };
@@ -56,13 +61,18 @@ export const useService = (serviceId?: string) => {
     queryKey: ['service', serviceId],
     queryFn: async () => {
       if (!serviceId) return null;
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('id', serviceId)
-        .single();
-      if (error) throw error;
-      return data as Service;
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .eq('id', serviceId)
+          .single();
+        if (error) throw error;
+        return data as Service;
+      } catch (e) {
+        console.error("Exception fetching service:", e);
+        return null;
+      }
     },
     enabled: !!serviceId,
   });
@@ -73,22 +83,27 @@ export const useGurubas = () => {
   return useQuery({
     queryKey: ['gurubas'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('gurubas')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            full_name,
-            gotra_id,
-            avatar_url
-          )
-        `);
-      if (error) {
-          console.error(error);
-          return [];
+      try {
+        const { data, error } = await supabase
+          .from('gurubas')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              full_name,
+              gotra_id,
+              avatar_url
+            )
+          `);
+        if (error) {
+            console.error(error);
+            return [];
+        }
+        return (data || []) as Guruba[];
+      } catch (e) {
+        console.error("Exception fetching gurubas:", e);
+        return [];
       }
-      return (data || []) as Guruba[];
     },
   });
 };
