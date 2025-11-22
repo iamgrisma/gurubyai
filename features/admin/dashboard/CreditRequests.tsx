@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
-import { Button } from '../../components/ui/Button';
-import { useMessage } from '../../components/ui/MessageContext';
+import { Button } from '../../../components/ui/Button';
+import { useMessage } from '../../../components/ui/MessageContext';
 import { CreditCard, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface CreditRequest {
@@ -183,7 +183,7 @@ export const CreditRequests: React.FC = () => {
                                     approveMutation.mutate({ requestId: approveId, newAmount: adjustedAmount });
                                     setApproveId(null);
                                 }}
-                                isLoading={approveMutation.isLoading}
+                                isLoading={approveMutation.isPending}
                             >
                                 Approve
                             </Button>
@@ -216,7 +216,7 @@ export const CreditRequests: React.FC = () => {
                                     rejectMutation.mutate({ requestId: rejectId, reason: rejectReason });
                                     setRejectId(null);
                                 }}
-                                isLoading={rejectMutation.isLoading}
+                                isLoading={rejectMutation.isPending}
                             >
                                 Reject
                             </Button>
