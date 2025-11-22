@@ -1,3 +1,4 @@
+
 // features/public/LandingPage.tsx
 
 import React from 'react';
@@ -193,7 +194,7 @@ export const LandingPage: React.FC = () => {
                             </div>
                             <h3 className="text-2xl font-bold mb-2">{service.title}</h3>
                             <div className="flex items-center justify-between mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                                <p className="text-saffron-400 font-bold text-xl">Rs. {service.base_price.toLocaleString()}</p>
+                                <p className="text-saffron-400 font-bold text-xl">Rs. {(service.base_price || 0).toLocaleString()}</p>
                                 <span className="bg-white text-stone-900 p-2 rounded-full"><ArrowRight className="h-4 w-4" /></span>
                             </div>
                          </div>

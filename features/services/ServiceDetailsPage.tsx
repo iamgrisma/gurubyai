@@ -1,3 +1,4 @@
+
 // features/services/ServiceDetailsPage.tsx
 
 import React from 'react';
@@ -100,7 +101,7 @@ export const ServiceDetailsPage: React.FC = () => {
                     <div className="bg-saffron-50 p-6 rounded-xl border border-saffron-100 sticky top-24">
                         <div className="text-center mb-6">
                             <span className="block text-stone-500 text-sm uppercase tracking-wide font-semibold">Total Price</span>
-                            <span className="block text-4xl font-bold text-stone-900 mt-1">Rs. {service.base_price.toLocaleString()}</span>
+                            <span className="block text-4xl font-bold text-stone-900 mt-1">Rs. {(service.base_price || 0).toLocaleString()}</span>
                             <span className="text-xs text-stone-400">Dakshina Included</span>
                         </div>
                         

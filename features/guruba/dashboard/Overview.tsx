@@ -24,21 +24,13 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
   const handleVerificationRequest = async () => {
       if (!guruba) return;
       try {
-          // For MVP, we simulate a request by notifying the admin
-          // In real app, this would upload files.
-          const { data: admin } = await supabase.from('profiles').select('id').eq('role', 'admin').single();
+          // Use secure RPC for verification request
+          const { error } = await supabase.rpc('request_verification');
           
-          if (admin) {
-              await supabase.from('notifications').insert({
-                  user_id: admin.id,
-                  title: "Verification Request",
-                  message: `Guruba ${guruba.profiles?.full_name} has requested verification. Please check their profile details.`
-              });
-              alert("Verification request sent to Admin! They will review your profile.");
-          } else {
-              alert("Request noted. Admin will review shortly.");
-          }
+          if (error) throw error;
+          alert("Verification request sent to Admin! They will review your profile.");
       } catch (e) {
+          console.error(e);
           alert("Failed to send request.");
       }
   };
@@ -55,7 +47,7 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
                     <p className="text-sm mt-1 opacity-90">Click the button to notify admins to review your profile for the "Verified" badge.</p>
                 </div>
                 <Button onClick={handleVerificationRequest} variant="outline" className="bg-white border-yellow-300 text-yellow-900 hover:bg-yellow-100 whitespace-nowrap">
-                    Request Verification
+                    Start Verification
                 </Button>
             </div>
         )}

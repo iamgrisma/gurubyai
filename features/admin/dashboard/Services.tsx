@@ -105,7 +105,7 @@ export const AdminServices: React.FC = () => {
                                   <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-stone-100 text-stone-600">{service.category}</span>
                               </td>
                               <td className="px-6 py-4 font-bold text-stone-900">
-                                  Rs. {service.base_price.toLocaleString()}
+                                  Rs. {(service.base_price || 0).toLocaleString()}
                               </td>
                               <td className="px-6 py-4">
                                   <div className="flex gap-2">

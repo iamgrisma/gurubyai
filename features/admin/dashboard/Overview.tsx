@@ -64,7 +64,7 @@ export const AdminOverview: React.FC<OverviewProps> = ({ setActiveTab }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <StatCard title="Total Revenue" value={`Cr ${stats.revenue.toLocaleString()}`} icon={DollarSign} trend={12} trendLabel="vs last month" color="green" />
+              <StatCard title="Total Revenue" value={`Cr ${(stats.revenue || 0).toLocaleString()}`} icon={DollarSign} trend={12} trendLabel="vs last month" color="green" />
               <StatCard title="Total Users" value={stats.users} icon={Users} trend={5} trendLabel="new this week" color="blue" />
               <StatCard title="Active Gurubas" value={stats.gurubas} icon={UserPlus} trend={2} trendLabel="verified recently" color="purple" />
               <StatCard title="Total Bookings" value={stats.bookings} icon={Calendar} trend={8} trendLabel="completion rate" color="orange" />

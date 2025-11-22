@@ -23,13 +23,13 @@ export const AdminVerification: React.FC = () => {
   });
 
   const verifyGurubaMutation = useMutation({
-      mutationFn: async ({ gurubaId, action }: { gurubaId: string, action: 'approve' | 'reject' }) => {
+      mutationFn: async ({ userId, action }: { userId: string, action: 'approve' | 'reject' }) => {
           if (action === 'approve') {
-              const { error } = await supabase.from('gurubas').update({ is_verified: true }).eq('user_id', gurubaId);
+              const { error } = await supabase.from('gurubas').update({ is_verified: true }).eq('user_id', userId);
               if (error) throw error;
           } else {
-              // Reject logic
-              const { error } = await supabase.from('gurubas').update({ is_verified: false }).eq('user_id', gurubaId);
+              // Reject logic - Set is_verified to false
+              const { error } = await supabase.from('gurubas').update({ is_verified: false }).eq('user_id', userId);
               if (error) throw error;
           }
       },
@@ -41,6 +41,7 @@ export const AdminVerification: React.FC = () => {
 
   if (isLoading) return <div>Loading...</div>;
 
+  // Only show users who are gurubas and NOT verified
   const pendingGurubas = users.filter((u: any) => u.role === 'guruba' && u.gurubas?.[0] && !u.gurubas[0].is_verified);
 
   return (
@@ -67,12 +68,12 @@ export const AdminVerification: React.FC = () => {
                               <td className="px-6 py-4 font-medium text-stone-900">{u.full_name}</td>
                               <td className="px-6 py-4 text-stone-600">{u.email}</td>
                               <td className="px-6 py-4">
-                                  <GurubaVerificationBadge isVerified={true} gurubaType={u.gurubas[0].guruba_type} />
+                                  <GurubaVerificationBadge isVerified={false} gurubaType={u.gurubas[0].guruba_type} />
                                   <span className="text-xs ml-2 capitalize text-stone-500">{u.gurubas[0].guruba_type?.replace('_', ' ')}</span>
                               </td>
                               <td className="px-6 py-4 text-right space-x-2">
-                                  <Button size="sm" variant="outline" onClick={() => verifyGurubaMutation.mutate({ gurubaId: u.id, action: 'reject' })} className="text-red-600 hover:bg-red-50 border-red-200">Reject</Button>
-                                  <Button size="sm" onClick={() => verifyGurubaMutation.mutate({ gurubaId: u.id, action: 'approve' })} className="bg-green-600 hover:bg-green-700 border-none">Approve</Button>
+                                  <Button size="sm" variant="outline" onClick={() => verifyGurubaMutation.mutate({ userId: u.id, action: 'reject' })} className="text-red-600 hover:bg-red-50 border-red-200">Reject</Button>
+                                  <Button size="sm" onClick={() => verifyGurubaMutation.mutate({ userId: u.id, action: 'approve' })} className="bg-green-600 hover:bg-green-700 border-none">Approve</Button>
                               </td>
                           </tr>
                       ))}

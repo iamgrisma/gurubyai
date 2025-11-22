@@ -53,7 +53,7 @@ export const GurubaClients: React.FC<ClientsProps> = ({ bookings }) => {
                                 <p className="text-xs text-stone-500">{c.email}</p>
                             </td>
                             <td className="px-6 py-4 text-stone-600">{new Date(c.last_booking).toLocaleDateString()}</td>
-                            <td className="px-6 py-4 text-right font-bold text-green-700">Rs. {c.total_spend.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-right font-bold text-green-700">Rs. {(c.total_spend || 0).toLocaleString()}</td>
                         </tr>
                     ))}
                 </tbody>

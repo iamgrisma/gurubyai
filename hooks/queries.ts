@@ -16,10 +16,10 @@ export const useProfile = (userId?: string) => {
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle(); // Use maybeSingle to avoid error if no row exists
+          .maybeSingle();
         
         if (error) {
-            console.error("Error fetching profile:", error);
+            console.warn("Profile fetch error:", error);
             return null;
         }
         return data as UserProfile;
@@ -29,7 +29,7 @@ export const useProfile = (userId?: string) => {
       }
     },
     enabled: !!userId,
-    retry: 1,
+    retry: 1, // Fail fast to prevent infinite loading
   });
 };
 
@@ -42,7 +42,10 @@ export const useServices = () => {
         .from('services')
         .select('*')
         .order('title');
-      if (error) throw error;
+      if (error) {
+          console.error(error);
+          return [];
+      }
       return (data || []) as Service[];
     },
   });
@@ -81,7 +84,10 @@ export const useGurubas = () => {
             avatar_url
           )
         `);
-      if (error) throw error;
+      if (error) {
+          console.error(error);
+          return [];
+      }
       return (data || []) as Guruba[];
     },
   });
@@ -94,41 +100,42 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
     queryFn: async () => {
       if (!userId) return [];
       
-      let query = supabase
-        .from('bookings')
-        .select(`
-          *,
-          services:service_id (title, duration_minutes, base_price, image_url),
-          gurubas:guruba_id (
-            id,
-            user_id,
-            location,
-            profiles:user_id (id, full_name, avatar_url, phone)
-          ),
-          profiles:user_id (id, full_name, avatar_url, phone, email) 
-        `)
-        .order('scheduled_at', { ascending: true });
+      try {
+        let query = supabase
+            .from('bookings')
+            .select(`
+            *,
+            services:service_id (title, duration_minutes, base_price, image_url),
+            gurubas:guruba_id (
+                id,
+                user_id,
+                location,
+                profiles:user_id (id, full_name, avatar_url, phone)
+            ),
+            profiles:user_id (id, full_name, avatar_url, phone, email) 
+            `)
+            .order('scheduled_at', { ascending: true });
 
-      if (role === 'guruba') {
-        // For Gurubas, we need to find the guruba record first
-        const { data: gurubaData } = await supabase.from('gurubas').select('id').eq('user_id', userId).single();
-        if (gurubaData) {
+        if (role === 'guruba') {
+            const { data: gurubaData, error: gError } = await supabase
+                .from('gurubas')
+                .select('id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            
+            if (gError || !gurubaData) return [];
             query = query.eq('guruba_id', gurubaData.id);
-        } else {
-            // User is a guruba but no guruba record exists yet
-            return [];
+        } else if (role === 'client') {
+            query = query.eq('user_id', userId);
         }
-      } else if (role === 'client') {
-        query = query.eq('user_id', userId);
-      }
-      // If admin, return all or filter differently (not implemented here for admin specific logic)
 
-      const { data, error } = await query;
-      if (error) {
-          console.error("Error fetching bookings:", error);
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data || []) as Booking[];
+      } catch (e) {
+          console.error("Error fetching bookings:", e);
           return [];
       }
-      return (data || []) as Booking[];
     },
     enabled: !!userId,
     retry: 1,
@@ -143,9 +150,6 @@ export const useUpdateBookingStatus = () => {
     mutationFn: async ({ id, status, meeting_link }: { id: string, status: string, meeting_link?: string }) => {
       const updateData: any = { status };
       if (meeting_link) updateData.meeting_link = meeting_link;
-      if (status === 'confirmed' && !meeting_link) {
-          // keep existing meeting link if not provided
-      }
       
       const { error } = await supabase.from('bookings').update(updateData).eq('id', id);
       if (error) throw error;
@@ -169,7 +173,6 @@ export const useBookService = () => {
         location_lng?: number,
         location_address?: string
     }) => {
-        // Call the RPC function
         const { data, error } = await supabase.rpc('book_service', {
             p_user_id: params.user_id,
             p_guruba_id: params.guruba_id,

@@ -19,7 +19,6 @@ export const LoginPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showResend, setShowResend] = useState(false);
   
-  // Clear any stale sessions when the login page mounts
   useEffect(() => {
     const clearSession = async () => {
       await supabase.auth.signOut();
@@ -36,9 +35,8 @@ export const LoginPage: React.FC = () => {
             .from('profiles')
             .select('role')
             .eq('id', userId)
-            .single();
+            .maybeSingle();
         
-        // Check for redirect state
         const from = (location.state as any)?.from;
         if (from) {
             navigate(from);
@@ -105,7 +103,7 @@ export const LoginPage: React.FC = () => {
           if (error) throw error;
           setSuccessMessage("Magic Link sent! Check your email to log in instantly.");
       } catch (err: any) {
-          setError(err.message || "Failed to send Magic Link.");
+          setError(err.message || "Failed to send Magic Link. Note: Magic Links may be rate limited.");
       } finally {
           setMagicLinkLoading(false);
       }
@@ -166,7 +164,7 @@ export const LoginPage: React.FC = () => {
                 name="password"
                 type="password"
                 autoComplete="current-password"
-                required={!magicLinkLoading} // Not required if clicking magic link
+                required={!magicLinkLoading} // Not required if doing magic link
                 className="relative block w-full rounded-b-md border-0 bg-stone-800 py-3 text-white placeholder:text-stone-500 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-saffron-500 sm:text-sm sm:leading-6 px-4 transition-all"
                 placeholder="Password"
                 value={password}

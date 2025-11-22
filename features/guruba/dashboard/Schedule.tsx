@@ -46,7 +46,7 @@ export const GurubaSchedule: React.FC<ScheduleProps> = ({ guruba }) => {
             const found = availability.find(a => a.day_of_week === index);
             initialSchedule[index] = found 
                 ? { start: found.start_time.slice(0, 5), end: found.end_time.slice(0, 5), enabled: true }
-                : { start: '05:00', end: '21:00', enabled: false }; // Default: 5 AM - 9 PM, Disabled
+                : { start: '05:00', end: '21:00', enabled: false }; // Default: 5 AM - 9 PM
         });
         setSchedule(initialSchedule);
     }
@@ -57,7 +57,10 @@ export const GurubaSchedule: React.FC<ScheduleProps> = ({ guruba }) => {
     
     // 1. Validation: Check if End Time > Start Time for enabled days
     const invalidDays = Object.entries(schedule)
-        .filter(([, val]) => val.enabled && val.start >= val.end)
+        .filter((entry) => {
+            const val = entry[1] as DaySchedule;
+            return val.enabled && val.start >= val.end;
+        })
         .map(([day]) => DAYS_OF_WEEK[parseInt(day)]);
 
     if (invalidDays.length > 0) {
@@ -69,16 +72,19 @@ export const GurubaSchedule: React.FC<ScheduleProps> = ({ guruba }) => {
     try {
         // 2. Prepare Data
         const upsertRows = Object.entries(schedule)
-            .filter(([, val]) => val.enabled)
-            .map(([day, val]) => ({
-                guruba_id: guruba.id,
-                day_of_week: parseInt(day),
-                start_time: val.start,
-                end_time: val.end,
-            }));
+            .filter((entry) => (entry[1] as DaySchedule).enabled)
+            .map(([day, val]) => {
+                const v = val as DaySchedule;
+                return {
+                    guruba_id: guruba.id,
+                    day_of_week: parseInt(day),
+                    start_time: v.start,
+                    end_time: v.end,
+                };
+            });
 
         const deleteDays = Object.entries(schedule)
-            .filter(([, val]) => !val.enabled)
+            .filter((entry) => !(entry[1] as DaySchedule).enabled)
             .map(([day]) => parseInt(day));
 
         // 3. Perform DB Operations

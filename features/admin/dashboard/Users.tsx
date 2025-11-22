@@ -27,22 +27,18 @@ export const AdminUsers: React.FC = () => {
 
   const addCreditsMutation = useMutation({
       mutationFn: async ({ userId, amount }: { userId: string, amount: number }) => {
-          const { data: current } = await supabase.from('profiles').select('credits').eq('id', userId).single();
-          const newBalance = (current?.credits || 0) + amount;
-          const { error } = await supabase.from('profiles').update({ credits: newBalance }).eq('id', userId);
-          if (error) throw error;
-          
-          await supabase.from('transactions').insert({
-              user_id: userId,
-              amount: amount,
-              type: 'credit',
-              description: 'Admin Top-up',
-              status: 'completed'
+          // Use secure RPC
+          const { error } = await supabase.rpc('admin_add_credits', {
+              target_user_id: userId,
+              amount: amount
           });
+          if (error) throw error;
       },
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-      }
+          alert("Credits added successfully.");
+      },
+      onError: (e: any) => alert("Error adding credits: " + e.message)
   });
 
   const resetPasswordMutation = useMutation({
@@ -53,7 +49,7 @@ export const AdminUsers: React.FC = () => {
           if (error) throw error;
       },
       onSuccess: () => {
-          alert("Password reset email sent to user.");
+          alert("Password reset email sent to user. They will receive a link to reset it.");
       },
       onError: (e: any) => {
           alert("Failed to send reset email: " + e.message);
@@ -125,7 +121,7 @@ export const AdminUsers: React.FC = () => {
                                       </span>
                                   </td>
                                   <td className="px-6 py-4 font-mono font-bold text-stone-700">
-                                      {u.credits.toLocaleString()} CR
+                                      {(u.credits || 0).toLocaleString()} CR
                                   </td>
                                   <td className="px-6 py-4">
                                       {u.role === 'guruba' && (
@@ -138,7 +134,7 @@ export const AdminUsers: React.FC = () => {
                                       )}
                                   </td>
                                   <td className="px-6 py-4 text-right">
-                                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className="flex justify-end gap-2">
                                           <Button size="sm" variant="outline" onClick={() => resetPasswordMutation.mutate(u.email)} title="Reset Password" className="border-stone-300 hover:bg-stone-100 text-stone-500">
                                               <KeyRound className="h-4 w-4" />
                                           </Button>

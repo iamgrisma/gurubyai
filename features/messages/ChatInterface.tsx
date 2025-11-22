@@ -105,23 +105,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const { data: allBookings = [] } = useBookings(user?.id, isClient ? 'client' : 'guruba');
   const updateStatusMutation = useUpdateBookingStatus();
 
+  // Find booking related to the active conversation user
   const activeBooking = allBookings.find(b => {
       if (b.status === 'completed' || b.status === 'cancelled') return false;
-      // Match conversation partner
+      
       if (isClient) {
-          return b.gurubas?.profiles?.id === activeConversation || b.gurubas?.user_id === activeConversation;
+          // If I'm client, finding a booking where guruba's USER ID matches active convo
+          return b.gurubas?.user_id === activeConversation;
       } else {
+          // If I'm Guruba, finding a booking where booking.user_id (client) matches active convo
           return b.user_id === activeConversation;
       }
   });
 
   const handleBookingAction = (bookingId: string, action: string, proposed?: string) => {
-      if (action === 'propose_new_time') {
-          // Logic handled by state
-      } else if (action === 'confirm_proposal') {
+      if (action === 'confirm_proposal') {
           updateStatusMutation.mutate({ id: bookingId, status: 'confirmed' });
-          // Need to update time? currently API doesn't support changing scheduled_at in status update mutation easily
-          // We should use a custom update
           if (proposed) {
              supabase.from('bookings').update({ scheduled_at: proposed, status: 'confirmed' }).eq('id', bookingId).then(() => {
                  queryClient.invalidateQueries({ queryKey: ['bookings'] });
@@ -148,16 +147,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const sendMessageMutation = useMutation({
       mutationFn: async () => {
           if (!user || !activeConversation || !newMessage.trim()) return;
-          await supabase.from('messages').insert({
-              sender_id: user.id,
+          // Use Secure RPC instead of direct insert
+          const { error } = await supabase.rpc('send_message', {
               receiver_id: activeConversation,
-              content: newMessage.trim(),
-              retention_hours: retentionHours
+              content: newMessage.trim()
           });
+          if (error) throw error;
       },
       onSuccess: () => {
           setNewMessage('');
           queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
+      },
+      onError: (err: any) => {
+          alert("Failed to send message: " + err.message);
       }
   });
 
@@ -220,23 +222,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                  <p className="text-xs text-green-600 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-600"></span> Online</p>
                              </div>
                         </div>
-                        <div className="relative">
-                            <button onClick={() => setShowRetentionMenu(!showRetentionMenu)} className={`p-2 rounded-full transition-colors flex items-center gap-2 ${retentionHours ? 'bg-red-50 text-red-600' : 'hover:bg-stone-100 text-stone-400'}`}>
-                                {retentionHours ? <EyeOff className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-                            </button>
-                            {showRetentionMenu && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-20">
-                                    <p className="px-4 py-2 text-xs font-bold text-stone-400 uppercase">Vanish Mode</p>
-                                    {[1, 24, 120].map(h => <button key={h} onClick={() => { setRetentionHours(h); setShowRetentionMenu(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50">{h} Hours</button>)}
-                                    <button onClick={() => { setRetentionHours(undefined); setShowRetentionMenu(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 text-stone-500">Off</button>
-                                </div>
-                            )}
-                        </div>
                     </div>
 
                     {/* Active Booking Action Card */}
                     {activeBooking && (
-                        <div className="bg-saffron-50 border-b border-saffron-100 p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="bg-saffron-50 border-b border-saffron-100 p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-inner">
                             <div className="text-sm text-saffron-900 flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
                                 <span>
