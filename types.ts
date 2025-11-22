@@ -7,16 +7,16 @@ export interface UserProfile {
   full_name?: string;
   role: 'client' | 'guruba' | 'admin';
   phone?: string;
-  gotra_id?: string; 
+  gotra_id?: string;
   avatar_url?: string;
   city?: string;
   languages?: string[];
-  credits: number; 
+  credits: number;
   // Location
   latitude?: number;
   longitude?: number;
   address?: string;
-  
+
   created_at?: string;
 }
 
@@ -64,10 +64,10 @@ export interface Review {
 
 export interface Guruba {
   id: string;
-  user_id: string; 
+  user_id: string;
   bio: string;
   years_experience: number;
-  rating: number; 
+  rating: number;
   review_count?: number;
   location: string;
   specialties: string[];
@@ -91,34 +91,63 @@ export interface Guruba {
 export interface Availability {
   id?: string;
   guruba_id: string;
-  day_of_week: number; 
-  start_time: string; 
-  end_time: string;   
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
 }
 
 export interface Booking {
   id: string;
   user_id: string;
-  guruba_id: string;
-  service_id: string;
+  guruba_id?: string; // Now optional for custom bookings
+  service_id?: string; // Now optional for multi-service bookings
   scheduled_at: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_client_confirmation';
   is_reviewed?: boolean;
   services?: Service;
   gurubas?: Guruba;
-  profiles?: UserProfile; 
-  
+  profiles?: UserProfile;
+
   proposed_time?: string;
   confirmation_deadline?: string;
   platform_fee?: number;
   meeting_link?: string;
-  
+
   // Booking specific location
   location_lat?: number;
   location_lng?: number;
   location_address?: string;
-  
+
+  // Enhanced booking fields
+  guruba_name?: string; // For custom bookings without guruba_id
+  is_custom_booking?: boolean;
+  booking_note?: string; // Custom message/instructions
+
   created_at: string;
+}
+
+export interface CustomService {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  estimated_duration_minutes: number;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  expires_at: string;
+  approved_by?: string;
+  approved_at?: string;
+  profiles?: UserProfile; // User who requested
+}
+
+export interface BookingService {
+  id: string;
+  booking_id: string;
+  service_id?: string;
+  custom_service_id?: string;
+  created_at: string;
+  services?: Service; // Joined service data
+  custom_services?: CustomService; // Joined custom service data
 }
 
 export interface Transaction {
@@ -146,10 +175,10 @@ export interface Message {
   receiver_id: string;
   content: string;
   is_read: boolean;
-  retention_hours?: number; 
-  seen_at?: string; 
+  retention_hours?: number;
+  seen_at?: string;
   created_at: string;
-  sender?: UserProfile; 
+  sender?: UserProfile;
 }
 
 export interface Gotra {
