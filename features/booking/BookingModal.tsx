@@ -23,6 +23,7 @@ import { CustomServiceModal } from './CustomServiceModal';
 import { LocationPicker } from '../../components/ui/LocationPicker';
 import { useQuery } from '@tanstack/react-query';
 import { PLATFORM_FEE } from '../../lib/constants';
+import { useMessage } from '../../components/ui/MessageContext';
 
 // Haversine formula – used for distance warnings
 function getDistanceFromLatLonInKm(
@@ -60,6 +61,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { showMessage } = useMessage();
 
     // ---------------------------------------------------------------------------
     // Hooks & data fetching
@@ -225,7 +227,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 const bookingDate = new Date(b.scheduled_at);
                 const startMins = bookingDate.getHours() * 60 + bookingDate.getMinutes();
                 const duration = b.services?.duration_minutes || 60;
-                // include buffer after each existing booking
                 return { start: startMins, end: startMins + duration + buffer };
             });
 
@@ -288,9 +289,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
         if (proposeTime) {
             basePayload.status = 'awaiting_client_confirmation';
-            basePayload.proposed_time = selectedTime
-                ? `${date}T${selectedTime}`
-                : null;
+            basePayload.proposed_time = selectedTime ? `${date}T${selectedTime}` : null;
         } else {
             basePayload.status = 'pending';
             basePayload.scheduled_at = new Date(`${date}T${selectedTime}`).toISOString();
@@ -304,7 +303,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         }
 
         try {
-            // Loop over each selected service (or the default one)
             const servicesToBook = selectedServiceIds.length
                 ? selectedServiceIds
                 : [service.id];
@@ -316,10 +314,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 });
             }
 
+            // Success notification
+            showMessage({
+                type: 'success',
+                title: 'Booking Created',
+                content: 'Your booking has been successfully created.',
+            });
+
             onClose();
             navigate('/booking-success');
         } catch (err: any) {
-            setError(err.message || 'Failed to book service');
+            const errMsg = err.message || 'Failed to book service';
+            setError(errMsg);
+            // Error notification
+            showMessage({
+                type: 'error',
+                title: 'Booking Failed',
+                content: errMsg,
+            });
         }
     };
 
@@ -461,8 +473,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                                 type="button"
                                                 onClick={() => setSelectedTime(slot)}
                                                 className={`px-2 py-2 text-xs font-medium rounded-md border transition-all ${selectedTime === slot
-                                                        ? 'bg-saffron-600 text-white border-saffron-600 ring-2 ring-saffron-200'
-                                                        : 'bg-white text-stone-700 border-stone-200 hover:border-saffron-400 hover:text-saffron-600'
+                                                    ? 'bg-saffron-600 text-white border-saffron-600 ring-2 ring-saffron-200'
+                                                    : 'bg-white text-stone-700 border-stone-200 hover:border-saffron-400 hover:text-saffron-600'
                                                     }`}
                                             >
                                                 {slot}
@@ -608,17 +620,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     )}
                 </div>
             </div>
-
-            {/* Custom Service Request Modal */}
-            {showCustomServiceModal && (
-                <CustomServiceModal
-                    isOpen={showCustomServiceModal}
-                    onClose={() => setShowCustomServiceModal(false)}
-                    onCreated={(id) => {
-                        setSelectedServiceIds([...selectedServiceIds, id]);
-                    }}
-                />
-            )}
         </div>
     );
 };
+
+// Custom Service Request Modal
+{
+    showCustomServiceModal && (
+        <CustomServiceModal
+            isOpen={showCustomServiceModal}
+            onClose={() => setShowCustomServiceModal(false)}
+            onCreated={(id) => {
+                setSelectedServiceIds([...selectedServiceIds, id]);
+            }}
+        />
+    )
+}
