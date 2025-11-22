@@ -43,8 +43,12 @@ export const RegisterPage: React.FC = () => {
       // Session exists = Auto Login (Email confirmation off)
       if (data.session) {
          const userRole = data.user?.user_metadata?.role || 'client';
-         if (userRole === 'guruba') navigate('/guruba');
-         else navigate('/client');
+         if (userRole === 'guruba') {
+             // Navigate to Guruba dashboard with setup flag
+             navigate('/guruba', { state: { showProfileSetup: true } });
+         } else {
+             navigate('/client');
+         }
       } 
       // No session = Email confirmation required
       else if (data.user) {

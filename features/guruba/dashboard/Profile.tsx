@@ -1,10 +1,11 @@
+// features/guruba/dashboard/Profile.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
 import { Button } from '../../../components/ui/Button';
 import { Guruba, Gotra } from '../../../types';
-import { Save, PlusCircle } from 'lucide-react';
+import { Save, PlusCircle, Info } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { LocationPicker } from '../../../components/ui/LocationPicker';
 
@@ -60,6 +61,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                             filtered.map(g => (
                                 <button
                                     key={g.id}
+                                    type="button"
                                     className="w-full text-left px-4 py-3 hover:bg-stone-100 text-sm border-b border-stone-50 last:border-0"
                                     onClick={() => {
                                         onChange(g.name);
@@ -72,6 +74,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                             ))
                         ) : (
                             <button
+                                type="button"
                                 className="w-full text-left px-4 py-3 hover:bg-saffron-50 text-sm text-saffron-700 font-medium flex items-center gap-2"
                                 onClick={handleRequestNew}
                             >
@@ -88,9 +91,10 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
 
 interface ProfileProps {
   guruba: Guruba | null;
+  showSetupAlert?: boolean;
 }
 
-export const GurubaProfile: React.FC<ProfileProps> = ({ guruba }) => {
+export const GurubaProfile: React.FC<ProfileProps> = ({ guruba, showSetupAlert }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [bio, setBio] = useState('');
@@ -152,6 +156,19 @@ export const GurubaProfile: React.FC<ProfileProps> = ({ guruba }) => {
 
   return (
      <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+        {/* Welcome / Setup Alert */}
+        {(showSetupAlert || !guruba?.bio) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in">
+                <Info className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                    <h4 className="font-bold text-blue-800">Complete Your Profile</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                        Welcome to Guruba Connect! To start accepting bookings and get verified, please fill out your Bio, Location, and Lineage details below.
+                    </p>
+                </div>
+            </div>
+        )}
+
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-stone-900">My Guruba Profile</h2>
             <Button onClick={saveProfile} isLoading={savingProfile}>

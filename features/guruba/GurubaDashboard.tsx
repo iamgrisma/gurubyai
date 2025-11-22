@@ -1,7 +1,7 @@
-
 // features/guruba/GurubaDashboard.tsx
 
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
@@ -43,7 +43,12 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge, isCollapsed }:
 export const GurubaDashboard: React.FC = () => {
   const { profile, user, signOut } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>('overview');
+  const location = useLocation();
+  
+  // Check if we should default to profile tab (e.g. after new registration)
+  const shouldShowSetup = (location.state as any)?.showProfileSetup;
+  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>(shouldShowSetup ? 'profile' : 'overview');
+  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -54,7 +59,7 @@ export const GurubaDashboard: React.FC = () => {
     queryKey: ['gurubaProfile', user?.id],
     queryFn: async () => {
         if (!user?.id) return null;
-        const { data } = await supabase.from('gurubas').select('*, profiles:user_id(gotra_id)').eq('user_id', user.id).single();
+        const { data } = await supabase.from('gurubas').select('*, profiles:user_id(*)').eq('user_id', user.id).single();
         return data as Guruba;
     },
     enabled: !!user?.id
@@ -137,7 +142,7 @@ export const GurubaDashboard: React.FC = () => {
                   </div>
               );
           case 'profile':
-              return <GurubaProfile guruba={guruba || null} />;
+              return <GurubaProfile guruba={guruba || null} showSetupAlert={shouldShowSetup} />;
           default:
               return null;
       }
