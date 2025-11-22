@@ -1,11 +1,9 @@
 name = "guruba-connect"
-main = "dist/worker.js"
+main = "worker.js"
 compatibility_date = "2024-09-23"
-type = "service_worker"
 
-[env.production]
-name = "guruba-connect"
-main = "dist/worker.js"
+[site]
+bucket = "./dist"
 
 [[rules]]
 type = "CompiledContentType"
