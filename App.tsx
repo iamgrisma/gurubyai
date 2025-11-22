@@ -18,6 +18,8 @@ import { GurubaSelection } from './features/booking/GurubaSelection';
 import { BookingSuccessPage } from './features/booking/BookingSuccess';
 import { GurubaDirectory } from './features/public/GurubaDirectory';
 
+console.log('App.tsx: All imports loaded successfully');
+
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +29,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+console.log('App.tsx: QueryClient created');
 
 // Layout that includes the Header
 const PublicLayout = () => {
@@ -62,10 +66,10 @@ const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode
 
   // Simple role based access control
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-      // Redirect to their appropriate dashboard if they try to access a wrong route
-      if (profile.role === 'admin') return <Navigate to="/admin" replace />;
-      if (profile.role === 'guruba') return <Navigate to="/guruba" replace />;
-      return <Navigate to="/client" replace />;
+    // Redirect to their appropriate dashboard if they try to access a wrong route
+    if (profile.role === 'admin') return <Navigate to="/admin" replace />;
+    if (profile.role === 'guruba') return <Navigate to="/guruba" replace />;
+    return <Navigate to="/client" replace />;
   }
 
   return <>{children}</>;
@@ -82,7 +86,7 @@ const App: React.FC = () => {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
-                 <Route path="/gurubas" element={<GurubaDirectory />} />
+                <Route path="/gurubas" element={<GurubaDirectory />} />
               </Route>
 
               {/* Client Routes */}
@@ -106,7 +110,7 @@ const App: React.FC = () => {
                   </ProtectedRoute>
                 }
               >
-                 <Route index element={<GurubaDashboard />} />
+                <Route index element={<GurubaDashboard />} />
               </Route>
 
               {/* Admin Routes */}
@@ -118,7 +122,7 @@ const App: React.FC = () => {
                   </ProtectedRoute>
                 }
               >
-                 <Route index element={<AdminDashboard />} />
+                <Route index element={<AdminDashboard />} />
               </Route>
 
               {/* Booking Flow Routes (Ideally for Clients, but open for now) */}
@@ -130,12 +134,12 @@ const App: React.FC = () => {
                   </ProtectedRoute>
                 }
               >
-                 <Route path="book" element={<ServiceSelection />} />
-                 <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
-                 <Route path="book/:serviceId" element={<GurubaSelection />} />
-                 <Route path="booking-success" element={<BookingSuccessPage />} />
+                <Route path="book" element={<ServiceSelection />} />
+                <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
+                <Route path="book/:serviceId" element={<GurubaSelection />} />
+                <Route path="booking-success" element={<BookingSuccessPage />} />
               </Route>
-              
+
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
