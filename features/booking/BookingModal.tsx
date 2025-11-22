@@ -22,6 +22,7 @@ import {
 import { CustomServiceModal } from './CustomServiceModal';
 import { LocationPicker } from '../../components/ui/LocationPicker';
 import { useQuery } from '@tanstack/react-query';
+import { PLATFORM_FEE } from '../../lib/constants';
 
 // Haversine formula – used for distance warnings
 function getDistanceFromLatLonInKm(
