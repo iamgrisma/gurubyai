@@ -1,7 +1,14 @@
+// src/hooks/queries.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { UserProfile, Service, Guruba, Booking } from '@/types';
 
+// Helper to log query errors consistently
+const logQueryError = (error: unknown, queryKey: unknown) => {
+  console.error(`[React Query] Error in ${JSON.stringify(queryKey)}:`, error);
+};
+
+/* ---------- PROFILE ---------- */
 export const useProfile = (userId?: string) => {
   return useQuery({
     queryKey: ['profile', userId],
@@ -16,21 +23,20 @@ export const useProfile = (userId?: string) => {
       return data as UserProfile;
     },
     enabled: !!userId,
+    onError: (err) => logQueryError(err, ['profile', userId]),
   });
 };
 
-// --- SERVICES ---
+/* ---------- SERVICES ---------- */
 export const useServices = () => {
   return useQuery({
     queryKey: ['services'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('title');
+      const { data, error } = await supabase.from('services').select('*').order('title');
       if (error) throw error;
       return data as Service[];
     },
+    onError: (err) => logQueryError(err, ['services']),
   });
 };
 
@@ -48,10 +54,11 @@ export const useService = (serviceId?: string) => {
       return data as Service;
     },
     enabled: !!serviceId,
+    onError: (err) => logQueryError(err, ['service', serviceId]),
   });
 };
 
-// --- GURUBAS ---
+/* ---------- GURUBAS ---------- */
 export const useGurubas = () => {
   return useQuery({
     queryKey: ['gurubas'],
@@ -69,10 +76,11 @@ export const useGurubas = () => {
       if (error) throw error;
       return data as Guruba[];
     },
+    onError: (err) => logQueryError(err, ['gurubas']),
   });
 };
 
-// --- BOOKINGS ---
+/* ---------- BOOKINGS ---------- */
 export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin') => {
   return useQuery({
     queryKey: ['bookings', userId, role],
@@ -89,13 +97,17 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
             location,
             profiles:user_id (full_name, avatar_url, phone)
           ),
-          profiles:user_id (full_name, avatar_url, phone, email) 
+          profiles:user_id (full_name, avatar_url, phone, email)
         `)
         .order('scheduled_at', { ascending: true });
 
       if (role === 'guruba') {
-        // For Gurubas, we need to find the guruba record first
-        const { data: gurubaData } = await supabase.from('gurubas').select('id').eq('user_id', userId).single();
+        const { data: gurubaData, error: gurubaErr } = await supabase
+          .from('gurubas')
+          .select('id')
+          .eq('user_id', userId)
+          .single();
+        if (gurubaErr) throw gurubaErr;
         if (gurubaData) {
           query = query.eq('guruba_id', gurubaData.id);
         } else {
@@ -110,15 +122,15 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
       return data as Booking[];
     },
     enabled: !!userId,
+    onError: (err) => logQueryError(err, ['bookings', userId, role]),
   });
 };
 
-// --- MUTATIONS (Actions) ---
-
+/* ---------- MUTATIONS (Actions) ---------- */
 export const useUpdateBookingStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, meeting_link }: { id: string, status: string, meeting_link?: string }) => {
+    mutationFn: async ({ id, status, meeting_link }: { id: string; status: string; meeting_link?: string }) => {
       const updateData: any = { status };
       if (meeting_link) updateData.meeting_link = meeting_link;
 
@@ -128,22 +140,21 @@ export const useUpdateBookingStatus = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
+    onError: (err) => console.error('[Mutation] updateBookingStatus failed:', err),
   });
 };
 
 export const useBookService = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { user_id: string, guruba_id: string, service_id: string, scheduled_at: string, platform_fee: number }) => {
-      // Call the RPC function we created in SQL
+    mutationFn: async (params: { user_id: string; guruba_id: string; service_id: string; scheduled_at: string; platform_fee: number }) => {
       const { data, error } = await supabase.rpc('book_service', {
         p_user_id: params.user_id,
         p_guruba_id: params.guruba_id,
         p_service_id: params.service_id,
         p_scheduled_at: params.scheduled_at,
-        p_platform_fee: params.platform_fee
+        p_platform_fee: params.platform_fee,
       });
-
       if (error) throw error;
       return data;
     },
@@ -151,6 +162,7 @@ export const useBookService = () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] }); // Update credits
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-    }
+    },
+    onError: (err) => console.error('[Mutation] bookService failed:', err),
   });
 };
