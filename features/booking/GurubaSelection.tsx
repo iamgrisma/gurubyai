@@ -33,7 +33,7 @@ export const GurubaSelection: React.FC = () => {
         setSelectedGuruba(found);
       }
     }
-  }, [preselectedGurubaId, allGurubas, selectedGuruba]);
+  }, [preselectedGurubaId, allGurubas]);
 
   // --- Availability Query ---
   // Only runs when a date is selected
