@@ -1,6 +1,7 @@
 // src/hooks/queries.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
+import { createNotification } from '@/lib/supabaseRpc';
 import { UserProfile, Service, Guruba, Booking } from '@/types';
 
 // Helper to log query errors consistently
@@ -158,10 +159,24 @@ export const useBookService = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] }); // Update credits
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+
+      // Create notification for the Guruba about the new booking
+      try {
+        const booking = data as any;
+        await createNotification({
+          user_id: variables.guruba_id,
+          title: 'New booking scheduled',
+          message: `A new booking has been scheduled for ${variables.scheduled_at}.`,
+          notification_type: 'booking',
+          action_url: `/bookings/${booking.id}`,
+        });
+      } catch (e) {
+        console.error('[Notification] Failed to create booking notification:', e);
+      }
     },
     onError: (err) => console.error('[Mutation] bookService failed:', err),
   });

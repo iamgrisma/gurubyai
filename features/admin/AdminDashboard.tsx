@@ -28,6 +28,7 @@ import { AdminGotras } from './dashboard/Gotras';
 import { AdminFinancials } from './dashboard/Financials';
 import { AdminTopups } from './dashboard/Topups';
 import { CreditRequests } from './dashboard/CreditRequests';
+import { AdminNotificationPanel } from '../../components/admin/AdminNotificationPanel';
 
 // Simple Sidebar item component
 const SidebarItem = ({ icon: Icon, label, active, onClick, isCollapsed }: any) => (
