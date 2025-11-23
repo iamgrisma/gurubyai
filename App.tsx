@@ -18,6 +18,7 @@ import { ServiceDetailsPage } from './features/services/ServiceDetailsPage';
 import { GurubaSelection } from './features/booking/GurubaSelection';
 import { BookingSuccessPage } from './features/booking/BookingSuccess';
 import { GurubaDirectory } from './features/public/GurubaDirectory';
+import { MessagingPage } from './features/messaging/MessagingPage';
 
 console.log('App.tsx: All imports loaded successfully');
 
@@ -140,6 +141,7 @@ const App: React.FC = () => {
                   <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
                   <Route path="book/:serviceId" element={<GurubaSelection />} />
                   <Route path="booking-success" element={<BookingSuccessPage />} />
+                  <Route path="messages" element={<MessagingPage />} />
                 </Route>
 
                 {/* Fallback */}
