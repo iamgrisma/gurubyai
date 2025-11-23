@@ -2,6 +2,11 @@
 -- COMPLETE MESSAGING SYSTEM MIGRATION
 -- ==========================================
 
+-- Drop conflicting triggers and functions from previous migrations
+DROP TRIGGER IF EXISTS on_booking_status_change ON public.bookings;
+DROP FUNCTION IF EXISTS public.handle_booking_status_message();
+DROP FUNCTION IF EXISTS public.create_booking_message(uuid, text, jsonb);
+
 -- 1. CREATE MESSAGES TABLE
 CREATE TABLE IF NOT EXISTS public.messages (
   id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
