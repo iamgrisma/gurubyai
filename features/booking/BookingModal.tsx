@@ -339,14 +339,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const hasEnoughCredits = userCredits >= PLATFORM_FEE;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+            <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-stone-100 bg-stone-50 px-6 py-4">
                     <h2 className="text-xl font-bold text-stone-900">
                         {bookingStep === 1 ? 'Select Time & Details' : 'Confirm & Location'}
                     </h2>
-                    <button onClick={onClose} className="text-stone-400 hover:text-stone-600 transition-colors">
+                    <button type="button" onClick={onClose} className="text-stone-400 hover:text-stone-600 transition-colors">
                         <X className="h-6 w-6" />
                     </button>
                 </div>
@@ -594,7 +594,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <div className="bg-stone-50 p-6 border-t border-stone-200 flex justify-end gap-3 shrink-0">
                     {bookingStep === 1 ? (
                         <>
-                            <Button variant="outline" onClick={onClose}>Cancel</Button>
+                            <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
                             <Button
                                 disabled={!selectedTime && !proposeTime}
                                 onClick={() => setBookingStep(2)}
