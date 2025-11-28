@@ -27,7 +27,7 @@ import { AdminServices } from './dashboard/Services';
 import { AdminGotras } from './dashboard/Gotras';
 import { AdminFinancials } from './dashboard/Financials';
 import { AdminTopups } from './dashboard/Topups';
-import { CreditRequests } from './dashboard/CreditRequests';
+
 import { AdminNotificationPanel } from '../../components/admin/AdminNotificationPanel';
 
 // Simple Sidebar item component
@@ -60,7 +60,7 @@ export const AdminDashboard: React.FC = () => {
     | 'financials'
     | 'verification'
     | 'topups'
-    | 'credit-requests'
+
   >('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -88,8 +88,7 @@ export const AdminDashboard: React.FC = () => {
         return <AdminFinancials />;
       case 'topups':
         return <AdminTopups />;
-      case 'credit-requests':
-        return <CreditRequests />;
+
       default:
         return <AdminOverview setActiveTab={setActiveTab} />;
     }
@@ -131,7 +130,7 @@ export const AdminDashboard: React.FC = () => {
           <SidebarItem icon={Layers} label="Services" active={activeTab === 'services'} onClick={() => handleTabChange('services')} isCollapsed={isSidebarCollapsed} />
           <SidebarItem icon={ScrollText} label="Gotras" active={activeTab === 'gotras'} onClick={() => handleTabChange('gotras')} isCollapsed={isSidebarCollapsed} />
           <SidebarItem icon={DollarSign} label="Financials" active={activeTab === 'financials'} onClick={() => handleTabChange('financials')} isCollapsed={isSidebarCollapsed} />
-          <SidebarItem icon={CreditCard} label="Credit Requests" active={activeTab === 'credit-requests'} onClick={() => handleTabChange('credit-requests')} isCollapsed={isSidebarCollapsed} />
+
         </nav>
         <div className="p-4 border-t border-stone-800 bg-stone-900">
           <button
