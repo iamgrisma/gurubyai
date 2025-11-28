@@ -22,13 +22,15 @@ type WeeklySchedule = {
     [key: number]: DaySchedule;
 }
 
+const EMPTY_ARRAY: Availability[] = [];
+
 export const GurubaSchedule: React.FC<ScheduleProps> = ({ guruba }) => {
     const queryClient = useQueryClient();
     const [schedule, setSchedule] = useState<WeeklySchedule>({});
     const [savingSchedule, setSavingSchedule] = useState(false);
 
     // Fetch Availability
-    const { data: availability = [] } = useQuery({
+    const { data: availability = EMPTY_ARRAY } = useQuery({
         queryKey: ['availability', guruba?.id],
         queryFn: async () => {
             if (!guruba?.id) return [];
