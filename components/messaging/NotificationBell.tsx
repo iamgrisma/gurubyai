@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { Bell, X, Check } from 'lucide-react';
 import { useAuth } from '../../features/auth/AuthProvider';
-import { useNotifications, useUnreadNotificationCount, useMarkNotificationRead } from '../../hooks/useMessaging';
+import { useNotifications } from '../../features/notifications/NotificationContext';
+import { useMarkNotificationRead } from '../../hooks/useMessaging';
 import { formatDistanceToNow } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,8 +13,7 @@ export const NotificationBell: React.FC = () => {
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
 
-    const { data: notifications = [] } = useNotifications(user?.id);
-    const { data: unreadCount = 0 } = useUnreadNotificationCount(user?.id);
+    const { notifications, unreadCount, markAsRead: markAsReadContext, markAllAsRead } = useNotifications();
     const markAsRead = useMarkNotificationRead();
 
     const handleNotificationClick = (notification: any) => {
@@ -113,21 +113,19 @@ export const NotificationBell: React.FC = () => {
                             )}
                         </div>
 
-                        {notifications.length > 0 && (
-                            <div className="p-3 border-t border-stone-200">
-                                <button
-                                    onClick={() => {
-                                        notifications
-                                            .filter((n) => !n.is_read)
-                                            .forEach((n) => markAsRead.mutate(n.id));
-                                    }}
-                                    className="w-full text-sm text-saffron-600 hover:text-saffron-700 font-medium flex items-center justify-center gap-2"
-                                >
-                                    <Check className="h-4 w-4" />
-                                    Mark all as read
-                                </button>
-                            </div>
-                        )}
+                        <div className="p-3 border-t border-stone-200">
+                            <button
+                                onClick={() => {
+                                    markAllAsRead();  // Use the optimized context method
+                                    setIsOpen(false);
+                                }}
+                                className="w-full text-sm text-saffron-600 hover:text-saffron-700 font-medium flex items-center justify-center gap-2"
+                                disabled={unreadCount === 0}
+                            >
+                                <Check className="h-4 w-4" />
+                                Mark all as read
+                            </button>
+                        </div>
                     </div>
                 </>
             )}

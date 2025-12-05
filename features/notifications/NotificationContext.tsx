@@ -25,7 +25,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
+
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -46,7 +46,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
@@ -56,13 +56,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const previous = queryClient.getQueryData(['notifications', user?.id]);
 
       queryClient.setQueryData(['notifications', user?.id], (old: Notification[] | undefined) => {
-        return old?.map(n => n.id === id ? { ...n, is_read: true } : n) || [];
+        return old?.map(n => n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n) || [];
       });
 
       return { previous };
     },
-    onError: (err, newTodo, context: any) => {
+    onError: (err, _, context: any) => {
       queryClient.setQueryData(['notifications', user?.id], context.previous);
+      console.error('Error marking notification as read:', err);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
@@ -75,12 +76,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (!user) return;
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('user_id', user.id)
         .eq('is_read', false);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      // Optimistic Update - mark all as read immediately in UI
+      await queryClient.cancelQueries({ queryKey: ['notifications', user?.id] });
+      const previous = queryClient.getQueryData(['notifications', user?.id]);
+
+      queryClient.setQueryData(['notifications', user?.id], (old: Notification[] | undefined) => {
+        return old?.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })) || [];
+      });
+
+      return { previous };
+    },
+    onError: (err, _, context: any) => {
+      // Rollback on error
+      queryClient.setQueryData(['notifications', user?.id], context.previous);
+      console.error('Error marking all notifications as read:', err);
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency with server
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
     },
   });
@@ -88,10 +106,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <NotificationContext.Provider value={{ 
-      notifications, 
-      unreadCount, 
-      loading, 
+    <NotificationContext.Provider value={{
+      notifications,
+      unreadCount,
+      loading,
       markAsRead: (id) => markReadMutation.mutate(id),
       markAllAsRead: () => markAllReadMutation.mutate()
     }}>

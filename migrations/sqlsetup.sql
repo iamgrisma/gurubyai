@@ -306,13 +306,13 @@ ALTER TABLE public.bookings ALTER COLUMN service_id DROP NOT NULL;
 -- RLS for Bookings
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users can view own bookings\" ON public.bookings;
-CREATE POLICY \"Users can view own bookings\" 
+DROP POLICY IF EXISTS "Users can view own bookings" ON public.bookings;
+CREATE POLICY "Users can view own bookings" 
 ON public.bookings FOR SELECT 
 USING ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS \"Gurubas can view assigned bookings\" ON public.bookings;
-CREATE POLICY \"Gurubas can view assigned bookings\" 
+DROP POLICY IF EXISTS "Gurubas can view assigned bookings" ON public.bookings;
+CREATE POLICY "Gurubas can view assigned bookings" 
 ON public.bookings FOR SELECT 
 USING (
   (SELECT auth.uid()) IN (
@@ -320,13 +320,13 @@ USING (
   )
 );
 
-DROP POLICY IF EXISTS \"Users can create bookings\" ON public.bookings;
-CREATE POLICY \"Users can create bookings\" 
+DROP POLICY IF EXISTS "Users can create bookings" ON public.bookings;
+CREATE POLICY "Users can create bookings" 
 ON public.bookings FOR INSERT 
 WITH CHECK ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS \"Gurubas can update assigned bookings\" ON public.bookings;
-CREATE POLICY \"Gurubas can update assigned bookings\" 
+DROP POLICY IF EXISTS "Gurubas can update assigned bookings" ON public.bookings;
+CREATE POLICY "Gurubas can update assigned bookings" 
 ON public.bookings FOR UPDATE 
 USING (
   (SELECT auth.uid()) IN (
@@ -334,13 +334,13 @@ USING (
   )
 );
 
-DROP POLICY IF EXISTS \"Users can update own bookings\" ON public.bookings;
-CREATE POLICY \"Users can update own bookings\" 
+DROP POLICY IF EXISTS "Users can update own bookings" ON public.bookings;
+CREATE POLICY "Users can update own bookings" 
 ON public.bookings FOR UPDATE 
 USING ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS \"Admins can manage bookings\" ON public.bookings;
-CREATE POLICY \"Admins can manage bookings\" 
+DROP POLICY IF EXISTS "Admins can manage bookings" ON public.bookings;
+CREATE POLICY "Admins can manage bookings" 
 ON public.bookings FOR ALL 
 USING (
   EXISTS (
@@ -374,18 +374,18 @@ ON public.custom_services(user_id);
 -- RLS for custom_services
 ALTER TABLE public.custom_services ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users can view own custom services\" ON public.custom_services;
-CREATE POLICY \"Users can view own custom services\" 
+DROP POLICY IF EXISTS "Users can view own custom services" ON public.custom_services;
+CREATE POLICY "Users can view own custom services" 
 ON public.custom_services FOR SELECT 
 USING ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS \"Users can create custom services\" ON public.custom_services;
-CREATE POLICY \"Users can create custom services\" 
+DROP POLICY IF EXISTS "Users can create custom services" ON public.custom_services;
+CREATE POLICY "Users can create custom services" 
 ON public.custom_services FOR INSERT 
 WITH CHECK ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS \"Admins can view all custom services\" ON public.custom_services;
-CREATE POLICY \"Admins can view all custom services\" 
+DROP POLICY IF EXISTS "Admins can view all custom services" ON public.custom_services;
+CREATE POLICY "Admins can view all custom services" 
 ON public.custom_services FOR SELECT 
 USING (
   EXISTS (
@@ -394,8 +394,8 @@ USING (
   )
 );
 
-DROP POLICY IF EXISTS \"Admins can update custom services\" ON public.custom_services;
-CREATE POLICY \"Admins can update custom services\" 
+DROP POLICY IF EXISTS "Admins can update custom services" ON public.custom_services;
+CREATE POLICY "Admins can update custom services" 
 ON public.custom_services FOR UPDATE 
 USING (
   EXISTS (
@@ -424,8 +424,8 @@ ON public.booking_services(booking_id);
 -- RLS for booking_services
 ALTER TABLE public.booking_services ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users can view booking services\" ON public.booking_services;
-CREATE POLICY \"Users can view booking services\" 
+DROP POLICY IF EXISTS "Users can view booking services" ON public.booking_services;
+CREATE POLICY "Users can view booking services" 
 ON public.booking_services FOR SELECT 
 USING (
   EXISTS (
@@ -436,8 +436,8 @@ USING (
   )
 );
 
-DROP POLICY IF EXISTS \"Users can insert booking services\" ON public.booking_services;
-CREATE POLICY \"Users can insert booking services\" 
+DROP POLICY IF EXISTS "Users can insert booking services" ON public.booking_services;
+CREATE POLICY "Users can insert booking services" 
 ON public.booking_services FOR INSERT 
 WITH CHECK (
   EXISTS (
@@ -504,28 +504,28 @@ CREATE INDEX IF NOT EXISTS idx_messages_unread ON public.messages(receiver_id, i
 -- RLS for messages
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users can view their own messages\" ON public.messages;
-DROP POLICY IF EXISTS \"Users can view their messages\" ON public.messages;
-CREATE POLICY \"Users can view their messages\" 
+DROP POLICY IF EXISTS "Users can view their own messages" ON public.messages;
+DROP POLICY IF EXISTS "Users can view their messages" ON public.messages;
+CREATE POLICY "Users can view their messages" 
 ON public.messages FOR SELECT 
 USING (
   sender_id = (SELECT auth.uid()) OR 
   receiver_id = (SELECT auth.uid())
 );
 
-DROP POLICY IF EXISTS \"Users can send messages\" ON public.messages;
-CREATE POLICY \"Users can send messages\" 
+DROP POLICY IF EXISTS "Users can send messages" ON public.messages;
+CREATE POLICY "Users can send messages" 
 ON public.messages FOR INSERT 
 WITH CHECK (sender_id = (SELECT auth.uid()));
 
-DROP POLICY IF EXISTS \"Users can update messages (read/seen)\" ON public.messages;
-DROP POLICY IF EXISTS \"Users can update their received messages\" ON public.messages;
-CREATE POLICY \"Users can update their received messages\" 
+DROP POLICY IF EXISTS "Users can update messages (read/seen)" ON public.messages;
+DROP POLICY IF EXISTS "Users can update their received messages" ON public.messages;
+CREATE POLICY "Users can update their received messages" 
 ON public.messages FOR UPDATE 
 USING (receiver_id = (SELECT auth.uid()));
 
-DROP POLICY IF EXISTS \"Users can delete own messages\" ON public.messages;
-CREATE POLICY \"Users can delete own messages\" 
+DROP POLICY IF EXISTS "Users can delete own messages" ON public.messages;
+CREATE POLICY "Users can delete own messages" 
 ON public.messages FOR DELETE 
 USING (sender_id = (SELECT auth.uid()));
 
@@ -570,20 +570,20 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created ON public.notifications(cre
 -- RLS for notifications
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users can view own notifications\" ON public.notifications;
-DROP POLICY IF EXISTS \"Users manage own notifications\" ON public.notifications;
-CREATE POLICY \"Users can view own notifications\" 
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users manage own notifications" ON public.notifications;
+CREATE POLICY "Users can view own notifications" 
 ON public.notifications FOR SELECT 
 USING (user_id = (SELECT auth.uid()));
 
-DROP POLICY IF EXISTS \"Users can update own notifications\" ON public.notifications;
-CREATE POLICY \"Users can update own notifications\" 
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
+CREATE POLICY "Users can update own notifications" 
 ON public.notifications FOR UPDATE 
 USING (user_id = (SELECT auth.uid()));
 
-DROP POLICY IF EXISTS \"System can create notifications\" ON public.notifications;
-DROP POLICY IF EXISTS \"Admins manage notifications\" ON public.notifications;
-CREATE POLICY \"System can create notifications\" 
+DROP POLICY IF EXISTS "System can create notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Admins manage notifications" ON public.notifications;
+CREATE POLICY "System can create notifications" 
 ON public.notifications FOR INSERT 
 WITH CHECK (true);
 
@@ -646,13 +646,13 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 -- RLS for Reviews
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Reviews are viewable by everyone\" ON public.reviews;
-CREATE POLICY \"Reviews are viewable by everyone\" 
+DROP POLICY IF EXISTS "Reviews are viewable by everyone" ON public.reviews;
+CREATE POLICY "Reviews are viewable by everyone" 
 ON public.reviews FOR SELECT 
 USING (true);
 
-DROP POLICY IF EXISTS \"Users can create reviews for their bookings\" ON public.reviews;
-CREATE POLICY \"Users can create reviews for their bookings\" 
+DROP POLICY IF EXISTS "Users can create reviews for their bookings" ON public.reviews;
+CREATE POLICY "Users can create reviews for their bookings" 
 ON public.reviews FOR INSERT 
 WITH CHECK ((SELECT auth.uid()) = user_id);
 
@@ -670,13 +670,13 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 -- RLS for Transactions
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users view own transactions\" ON public.transactions;
-CREATE POLICY \"Users view own transactions\" 
+DROP POLICY IF EXISTS "Users view own transactions" ON public.transactions;
+CREATE POLICY "Users view own transactions" 
 ON public.transactions FOR SELECT 
 USING ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS \"Admins view all transactions\" ON public.transactions;
-CREATE POLICY \"Admins view all transactions\" 
+DROP POLICY IF EXISTS "Admins view all transactions" ON public.transactions;
+CREATE POLICY "Admins view all transactions" 
 ON public.transactions FOR SELECT 
 USING (
   EXISTS (
@@ -696,18 +696,18 @@ CREATE TABLE IF NOT EXISTS public.gotras (
 -- RLS for Gotras
 ALTER TABLE public.gotras ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Gotras are viewable by authenticated users\" ON public.gotras;
-CREATE POLICY \"Gotras are viewable by authenticated users\" 
+DROP POLICY IF EXISTS "Gotras are viewable by authenticated users" ON public.gotras;
+CREATE POLICY "Gotras are viewable by authenticated users" 
 ON public.gotras FOR SELECT 
 USING ((SELECT auth.role()) = 'authenticated');
 
-DROP POLICY IF EXISTS \"Authenticated users can request gotras\" ON public.gotras;
-CREATE POLICY \"Authenticated users can request gotras\" 
+DROP POLICY IF EXISTS "Authenticated users can request gotras" ON public.gotras;
+CREATE POLICY "Authenticated users can request gotras" 
 ON public.gotras FOR INSERT 
 WITH CHECK ((SELECT auth.role()) = 'authenticated');
 
-DROP POLICY IF EXISTS \"Admins can manage gotras\" ON public.gotras;
-CREATE POLICY \"Admins can manage gotras\" 
+DROP POLICY IF EXISTS "Admins can manage gotras" ON public.gotras;
+CREATE POLICY "Admins can manage gotras" 
 ON public.gotras FOR ALL 
 USING (
   EXISTS (
@@ -728,13 +728,13 @@ CREATE TABLE IF NOT EXISTS public.topup_requests (
 -- RLS for Topup Requests
 ALTER TABLE public.topup_requests ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users can see and create own topups\" ON public.topup_requests;
-CREATE POLICY \"Users can see and create own topups\" 
+DROP POLICY IF EXISTS "Users can see and create own topups" ON public.topup_requests;
+CREATE POLICY "Users can see and create own topups" 
 ON public.topup_requests FOR ALL 
 USING ((SELECT auth.uid()) = user_id);
 
-DROP POLICY IF EXISTS \"Admins can manage topups\" ON public.topup_requests;
-CREATE POLICY \"Admins can manage topups\" 
+DROP POLICY IF EXISTS "Admins can manage topups" ON public.topup_requests;
+CREATE POLICY "Admins can manage topups" 
 ON public.topup_requests FOR ALL 
 USING (
   EXISTS (
@@ -757,8 +757,8 @@ CREATE TABLE IF NOT EXISTS public.saved_locations (
 -- RLS for Saved Locations
 ALTER TABLE public.saved_locations ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS \"Users manage own saved locations\" ON public.saved_locations;
-CREATE POLICY \"Users manage own saved locations\" 
+DROP POLICY IF EXISTS "Users manage own saved locations" ON public.saved_locations;
+CREATE POLICY "Users manage own saved locations" 
 ON public.saved_locations FOR ALL 
 USING ((SELECT auth.uid()) = user_id);
 
@@ -1108,7 +1108,7 @@ BEGIN
   VALUES (
     v_custom_service.user_id,
     'Custom Service Approved',
-    'Your custom service request \"' || v_custom_service.title || '\" has been approved.'
+    'Your custom service request "' || v_custom_service.title || '" has been approved.'
   );
 
   RETURN COALESCE(v_service_id, p_custom_service_id);
@@ -1156,7 +1156,7 @@ BEGIN
   VALUES (
     v_custom_service.user_id,
     'Custom Service Request Rejected',
-    'Your custom service request \"' || v_custom_service.title || '\" was not approved.' ||
+    'Your custom service request "' || v_custom_service.title || '" was not approved.' ||
     CASE WHEN p_reason IS NOT NULL THEN ' Reason: ' || p_reason ELSE '' END
   );
 END;
@@ -1520,7 +1520,7 @@ BEGIN
       v_sender_id := v_booking.user_id;
       v_receiver_id := v_booking.guruba_user_id;
       v_notification_title := 'New Booking Request';
-      v_message_content := v_booking.user_name || ' requested a booking for ' || 
+      v_message_content := COALESCE(v_booking.user_name, 'A user') || ' requested a booking for ' || 
         COALESCE(v_booking.service_title, 'custom service') || ' on ' ||
         to_char(v_booking.scheduled_at, 'DD Mon YYYY at HH12:MI AM');
     
@@ -1528,14 +1528,20 @@ BEGIN
       v_sender_id := v_booking.guruba_user_id;
       v_receiver_id := v_booking.user_id;
       v_notification_title := 'Time Proposal';
-      v_message_content := v_booking.guruba_name || ' proposed a different time: ' || 
-        to_char(v_booking.proposed_time, 'DD Mon YYYY at HH12:MI AM');
+      -- Check if proposed_time exists before formatting
+      IF v_booking.proposed_time IS NOT NULL THEN
+        v_message_content := COALESCE(v_booking.guruba_name, 'Guruba') || ' proposed a different time: ' || 
+          to_char(v_booking.proposed_time, 'DD Mon YYYY at HH12:MI AM');
+      ELSE
+        -- Fallback if proposed_time is somehow NULL
+        v_message_content := COALESCE(v_booking.guruba_name, 'Guruba') || ' proposed a different time. Please check the booking details.';
+      END IF;
     
     WHEN 'booking_confirmed' THEN
       v_sender_id := v_booking.guruba_user_id;
       v_receiver_id := v_booking.user_id;
       v_notification_title := 'Booking Confirmed';
-      v_message_content := 'Your booking with ' || v_booking.guruba_name || 
+      v_message_content := 'Your booking with ' || COALESCE(v_booking.guruba_name, 'your Guruba') || 
         ' has been confirmed for ' || to_char(v_booking.scheduled_at, 'DD Mon YYYY at HH12:MI AM');
     
     WHEN 'booking_cancelled' THEN
@@ -1560,19 +1566,19 @@ BEGIN
       v_sender_id := v_booking.guruba_user_id;
       v_receiver_id := v_booking.user_id;
       v_notification_title := 'Booking Completed';
-      v_message_content := 'Your booking with ' || v_booking.guruba_name || ' has been completed. Thank you!';
+      v_message_content := 'Your booking with ' || COALESCE(v_booking.guruba_name, 'your Guruba') || ' has been completed. Thank you!';
     
     WHEN 'time_accepted' THEN
       v_sender_id := v_booking.user_id;
       v_receiver_id := v_booking.guruba_user_id;
       v_notification_title := 'Time Accepted';
-      v_message_content := v_booking.user_name || ' accepted the proposed time';
+      v_message_content := COALESCE(v_booking.user_name, 'The client') || ' accepted the proposed time';
     
     WHEN 'time_rejected' THEN
       v_sender_id := v_booking.user_id;
       v_receiver_id := v_booking.guruba_user_id;
       v_notification_title := 'Time Rejected';
-      v_message_content := v_booking.user_name || ' rejected the proposed time';
+      v_message_content := COALESCE(v_booking.user_name, 'The client') || ' rejected the proposed time';
     
     ELSE
       v_message_content := p_additional_data->>'message';
@@ -1583,6 +1589,18 @@ BEGIN
         ELSE v_booking.user_id 
       END;
   END CASE;
+
+  -- CRITICAL: Skip message creation if receiver is NULL (e.g., custom bookings without assigned guruba)
+  IF v_receiver_id IS NULL THEN
+    RAISE NOTICE 'Skipping message creation for booking %: receiver_id is NULL (likely a custom booking without assigned guruba)', p_booking_id;
+    RETURN NULL;
+  END IF;
+
+  -- CRITICAL: Skip if sender is NULL
+  IF v_sender_id IS NULL THEN
+    RAISE NOTICE 'Skipping message creation for booking %: sender_id is NULL', p_booking_id;
+    RETURN NULL;
+  END IF;
 
   -- Insert message
   INSERT INTO public.messages (
