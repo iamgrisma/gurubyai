@@ -11,6 +11,7 @@ import { LandingPage } from './features/public/LandingPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { ClientDashboard } from './features/client/ClientDashboard';
+import { ClientProfilePage } from './features/client/ClientProfilePage';
 import { GurubaDashboard } from './features/guruba/GurubaDashboard';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { ServiceSelection } from './features/booking/ServiceSelection';
@@ -102,6 +103,7 @@ const App: React.FC = () => {
                   }
                 >
                   <Route index element={<ClientDashboard />} />
+                  <Route path="profile" element={<ClientProfilePage />} />
                 </Route>
 
                 {/* Guruba Routes */}
@@ -128,7 +130,7 @@ const App: React.FC = () => {
                   <Route index element={<AdminDashboard />} />
                 </Route>
 
-                {/* Booking Flow Routes (Ideally for Clients, but open for now) */}
+                {/* Booking Flow Routes (Protected for Clients) */}
                 <Route
                   path="/"
                   element={
@@ -141,7 +143,18 @@ const App: React.FC = () => {
                   <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
                   <Route path="book/:serviceId" element={<GurubaSelection />} />
                   <Route path="booking-success" element={<BookingSuccessPage />} />
-                  <Route path="messages" element={<MessagingPage />} />
+                </Route>
+
+                {/* Messaging (Accessible by all authenticated users) */}
+                <Route
+                  path="/messages"
+                  element={
+                    <ProtectedRoute>
+                      <PublicLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<MessagingPage />} />
                 </Route>
 
                 {/* Fallback */}
