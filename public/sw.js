@@ -28,24 +28,30 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event: Serve from cache, fall back to network
 self.addEventListener('fetch', (event) => {
+  // Only cache GET requests - other methods (HEAD, POST, PATCH, etc.) cannot be cached
+  if (event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       // Return cached response if found
       if (cachedResponse) return cachedResponse;
 
-      // Otherwise fetch from network and only cache if not already present
+      // Otherwise fetch from network and cache the response
       return fetch(event.request).then((networkResponse) => {
+        // Only cache successful responses
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'error') {
+          return networkResponse;
+        }
+
         // Clone the response because streams can be consumed only once
         const responseClone = networkResponse.clone();
 
-        // Open cache and attempt to store, but first check existence
+        // Cache the successful response
         caches.open(CACHE_NAME).then((cache) => {
-          cache.match(event.request).then((existing) => {
-            if (!existing) {
-              // Only put if the entry does NOT already exist
-              cache.put(event.request, responseClone);
-            }
-          });
+          cache.put(event.request, responseClone);
         });
 
         return networkResponse;
