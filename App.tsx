@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { QueryClient } from '@tanstack/query-core';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from './features/auth/AuthProvider';
 import { NotificationProvider } from './features/notifications/NotificationContext';
 import { MessageProvider } from './components/ui/MessageContext';
@@ -80,91 +81,93 @@ const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode
 
 const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <NotificationProvider>
-          <MessageProvider>
-            <Router>
-              <Routes>
-                <Route element={<PublicLayout />}>
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                  <Route path="/gurubas" element={<GurubaDirectory />} />
-                </Route>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <NotificationProvider>
+            <MessageProvider>
+              <Router>
+                <Routes>
+                  <Route element={<PublicLayout />}>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/gurubas" element={<GurubaDirectory />} />
+                  </Route>
 
-                {/* Client Routes */}
-                <Route
-                  path="/client"
-                  element={
-                    <ProtectedRoute allowedRoles={['client', 'admin']}>
-                      <PublicLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<ClientDashboard />} />
-                  <Route path="profile" element={<ClientProfilePage />} />
-                </Route>
+                  {/* Client Routes */}
+                  <Route
+                    path="/client"
+                    element={
+                      <ProtectedRoute allowedRoles={['client', 'admin']}>
+                        <PublicLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<ClientDashboard />} />
+                    <Route path="profile" element={<ClientProfilePage />} />
+                  </Route>
 
-                {/* Guruba Routes */}
-                <Route
-                  path="/guruba"
-                  element={
-                    <ProtectedRoute allowedRoles={['guruba', 'admin']}>
-                      <PublicLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<GurubaDashboard />} />
-                </Route>
+                  {/* Guruba Routes */}
+                  <Route
+                    path="/guruba"
+                    element={
+                      <ProtectedRoute allowedRoles={['guruba', 'admin']}>
+                        <PublicLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<GurubaDashboard />} />
+                  </Route>
 
-                {/* Admin Routes */}
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <PublicLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<AdminDashboard />} />
-                </Route>
+                  {/* Admin Routes */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin']}>
+                        <PublicLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<AdminDashboard />} />
+                  </Route>
 
-                {/* Booking Flow Routes (Protected for Clients) */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute allowedRoles={['client', 'admin']}>
-                      <PublicLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="book" element={<ServiceSelection />} />
-                  <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
-                  <Route path="book/:serviceId" element={<GurubaSelection />} />
-                  <Route path="booking-success" element={<BookingSuccessPage />} />
-                </Route>
+                  {/* Booking Flow Routes (Protected for Clients) */}
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute allowedRoles={['client', 'admin']}>
+                        <PublicLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route path="book" element={<ServiceSelection />} />
+                    <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
+                    <Route path="book/:serviceId" element={<GurubaSelection />} />
+                    <Route path="booking-success" element={<BookingSuccessPage />} />
+                  </Route>
 
-                {/* Messaging (Accessible by all authenticated users) */}
-                <Route
-                  path="/messages"
-                  element={
-                    <ProtectedRoute>
-                      <PublicLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<MessagingPage />} />
-                </Route>
+                  {/* Messaging (Accessible by all authenticated users) */}
+                  <Route
+                    path="/messages"
+                    element={
+                      <ProtectedRoute>
+                        <PublicLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<MessagingPage />} />
+                  </Route>
 
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Router>
-          </MessageProvider>
-        </NotificationProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+                  {/* Fallback */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Router>
+            </MessageProvider>
+          </NotificationProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 };
 

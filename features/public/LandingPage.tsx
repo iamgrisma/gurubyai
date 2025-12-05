@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { SEO } from '../../components/shared/SEO';
 import { useServices } from '../../hooks/queries';
 import { Button } from '../../components/ui/Button';
 import {
@@ -72,6 +73,13 @@ export const LandingPage: React.FC = () => {
 
    return (
       <div className="flex min-h-screen flex-col bg-white font-sans overflow-x-hidden">
+         <SEO
+            title="Home"
+            description="Connect with experienced Gurubas for Pujas, Havans, Bratabandha, and more. Book verified Pandits and Lamas for authentic Vedic rituals across Nepal."
+            keywords="guruba nepal, pandit booking, puja services, bratabandha, vedic rituals, hindu priest nepal, lama booking, spiritual services nepal"
+            url="https://guruba.com"
+         />
+
          {/* ===== HERO SECTION - App-Like Mobile First ===== */}
          <section className="relative pt-20 md:pt-32 pb-12 md:pb-20 overflow-hidden min-h-[90vh] md:min-h-screen flex items-center">
             {/* Animated Background - More Mobile Optimized */}
