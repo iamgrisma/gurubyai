@@ -153,6 +153,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'gurubas' AND column_name = 'guruba_type') THEN
     ALTER TABLE public.gurubas ADD COLUMN guruba_type text DEFAULT 'brahmin';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'gurubas' AND column_name = 'verification_requested_at') THEN
+    ALTER TABLE public.gurubas ADD COLUMN verification_requested_at timestamptz;
+  END IF;
 END $$;
 
 -- RLS for Gurubas
@@ -1464,11 +1467,45 @@ AS $$
 DECLARE
   v_admin_id uuid;
   v_name text;
+  v_guruba_id uuid;
 BEGIN
-  SELECT full_name INTO v_name FROM public.profiles WHERE id = auth.uid();
-  FOR v_admin_id IN SELECT id FROM public.profiles WHERE role = 'admin' LOOP
-    INSERT INTO public.notifications (user_id, title, message)
-    VALUES (v_admin_id, 'Verification Request', 'Guruba ' || coalesce(v_name, 'User') || ' requested verification.');
+  -- Get guruba record
+  SELECT id INTO v_guruba_id 
+  FROM public.gurubas 
+  WHERE user_id = auth.uid();
+  
+  IF v_guruba_id IS NULL THEN
+    RAISE EXCEPTION 'User is not a guruba';
+  END IF;
+  
+  -- Mark verification as requested
+  UPDATE public.gurubas
+  SET verification_requested_at = now()
+  WHERE id = v_guruba_id;
+  
+  -- Get user name
+  SELECT full_name INTO v_name 
+  FROM public.profiles 
+  WHERE id = auth.uid();
+  
+  -- Notify all admins
+  FOR v_admin_id IN 
+    SELECT id FROM public.profiles WHERE role = 'admin' 
+  LOOP
+    INSERT INTO public.notifications (
+      user_id, 
+      title, 
+      message,
+      notification_type,
+      action_url
+    )
+    VALUES (
+      v_admin_id, 
+      'Verification Request', 
+      'Guruba ' || coalesce(v_name, 'User') || ' requested verification.',
+      'system',
+      '/admin?tab=verification'
+    );
   END LOOP;
 END;
 $$;
