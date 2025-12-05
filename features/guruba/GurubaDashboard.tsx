@@ -108,6 +108,9 @@ export const GurubaDashboard: React.FC = () => {
                         handleBookingAction={handleBookingAction}
                         setLinkBookingId={() => { }} // Handled internally in Requests if needed, or we pass a setter
                         setMeetingLink={() => { }}
+                        onVerificationRequested={() => {
+                            queryClient.invalidateQueries({ queryKey: ['gurubaProfile', user?.id] });
+                        }}
                     />
                 );
             case 'requests':

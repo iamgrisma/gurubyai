@@ -72,6 +72,7 @@ export interface Guruba {
   location: string;
   specialties: string[];
   is_verified?: boolean;
+  verification_requested_at?: string;
   guruba_type?: 'brahmin' | 'non_brahmin' | 'astrologer';
   languages?: string[];
   email?: string;
