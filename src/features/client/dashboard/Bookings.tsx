@@ -100,7 +100,7 @@ export const DashboardBookings: React.FC<BookingsProps> = ({ bookings, setReview
                                     </Button>
                                 )}
                                 {booking.status === 'completed' && !booking.is_reviewed && (
-                                    <Button size="sm" onClick={() => setReviewModalData({ id: booking.id, gurubaId: booking.guruba_id, gurubaName: booking.gurubas?.profiles?.full_name || '' })}>
+                                    <Button size="sm" onClick={() => setReviewModalData({ id: booking.id, gurubaId: booking.guruba_id || '', gurubaName: booking.gurubas?.profiles?.full_name || '' })}>
                                         Write Review
                                     </Button>
                                 )}

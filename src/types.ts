@@ -187,6 +187,8 @@ export interface Message {
   is_read: boolean;
   created_at: string;
   read_at?: string;
+  retention_hours?: number;
+  seen_at?: string;
   sender?: {
     id: string;
     full_name: string;
