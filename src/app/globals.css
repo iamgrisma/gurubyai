@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 60 30% 96%; /* stone-50 */
+    --foreground: 20 14.3% 4.1%; /* stone-950 */
+    --saffron-500: 45 93% 47%; /* #eab308 equivalent */
+    --saffron-600: 45 93% 40%;
+  }
+}
+
 @layer utilities {
   .animate-gradient-x {
     background-size: 200% 200%;
@@ -9,9 +18,9 @@
   }
 
   .animate-in {
-    animation-duration: 300ms;
+    animation-duration: 500ms;
     animation-fill-mode: forwards;
-    animation-timing-function: ease-in-out;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .fade-in {
@@ -29,4 +38,37 @@
   .zoom-in-95 {
     animation-name: zoom-in-95;
   }
+
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl;
+  }
+}
+
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-top-5 {
+  from { transform: translateY(-1.25rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-in-from-right-4 {
+  from { transform: translateX(1rem); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes zoom-in-95 {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
