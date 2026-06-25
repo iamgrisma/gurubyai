@@ -9,7 +9,7 @@ import { Button } from '../../../components/ui/Button';
 import { Guruba, Gotra } from '../../../types';
 import { Save, PlusCircle, Info } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
-import { LocationPicker } from '../../../components/ui/LocationPicker';
+import { LocationPicker } from '../../../components/ui/DynamicLocationPicker';
 
 // Internal Gotra Select Component
 const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {

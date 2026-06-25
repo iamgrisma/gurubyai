@@ -10,7 +10,7 @@ import { Button } from '../../../components/ui/Button';
 import { Gotra, UserProfile, SavedLocation } from '../../../types';
 import { User as UserIcon, PlusCircle, Trash2, MapPin, Save } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
-import { LocationPicker } from '../../../components/ui/LocationPicker';
+import { LocationPicker } from '../../../components/ui/DynamicLocationPicker';
 
 // Internal Gotra Select Component
 const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {

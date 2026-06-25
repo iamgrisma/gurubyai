@@ -20,7 +20,7 @@ import {
     Navigation,
 } from 'lucide-react';
 import { CustomServiceModal } from './CustomServiceModal';
-import { LocationPicker } from '../../components/ui/LocationPicker';
+import { LocationPicker } from '../../components/ui/DynamicLocationPicker';
 import { useQuery } from '@tanstack/react-query';
 import { PLATFORM_FEE } from '../../lib/constants';
 import { useMessage } from '../../components/ui/MessageContext';
