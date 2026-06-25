@@ -20,7 +20,7 @@ export const PublicHeader: React.FC = () => {
   // Close menu on route change
   useEffect(() => {
     setIsMenuOpen(false);
-  }, [location]);
+  }, [pathname]);
 
   const handleSignOut = async () => {
     await signOut();
