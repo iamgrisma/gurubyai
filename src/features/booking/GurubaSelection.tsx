@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 
-import { useRouter, useParams, redirect } from "next/navigation";
+import { useRouter, useParams, useSearchParams, redirect } from "next/navigation";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { Guruba } from '../../types';
@@ -17,7 +17,7 @@ import { GurubaVerificationBadge } from '../../components/shared/GurubaVerificat
 export const GurubaSelection: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
   const router = useRouter();
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
   const preselectedGurubaId = searchParams.get('gurubaId');
 
   // --- Queries ---
@@ -214,7 +214,7 @@ export const GurubaSelection: React.FC = () => {
               if (preselectedGurubaId) {
                 const newParams = new URLSearchParams(searchParams);
                 newParams.delete('gurubaId');
-                router.push({ search: newParams.toString() }, { replace: true });
+                router.push(`?${newParams.toString()}`);
               }
             }}
           />
