@@ -4,35 +4,38 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
     "worker:dev": "wrangler dev",
     "worker:deploy": "wrangler deploy",
-    "pages:dev": "wrangler pages dev ./dist",
-    "pages:deploy": "npm run build && wrangler pages deploy ./dist"
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:dev": "npx @cloudflare/next-on-pages && wrangler pages dev .vercel/output/static",
+    "pages:deploy": "npx @cloudflare/next-on-pages && wrangler pages deploy .vercel/output/static"
   },
   "dependencies": {
-    "@cloudflare/kv-asset-handler": "^0.3.0",
     "@supabase/supabase-js": "^2.39.7",
     "@tanstack/react-query": "^5.28.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.358.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-helmet-async": "^2.0.5",
-    "react-leaflet": "^4.2.1",
-    "react-router-dom": "^6.22.3"
+    "next": "^15.1.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-leaflet": "^4.2.1"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.11.3",
     "@types/leaflet": "^1.9.8",
     "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.22",
+    "eslint": "^8",
+    "eslint-config-next": "^15.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1",
     "typescript": "~5.8.2",
-    "vite": "^7.2.4",
     "wrangler": "^4.50.0"
   }
 }

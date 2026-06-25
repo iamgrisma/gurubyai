@@ -1,6 +1,6 @@
 name = "guruba"
 compatibility_date = "2024-09-23"
-pages_build_output_dir = "./dist"
+pages_build_output_dir = ".vercel/output/static"
 
 # D1 Database Binding (Uncomment when you need to use / currently it is on superbase hosting)
 # [[d1_databases]]
