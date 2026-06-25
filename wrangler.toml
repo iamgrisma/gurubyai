@@ -2,25 +2,11 @@ name = "guruba"
 compatibility_date = "2024-09-23"
 pages_build_output_dir = ".vercel/output/static"
 
-# D1 Database Binding (Uncomment when you need to use / currently it is on superbase hosting)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "guruba"
-# database_id = "17e10e85-8d59-4ba6-962e-2e31c64bd953"
 
-# KV Namespace Binding (Uncomment when you need to use)
-# [[kv_namespaces]]
-# binding = "KV"
-# namespace_id = "YOUR_NAMESPACE_ID"
+[[kv_namespaces]]
+binding = "KV"
+id = "82a60a88512f4c70b339ccd580559943"
 
-# Worker Durable Object (Uncomment when you need to use)
-# [[durable_objects.bindings]]
-# name = "MyDurableObject"
-# class_name = "MyDurableObjectClass"
 
-# Worker Sites (Uncomment when you need to use)
-# [[sites]]
-# bucket = "YOUR_BUCKET_NAME"
-# directory = "YOUR_DIRECTORY_NAME"
 
 
