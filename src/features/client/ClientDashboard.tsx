@@ -97,7 +97,7 @@ export const ClientDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <DashboardOverview user={user} profile={profile} bookings={bookings} setActiveTab={setActiveTab} handleBookingNegotiation={handleBookingNegotiation} />;
+        return <DashboardOverview user={user} profile={profile || null} bookings={bookings} setActiveTab={setActiveTab} handleBookingNegotiation={handleBookingNegotiation} />;
       case 'bookings':
         return <DashboardBookings bookings={bookings} setReviewModalData={setReviewModalData} />;
       case 'messages':
@@ -108,9 +108,9 @@ export const ClientDashboard: React.FC = () => {
           </div>
         );
       case 'wallet':
-        return <DashboardWallet profile={profile} />;
+        return <DashboardWallet profile={profile || null} />;
       case 'profile':
-        return <DashboardProfile user={user} profile={profile} />;
+        return <DashboardProfile user={user} profile={profile || null} />;
       default:
         return null;
     }
