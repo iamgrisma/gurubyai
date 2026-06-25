@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from "next/link";
-import { useRouter, usePathname, useSearchParams, redirect } from "next/navigation";
+import { useRouter, usePathname, redirect } from "next/navigation";
 import { useAuth } from '../../features/auth/AuthProvider';
 import { NotificationBell } from '../messaging/NotificationBell';
 import { Button } from '../ui/Button';
@@ -14,7 +14,7 @@ import { Menu, X, User, LogOut, Coins, BookOpen, Users, Bell, ChevronRight, Mess
 export const PublicHeader: React.FC = () => {
   const { session, profile, signOut } = useAuth();
   const router = useRouter();
-  const pathname = usePathname(); const searchParams = useSearchParams();;
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Close menu on route change
