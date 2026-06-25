@@ -6,8 +6,6 @@
 import React, { useEffect, useState } from 'react';
 
 import { useRouter, redirect } from "next/navigation";
-import { SEO } from '../../components/shared/SEO';
-import { PAGE_SEO } from '../../lib/seo-config';
 import { useServices } from '../../hooks/queries';
 import { Service } from '../../types';
 import { Button } from '../../components/ui/Button';
@@ -51,7 +49,6 @@ export const ServiceSelection: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 py-12 px-4 sm:px-6 lg:px-8">
-      <SEO {...PAGE_SEO.services} />
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-stone-900">Select a Service</h1>
