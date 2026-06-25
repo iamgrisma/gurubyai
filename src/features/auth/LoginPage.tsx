@@ -1,6 +1,5 @@
 "use client";
 
-
 // features/auth/LoginPage.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -12,7 +11,8 @@ import { AlertTriangle, CheckCircle, Mail, Sparkles } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const router = useRouter();
-  const pathname = usePathname(); const searchParams = useSearchParams();;
+  const pathname = usePathname(); 
+  const searchParams = useSearchParams();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,10 +28,11 @@ export const LoginPage: React.FC = () => {
     };
     clearSession();
 
-    const state = location.state as { email?: string; successMessage?: string } | null;
-    if (state?.email) setEmail(state.email);
-    if (state?.successMessage) setSuccessMessage(state.successMessage);
-  }, [location]);
+    const emailParam = searchParams.get('email');
+    const successMsgParam = searchParams.get('successMessage');
+    if (emailParam) setEmail(emailParam);
+    if (successMsgParam) setSuccessMessage(successMsgParam);
+  }, [searchParams]);
 
   const checkUserRoleAndRedirect = async (userId: string) => {
         const { data: profile } = await supabase
@@ -40,7 +41,7 @@ export const LoginPage: React.FC = () => {
             .eq('id', userId)
             .maybeSingle();
         
-        const from = (location.state as any)?.from;
+        const from = searchParams.get('from');
         if (from) {
             router.push(from);
             return;

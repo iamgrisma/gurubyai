@@ -45,10 +45,11 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge, isCollapsed }:
 export const GurubaDashboard: React.FC = () => {
     const { profile, user, signOut } = useAuth();
     const queryClient = useQueryClient();
-    const pathname = usePathname(); const searchParams = useSearchParams();;
+    const pathname = usePathname(); 
+    const searchParams = useSearchParams();
 
     // Check if we should default to profile tab (e.g. after new registration)
-    const shouldShowSetup = (location.state as any)?.showProfileSetup;
+    const shouldShowSetup = searchParams.get('showProfileSetup') === 'true';
     const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'messages' | 'schedule' | 'services' | 'clients' | 'resources' | 'profile'>(shouldShowSetup ? 'profile' : 'overview');
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

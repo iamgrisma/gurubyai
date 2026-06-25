@@ -60,19 +60,14 @@ export const RegisterPage: React.FC = () => {
          const userRole = data.user?.user_metadata?.role || 'client';
          if (userRole === 'guruba') {
              // Navigate to Guruba dashboard with setup flag
-             router.push('/guruba', { state: { showProfileSetup: true } });
+             router.push('/guruba?showProfileSetup=true');
          } else {
              router.push('/client');
          }
       } 
       // No session = Email confirmation required
       else if (data.user) {
-        router.push('/login', { 
-            state: { 
-                email: email, 
-                successMessage: "Account created successfully! Please check your email to confirm your address." 
-            } 
-        });
+        router.push(`/login?email=${encodeURIComponent(email)}&successMessage=${encodeURIComponent("Account created successfully! Please check your email to confirm your address.")}`);
       }
     } catch (err: any) {
       console.error('Registration error:', err);
