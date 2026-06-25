@@ -1,15 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-// In a Vite project (standard for Cloudflare Pages), environment variables 
-// are accessed via import.meta.env and must be prefixed with VITE_.
-// We fallback to the hardcoded strings provided if environment variables are not set.
+// In a Next.js project, environment variables 
+// are accessed via process.env and prefixed with NEXT_PUBLIC_.
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
-    'Supabase credentials missing. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment.'
+    'Supabase credentials missing. Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your environment.'
   );
 }
 
