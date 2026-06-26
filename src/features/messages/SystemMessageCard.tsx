@@ -17,7 +17,7 @@ export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({ message, b
     // Determine the state based on the booking
     const isPending = booking.status === 'pending' || booking.status === 'awaiting_client_confirmation';
     const isConfirmed = booking.status === 'confirmed';
-    const isCancelled = booking.status === 'cancelled' || booking.status === 'declined';
+    const isCancelled = booking.status === 'cancelled';
 
     return (
         <div className="flex justify-center my-6 w-full">

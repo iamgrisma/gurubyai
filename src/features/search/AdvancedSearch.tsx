@@ -119,7 +119,7 @@ export const AdvancedSearch: React.FC = () => {
                                                 <div>
                                                     <h3 className="text-lg font-bold font-outfit text-stone-900 flex items-center gap-2">
                                                         {guruba.profiles?.full_name}
-                                                        {guruba.is_verified && <GurubaVerificationBadge verified />}
+                                                        {guruba.is_verified && <GurubaVerificationBadge isVerified />}
                                                     </h3>
                                                     <div className="flex items-center text-sm text-stone-500 mt-1 gap-1">
                                                         <MapPin className="h-4 w-4" /> {guruba.location}
