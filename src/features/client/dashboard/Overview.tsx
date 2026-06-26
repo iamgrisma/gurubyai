@@ -46,27 +46,30 @@ export const DashboardOverview: React.FC<OverviewProps> = ({ user, profile, book
         
         {/* Action Required Section */}
         {actionRequiredBookings.length > 0 && (
-            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 animate-in slide-in-from-top-2">
-                <h3 className="font-bold text-purple-900 text-lg mb-4 flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5" /> Action Required
+            <div className="glass-panel border border-stone-200/50 rounded-2xl p-6 animate-in slide-in-from-top-2 border-l-4 border-l-saffron-500 mb-8 shadow-sm">
+                <h3 className="font-bold text-stone-900 text-lg mb-4 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-saffron-500" /> Action Required
                 </h3>
                 <div className="grid gap-4">
                     {actionRequiredBookings.map(b => (
-                        <div key={b.id} className="bg-white p-4 rounded-xl shadow-sm border border-purple-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div key={b.id} className="bg-white/80 backdrop-blur-md p-5 rounded-xl shadow-sm border border-white flex flex-col md:flex-row justify-between items-center gap-4 transition-all hover:shadow-md hover:bg-white">
                             <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                                    <Clock className="h-6 w-6" />
+                                <div className="h-12 w-12 rounded-full bg-saffron-50 flex items-center justify-center text-saffron-600 border border-saffron-100 shadow-inner">
+                                    <Clock className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-stone-900">{b.services?.title}</p>
-                                    <p className="text-sm text-stone-600">
-                                        Guruba proposed a new time: <span className="font-bold text-purple-700">{b.proposed_time ? new Date(b.proposed_time).toLocaleString() : 'N/A'}</span>
-                                    </p>
+                                    <p className="font-bold text-stone-900 text-lg">{b.services?.title}</p>
+                                    <div className="text-sm text-stone-600 mt-1 flex items-center gap-2">
+                                        Guruba proposed a new time: 
+                                        <span className="font-bold text-stone-900 bg-white px-2 py-1 rounded border border-stone-100 shadow-sm inline-block">
+                                            {b.proposed_time ? new Date(b.proposed_time).toLocaleString() : 'N/A'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex gap-3 w-full md:w-auto">
-                                <Button onClick={() => handleBookingNegotiation(b.id, 'accept', b.proposed_time)} className="bg-green-600 hover:bg-green-700 w-full">Confirm Time</Button>
-                                <Button onClick={() => handleBookingNegotiation(b.id, 'decline')} variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 w-full">Decline</Button>
+                            <div className="flex gap-3 w-full md:w-auto mt-4 md:mt-0">
+                                <Button onClick={() => handleBookingNegotiation(b.id, 'accept', b.proposed_time)} className="bg-green-600 hover:bg-green-700 w-full shadow-md shadow-green-900/20 text-white font-medium">Confirm Time</Button>
+                                <Button onClick={() => handleBookingNegotiation(b.id, 'decline')} variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 w-full shadow-sm font-medium bg-white">Decline</Button>
                             </div>
                         </div>
                     ))}

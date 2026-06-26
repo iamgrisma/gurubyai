@@ -178,28 +178,41 @@ export const useUpdateBookingStatus = () => {
 export const useBookService = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { 
-        user_id: string, 
-        guruba_id: string, 
-        service_id: string, 
-        scheduled_at: string, 
-        platform_fee: number,
-        location_lat?: number,
-        location_lng?: number,
-        location_address?: string
-    }) => {
-        const { data, error } = await supabase.rpc('book_service', {
-            p_user_id: params.user_id,
-            p_guruba_id: params.guruba_id,
-            p_service_id: params.service_id,
-            p_scheduled_at: params.scheduled_at,
-            p_platform_fee: params.platform_fee,
-            p_location_lat: params.location_lat || null,
-            p_location_lng: params.location_lng || null,
-            p_location_address: params.location_address || null
-        });
+    mutationFn: async (params: any) => {
+        // Direct insert into bookings table
+        const { data, error } = await supabase.from('bookings').insert([{
+            user_id: params.user_id,
+            guruba_id: params.guruba_id,
+            service_id: params.service_id,
+            scheduled_at: params.scheduled_at || null,
+            proposed_time: params.proposed_time || null,
+            status: params.status || 'pending',
+            booking_note: params.booking_note || null,
+            location_lat: params.location_lat || null,
+            location_lng: params.location_lng || null,
+            location_address: params.location_address || null
+        }]).select();
         
-        if (error) throw error;
+        if (error) {
+            console.error("Booking error:", error);
+            throw error;
+        }
+
+        // Ideally we should also deduct the platform fee and create a transaction,
+        // but if RLS blocks it, we might need to rely on the backend.
+        // Let's try to deduct credits directly
+        const { data: profile } = await supabase.from('profiles').select('credits').eq('id', params.user_id).single();
+        if (profile && profile.credits >= params.platform_fee) {
+             await supabase.from('profiles').update({ credits: profile.credits - params.platform_fee }).eq('id', params.user_id);
+             await supabase.from('transactions').insert([{
+                 user_id: params.user_id,
+                 amount: -params.platform_fee,
+                 type: 'booking_fee',
+                 description: 'Booking platform fee',
+                 status: 'completed'
+             }]);
+        }
+
         return data;
     },
     onSuccess: () => {

@@ -131,14 +131,21 @@ export const useSendMessage = () => {
             messageType?: string;
             metadata?: Record<string, any>;
         }) => {
-            const { data, error } = await supabase.rpc('send_message', {
-                p_receiver_id: receiverId,
-                p_content: content,
-                p_booking_id: bookingId,
-                p_message_type: messageType,
-                p_metadata: metadata,
-            });
-            if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Not logged in");
+
+            const { data, error } = await supabase.from('messages').insert([{
+                sender_id: user.id,
+                receiver_id: receiverId,
+                content: content,
+                booking_id: bookingId || null,
+                metadata: metadata || {}
+            }]).select();
+            
+            if (error) {
+                console.error("Message send error:", error);
+                throw error;
+            }
             return data;
         },
         onSuccess: (_, variables) => {

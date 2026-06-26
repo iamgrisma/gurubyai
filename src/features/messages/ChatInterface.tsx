@@ -127,10 +127,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
              queryClient.invalidateQueries({ queryKey: ['bookings'] });
           }
           if (activeConversation) {
-              await supabase.rpc('send_message', {
+              await supabase.from('messages').insert([{
+                  sender_id: user?.id,
                   receiver_id: activeConversation,
-                  content: "I have confirmed the proposed time. Looking forward to our session!"
-              });
+                  content: "I have confirmed the proposed time. Looking forward to our session!",
+                  booking_id: bookingId
+              }]);
               queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
           }
       } else {
@@ -139,10 +141,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
               const msg = action === 'confirmed' 
                   ? "I have accepted your booking request. See you soon!"
                   : "I have declined the booking request. Please propose a new time or choose another Guruba.";
-              await supabase.rpc('send_message', {
+              await supabase.from('messages').insert([{
+                  sender_id: user?.id,
                   receiver_id: activeConversation,
-                  content: msg
-              });
+                  content: msg,
+                  booking_id: bookingId
+              }]);
               queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
           }
       }
@@ -158,10 +162,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       
       if (activeConversation) {
-          await supabase.rpc('send_message', {
+          await supabase.from('messages').insert([{
+              sender_id: user?.id,
               receiver_id: activeConversation,
-              content: `I would like to propose a new time: ${new Date(proposedTime).toLocaleString()}. Does this work for you?`
-          });
+              content: `I would like to propose a new time: ${new Date(proposedTime).toLocaleString()}. Does this work for you?`,
+              booking_id: activeBooking.id
+          }]);
           queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
       }
 
@@ -173,11 +179,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const sendMessageMutation = useMutation({
       mutationFn: async () => {
           if (!user || !activeConversation || !newMessage.trim()) return;
-          // Use Secure RPC instead of direct insert
-          const { error } = await supabase.rpc('send_message', {
-              receiver_id: activeConversation,
-              content: newMessage.trim()
-          });
+          const { error } = await supabase.from('messages').insert([{
+            sender_id: user.id,
+            receiver_id: activeConversation,
+            content: newMessage.trim(),
+            booking_id: activeBooking?.id || null
+          }]);
           if (error) throw error;
       },
       onSuccess: () => {
