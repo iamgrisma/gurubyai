@@ -10,6 +10,8 @@ import { Message, UserProfile, Booking } from '../../types';
 import { Send, User, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw, Calendar, CheckCircle, XCircle, Edit3 } from 'lucide-react';
 import { useBookings, useProfile, useUpdateBookingStatus } from '../../hooks/queries';
 import { Button } from '../../components/ui/Button';
+import { MessageBubble } from './MessageBubble';
+import { SystemMessageCard } from './SystemMessageCard';
 
 interface ChatInterfaceProps {
   defaultReceiverId?: string;
@@ -259,37 +261,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
                     {/* Active Booking Action Card */}
                     {activeBooking && (
-                        <div className="bg-saffron-50 border-b border-saffron-100 p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-inner">
-                            <div className="text-sm text-saffron-900 flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                <span>
-                                    <strong>{activeBooking.services?.title}</strong>: 
-                                    {activeBooking.status === 'pending' ? ' Requested for ' : 
-                                     activeBooking.status === 'awaiting_client_confirmation' ? ' New Time Proposed: ' : 
-                                     ' Scheduled: '}
-                                    {activeBooking.status === 'awaiting_client_confirmation' 
-                                      ? (activeBooking.proposed_time ? new Date(activeBooking.proposed_time).toLocaleString() : 'N/A')
-                                      : new Date(activeBooking.scheduled_at).toLocaleString()}
-                                </span>
-                            </div>
-                            <div className="flex gap-2">
-                                {activeBooking.status === 'pending' && !isClient && (
-                                    <>
-                                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'confirmed')}>Accept</Button>
-                                        <Button size="sm" variant="secondary" className="text-xs h-8" onClick={() => setIsProposing(true)}>Propose Time</Button>
-                                        <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'cancelled')}>Decline</Button>
-                                    </>
-                                )}
-                                {activeBooking.status === 'awaiting_client_confirmation' && isClient && (
-                                    <>
-                                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'confirm_proposal', activeBooking.proposed_time)}>Confirm</Button>
-                                        <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-8" onClick={() => handleBookingAction(activeBooking.id, 'cancelled')}>Reject</Button>
-                                    </>
-                                )}
-                                {activeBooking.status === 'confirmed' && (
-                                    <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Confirmed</span>
-                                )}
-                            </div>
+                        <div className="px-4 border-b border-stone-100 bg-stone-50/50">
+                            <SystemMessageCard 
+                                message={messages[messages.length - 1] || {} as any} 
+                                booking={activeBooking} 
+                                isClient={isClient}
+                                onAccept={() => {
+                                    if (activeBooking.status === 'pending') handleBookingAction(activeBooking.id, 'confirmed');
+                                    else if (activeBooking.status === 'awaiting_client_confirmation') handleBookingAction(activeBooking.id, 'confirm_proposal', activeBooking.proposed_time);
+                                }}
+                                onDecline={() => handleBookingAction(activeBooking.id, 'cancelled')}
+                            />
                         </div>
                     )}
 
@@ -308,21 +290,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                     )}
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-stone-50/50">
-                        {filteredMessages.map((msg, idx) => {
-                            const isMe = msg.sender_id === user?.id;
-                            return (
-                                <div key={msg.id || idx} className={`flex group ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm relative ${isMe ? 'bg-saffron-600 text-white rounded-tr-none' : 'bg-white text-stone-800 border border-stone-100 rounded-tl-none'}`}>
-                                        <p className="text-sm leading-relaxed pr-4">{msg.content}</p>
-                                        <div className={`text-[10px] mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-saffron-200' : 'text-stone-400'}`}>
-                                            {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                            {isMe && <CheckCheck className={`h-3 w-3 ${msg.is_read ? 'text-blue-300' : 'opacity-70'}`} />}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    <div className="flex-1 overflow-y-auto p-4 bg-stone-50/50">
+                        {filteredMessages.map((msg, idx) => (
+                            <MessageBubble 
+                                key={msg.id || idx} 
+                                message={msg} 
+                                isOwn={msg.sender_id === user?.id} 
+                            />
+                        ))}
                         <div ref={messagesEndRef} />
                     </div>
 

@@ -184,6 +184,7 @@ export interface Message {
   'booking_completed' | 'time_proposed' | 'time_accepted' | 'time_rejected' |
   'custom_service_requested' | 'payment_received' | 'credit_approved' | 'credit_rejected';
   metadata?: Record<string, any>;
+  is_system?: boolean;
   is_read: boolean;
   created_at: string;
   read_at?: string;

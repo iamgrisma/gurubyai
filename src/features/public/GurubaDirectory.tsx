@@ -84,16 +84,24 @@ export const GurubaDirectory: React.FC = () => {
               
               {/* Search Bar */}
               <div className="relative max-w-2xl">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Search className="h-5 w-5 text-stone-400" />
-                  </div>
-                  <input 
-                      type="text"
-                      className="w-full pl-12 pr-4 py-4 rounded-full border-none text-stone-900 focus:ring-4 focus:ring-saffron-500/50 shadow-lg text-lg"
-                      placeholder="Search by name, location, or puja type..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+                  <form onSubmit={(e) => {
+                      e.preventDefault();
+                      router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
+                  }}>
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Search className="h-6 w-6 text-stone-400" />
+                      </div>
+                      <input 
+                          type="text"
+                          className="w-full pl-12 pr-32 py-4 rounded-2xl border-none text-stone-900 focus:ring-4 focus:ring-saffron-500/50 shadow-lg text-lg outline-none"
+                          placeholder="Search by name, location, or puja type..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                      <div className="absolute right-2 top-2">
+                          <Button type="submit" className="h-10 px-6 bg-saffron-500 hover:bg-saffron-600 rounded-xl font-bold">Search</Button>
+                      </div>
+                  </form>
               </div>
           </div>
       </div>
