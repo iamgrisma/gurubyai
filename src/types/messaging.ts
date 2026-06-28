@@ -5,7 +5,7 @@ export interface Message {
     sender_id: string;
     receiver_id: string;
     booking_id?: string;
-    content: string;
+    content: string | null;
     message_type: 'text' | 'booking_created' | 'booking_confirmed' | 'booking_cancelled' |
     'booking_completed' | 'time_proposed' | 'time_accepted' | 'time_rejected' |
     'custom_service_requested' | 'payment_received' | 'credit_approved' | 'credit_rejected';

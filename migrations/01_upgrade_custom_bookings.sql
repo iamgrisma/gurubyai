@@ -119,3 +119,19 @@ BEGIN
     );
   END IF;
 END $$;
+
+-- 4. Add missing columns to public.messages if they don't exist
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS message_type text CHECK (message_type IN (
+  'text', 'booking_created', 'booking_confirmed', 'booking_cancelled',
+  'booking_completed', 'time_proposed', 'time_accepted', 'time_rejected',
+  'custom_service_requested', 'payment_received', 'credit_approved', 'credit_rejected'
+)) DEFAULT 'text';
+
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS read_at timestamptz;
+
+-- 5. Drop NOT NULL constraint on content to allow system/event messages without plain text body
+ALTER TABLE public.messages ALTER COLUMN content DROP NOT NULL;
+
+
