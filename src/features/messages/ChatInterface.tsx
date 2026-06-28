@@ -301,7 +301,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                         {activeBooking && (
                             <div className="mb-4">
                                 <SystemMessageCard 
-                                    message={{ id: 'system', sender_id: 'system', receiver_id: user?.id || '', content: '', created_at: new Date().toISOString(), is_read: true }}
+                                    message={{ id: 'system', sender_id: 'system', receiver_id: user?.id || '', content: '', created_at: new Date().toISOString(), is_read: true, message_type: 'text' }}
                                     booking={activeBooking} 
                                     isClient={isClient}
                                     onAccept={() => handleBookingAction(activeBooking.id, activeBooking.status === 'awaiting_client_confirmation' ? 'confirm_proposal' : 'confirmed')}

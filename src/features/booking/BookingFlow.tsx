@@ -562,7 +562,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                 <span className="text-stone-500 font-medium">Date & Time</span>
                                 <span className="font-bold text-stone-900">{date} at {selectedTime || 'Proposed Time'}</span>
                             </div>
-                            </div>
                             <div className="flex justify-between items-center py-3 border-b border-stone-100">
                                 <span className="text-stone-500 font-medium">Service Price</span>
                                 <span className="font-bold text-stone-900">Rs. {actualPrice}</span>
