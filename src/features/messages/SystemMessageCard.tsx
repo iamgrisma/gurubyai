@@ -105,7 +105,7 @@ export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({
                                             <CheckCircle className="h-4 w-4 mr-1" /> Accept
                                         </Button>
                                     </div>
-                                    {booking.is_custom_booking && onProposeNewTime && (
+                                    {onProposeNewTime && (
                                         <Button variant="outline" className="w-full text-saffron-700 border-saffron-200 hover:bg-saffron-50 flex items-center justify-center" onClick={onProposeNewTime}>
                                             <Clock className="h-4 w-4 mr-1" /> Propose New Time
                                         </Button>
@@ -141,7 +141,12 @@ export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({
                                         <XCircle className="h-4 w-4 mr-1" /> Cancel
                                     </Button>
                                     {onComplete && (
-                                        <Button className="flex-1 bg-green-600 text-white hover:bg-green-500" onClick={onComplete}>
+                                        <Button 
+                                            className="flex-1 bg-green-600 text-white hover:bg-green-500 disabled:bg-stone-300 disabled:text-stone-500 disabled:cursor-not-allowed" 
+                                            onClick={onComplete}
+                                            disabled={!!booking.scheduled_at && new Date(booking.scheduled_at) > new Date()}
+                                            title={!!booking.scheduled_at && new Date(booking.scheduled_at) > new Date() ? "Cannot mark as completed before the scheduled time" : ""}
+                                        >
                                             <CheckCircle className="h-4 w-4 mr-1" /> Complete
                                         </Button>
                                     )}

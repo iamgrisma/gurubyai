@@ -25,6 +25,29 @@ export const GurubaRequests: React.FC<RequestsProps> = ({ bookings, handleBookin
 
   const handleProposeTime = async (bookingId: string) => {
       if (!proposedTime) return;
+      
+      const propDate = new Date(proposedTime);
+      const now = new Date();
+      const isToday = propDate.toDateString() === now.toDateString();
+      
+      if (propDate < now) {
+          alert('Cannot propose a time in the past.');
+          return;
+      }
+      
+      if (isToday) {
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+          if (currentMins >= 20 * 60) {
+              alert('Bookings for today are closed after 8 PM.');
+              return;
+          }
+          const selMins = propDate.getHours() * 60 + propDate.getMinutes();
+          if (selMins <= currentMins + 60) {
+              alert('Please select a time at least 1 hour from now.');
+              return;
+          }
+      }
+
       try {
           const confirmationDeadline = new Date(Date.now() + 60 * 60 * 1000).toISOString();
           await supabase.from('bookings').update({ 
@@ -164,7 +187,12 @@ export const GurubaRequests: React.FC<RequestsProps> = ({ bookings, handleBookin
                                 </div>
                             ) : b.status === 'confirmed' ? (
                                 <div className="flex flex-col justify-center gap-3 min-w-[180px]">
-                                    <Button onClick={() => handleBookingAction(b.id, 'completed')} className="w-full">
+                                    <Button 
+                                        onClick={() => handleBookingAction(b.id, 'completed')} 
+                                        className="w-full disabled:bg-stone-300 disabled:text-stone-500 disabled:cursor-not-allowed"
+                                        disabled={!!b.scheduled_at && new Date(b.scheduled_at) > new Date()}
+                                        title={!!b.scheduled_at && new Date(b.scheduled_at) > new Date() ? "Cannot mark as completed before the scheduled time" : ""}
+                                    >
                                         Mark Completed
                                     </Button>
                                     <Button variant="outline" onClick={() => handleBookingAction(b.id, 'cancelled')} className="w-full text-red-600">

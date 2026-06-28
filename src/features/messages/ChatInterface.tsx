@@ -164,6 +164,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
   const submitProposal = async () => {
       if (!activeBooking || !proposedTime) return;
+
+      const propDate = new Date(proposedTime);
+      const now = new Date();
+      const isToday = propDate.toDateString() === now.toDateString();
+      
+      if (propDate < now) {
+          alert('Cannot propose a time in the past.');
+          return;
+      }
+      
+      if (isToday) {
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+          if (currentMins >= 20 * 60) {
+              alert('Bookings for today are closed after 8 PM.');
+              return;
+          }
+          const selMins = propDate.getHours() * 60 + propDate.getMinutes();
+          if (selMins <= currentMins + 60) {
+              alert('Please select a time at least 1 hour from now.');
+              return;
+          }
+      }
+
       await supabase.from('bookings').update({ 
           status: 'awaiting_client_confirmation',
           proposed_time: proposedTime,
@@ -258,32 +281,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                         </div>
                     </div>
 
-                    {/* Active Booking Action Card */}
-                    {activeBooking && (
-                        <div className="px-4 border-b border-stone-100 bg-stone-50/50">
-                            <SystemMessageCard 
-                                message={messages[messages.length - 1] || {} as any} 
-                                booking={activeBooking} 
-                                isClient={isClient}
-                                onAccept={() => {
-                                    if (activeBooking.status === 'pending') handleBookingAction(activeBooking.id, 'confirmed');
-                                    else if (activeBooking.status === 'awaiting_client_confirmation') handleBookingAction(activeBooking.id, 'confirm_proposal', activeBooking.proposed_time);
-                                }}
-                                onDecline={() => handleBookingAction(activeBooking.id, 'cancelled')}
-                                onProposeNewTime={() => setIsProposing(true)}
-                                onComplete={() => handleBookingAction(activeBooking.id, 'completed')}
-                                onAddLink={async (link) => {
-                                    const { error } = await supabase.from('bookings').update({ meeting_link: link }).eq('id', activeBooking.id);
-                                    if (error) {
-                                        alert("Failed to update meeting link");
-                                    } else {
-                                        queryClient.invalidateQueries({ queryKey: ['bookings'] });
-                                    }
-                                }}
-                            />
-                        </div>
-                    )}
-
                     {/* Propose Time Modal Inline */}
                     {isProposing && (
                         <div className="absolute top-16 left-0 right-0 bg-white p-4 border-b shadow-md z-20 animate-in slide-in-from-top-2">
@@ -300,6 +297,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto p-4 bg-stone-50/50">
+                        {/* Active Booking Action Card */}
+                        {activeBooking && (
+                            <div className="mb-4">
+                                <SystemMessageCard 
+                                    message={{ id: 'system', sender_id: 'system', receiver_id: user?.id || '', content: '', created_at: new Date().toISOString(), is_read: true }}
+                                    booking={activeBooking} 
+                                    isClient={isClient}
+                                    onAccept={() => handleBookingAction(activeBooking.id, activeBooking.status === 'awaiting_client_confirmation' ? 'confirm_proposal' : 'confirmed')}
+                                    onDecline={() => handleBookingAction(activeBooking.id, 'cancelled')}
+                                    onProposeNewTime={() => setIsProposing(true)}
+                                    onComplete={() => handleBookingAction(activeBooking.id, 'completed')}
+                                    onAddLink={async (link) => {
+                                        const { error } = await supabase.from('bookings').update({ meeting_link: link }).eq('id', activeBooking.id);
+                                        if (error) {
+                                            alert("Failed to update meeting link");
+                                        } else {
+                                            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
+
                         {filteredMessages.map((msg, idx) => (
                             <MessageBubble 
                                 key={msg.id || idx} 

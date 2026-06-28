@@ -205,6 +205,22 @@ export const useMarkNotificationRead = () => {
             });
             if (error) throw error;
         },
+        onMutate: async (notificationId: string) => {
+            await queryClient.cancelQueries({ queryKey: ['notifications'] });
+            await queryClient.cancelQueries({ queryKey: ['unreadNotifications'] });
+
+            queryClient.setQueriesData({ queryKey: ['notifications'] }, (old: any) => {
+                if (Array.isArray(old)) {
+                    return old.map(n => n.id === notificationId ? { ...n, is_read: true } : n);
+                }
+                return old;
+            });
+            
+            queryClient.setQueriesData({ queryKey: ['unreadNotifications'] }, (old: any) => {
+                if (typeof old === 'number' && old > 0) return old - 1;
+                return old;
+            });
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
             queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] });

@@ -140,9 +140,10 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                 return;
             }
 
-            const startOfDay = new Date(selectedDateStr);
+            const [y, m, d] = selectedDateStr.split('-').map(Number);
+            const startOfDay = new Date(y, m - 1, d);
             startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(selectedDateStr);
+            const endOfDay = new Date(y, m - 1, d);
             endOfDay.setHours(23, 59, 59, 999);
 
             const { data: existingBookings } = await supabase
@@ -171,10 +172,25 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                 return { start: startMins, end: startMins + duration + buffer };
             });
 
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
+            const isToday = startOfDay.toDateString() === now.toDateString();
+
+            if (isToday && currentMins >= 20 * 60) {
+                setAvailableSlots([]);
+                setLoadingSlots(false);
+                return;
+            }
+
             const slots: string[] = [];
             for (let t = workStart; t + serviceDuration <= workEnd; t += slotStep) {
                 const slotStart = t;
                 const slotEnd = t + serviceDuration;
+                
+                if (isToday && slotStart <= currentMins + 60) {
+                    continue;
+                }
+
                 const isBlocked = blockedRanges.some((r) => slotStart < r.end && slotEnd > r.start);
                 if (!isBlocked) {
                     const h = Math.floor(t / 60);
@@ -199,6 +215,25 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
         if (!selectedTime) {
             showMessage({ type: 'error', title: 'Missing Time', content: proposeTime ? 'Please select a custom time' : 'Please select a time slot' });
             return;
+        }
+
+        const now = new Date();
+        const [y, m, d] = date.split('-').map(Number);
+        const selectedDateObj = new Date(y, m - 1, d);
+        const isToday = selectedDateObj.toDateString() === now.toDateString();
+        
+        if (isToday) {
+            const currentMins = now.getHours() * 60 + now.getMinutes();
+            if (currentMins >= 20 * 60) {
+                showMessage({ type: 'error', title: 'Booking Closed', content: 'Bookings for today are closed after 8 PM.' });
+                return;
+            }
+            const [sh, sm] = selectedTime.split(':').map(Number);
+            const selMins = sh * 60 + sm;
+            if (selMins <= currentMins + 60) {
+                showMessage({ type: 'error', title: 'Invalid Time', content: 'Please select a time at least 1 hour from now.' });
+                return;
+            }
         }
         if (isGotraConflict && !gotraOverride) {
             showMessage({ type: 'error', title: 'Gotra Conflict', content: 'Please confirm gotra override' });
