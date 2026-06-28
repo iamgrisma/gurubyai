@@ -124,17 +124,28 @@ export const GurubaProfile: React.FC<ProfileProps> = ({ guruba, showSetupAlert }
   }, [guruba]);
 
   const saveProfile = async () => {
-      if (!guruba) return;
       setSavingProfile(true);
       try {
-          // Update Guruba specific details
-          const { error: gError } = await supabase.from('gurubas').update({ 
-              bio, 
-              guruba_type: gurubaType, 
-              location: location.address 
-          }).eq('id', guruba.id);
-          
-          if (gError) throw gError;
+          if (!guruba) {
+              // Create new Guruba profile
+              const { error: gError } = await supabase.from('gurubas').insert([{ 
+                  user_id: user?.id,
+                  bio, 
+                  guruba_type: gurubaType, 
+                  location: location.address 
+              }]);
+              
+              if (gError) throw gError;
+          } else {
+              // Update Guruba specific details
+              const { error: gError } = await supabase.from('gurubas').update({ 
+                  bio, 
+                  guruba_type: gurubaType, 
+                  location: location.address 
+              }).eq('id', guruba.id);
+              
+              if (gError) throw gError;
+          }
 
           // Update Shared Profile details (coords, gotra)
           const { error: pError } = await supabase.from('profiles').update({ 
@@ -147,7 +158,7 @@ export const GurubaProfile: React.FC<ProfileProps> = ({ guruba, showSetupAlert }
           if (pError) throw pError;
           
           queryClient.invalidateQueries({ queryKey: ['gurubaProfile'] });
-          alert("Profile updated successfully!");
+          alert(guruba ? "Profile updated successfully!" : "Guruba profile created successfully!");
       } catch (e: any) { 
           console.error(e);
           alert("Failed to update profile: " + e.message); 

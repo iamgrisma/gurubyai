@@ -1,12 +1,13 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
 import { Button } from '../../../components/ui/Button';
 import { GurubaVerificationBadge } from '../../../components/shared/GurubaVerificationBadge';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export const AdminVerification: React.FC = () => {
     const queryClient = useQueryClient();
+    const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
     // Re-fetch pending verification requests directly from the database
     const { data: users = [], isLoading } = useQuery({
@@ -17,7 +18,10 @@ export const AdminVerification: React.FC = () => {
                 .select(`
                     *,
                     profiles:user_id (
-                        *
+                        *,
+                        gotras:gotra_id (
+                            name
+                        )
                     )
                 `)
                 .eq('is_verified', false)
@@ -78,18 +82,56 @@ export const AdminVerification: React.FC = () => {
                         {pendingGurubas.length === 0 ? (
                             <tr><td colSpan={4} className="p-8 text-center text-stone-500">No pending verifications.</td></tr>
                         ) : pendingGurubas.map((u: any) => (
-                            <tr key={u.id} className="hover:bg-stone-50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-stone-900">{u.full_name}</td>
-                                <td className="px-6 py-4 text-stone-600">{u.email}</td>
-                                <td className="px-6 py-4">
-                                    <GurubaVerificationBadge isVerified={false} gurubaType={u.gurubas[0].guruba_type} />
-                                    <span className="text-xs ml-2 capitalize text-stone-500">{u.gurubas[0].guruba_type?.replace('_', ' ')}</span>
-                                </td>
-                                <td className="px-6 py-4 text-right space-x-2">
-                                    <Button size="sm" variant="outline" onClick={() => verifyGurubaMutation.mutate({ userId: u.id, action: 'reject' })} className="text-red-600 hover:bg-red-50 border-red-200">Reject</Button>
-                                    <Button size="sm" onClick={() => verifyGurubaMutation.mutate({ userId: u.id, action: 'approve' })} className="bg-green-600 hover:bg-green-700 border-none">Approve</Button>
-                                </td>
-                            </tr>
+                            <React.Fragment key={u.id}>
+                                <tr 
+                                    className="hover:bg-stone-50 transition-colors cursor-pointer"
+                                    onClick={() => setExpandedUserId(expandedUserId === u.id ? null : u.id)}
+                                >
+                                    <td className="px-6 py-4 font-medium text-stone-900 flex items-center gap-2">
+                                        {expandedUserId === u.id ? <ChevronUp className="h-4 w-4 text-stone-400" /> : <ChevronDown className="h-4 w-4 text-stone-400" />}
+                                        {u.full_name}
+                                    </td>
+                                    <td className="px-6 py-4 text-stone-600">{u.email}</td>
+                                    <td className="px-6 py-4">
+                                        <GurubaVerificationBadge isVerified={false} gurubaType={u.gurubas[0].guruba_type} />
+                                        <span className="text-xs ml-2 capitalize text-stone-500">{u.gurubas[0].guruba_type?.replace('_', ' ')}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                                        <Button size="sm" variant="outline" onClick={() => verifyGurubaMutation.mutate({ userId: u.id, action: 'reject' })} className="text-red-600 hover:bg-red-50 border-red-200">Reject</Button>
+                                        <Button size="sm" onClick={() => verifyGurubaMutation.mutate({ userId: u.id, action: 'approve' })} className="bg-green-600 hover:bg-green-700 border-none">Approve</Button>
+                                    </td>
+                                </tr>
+                                {expandedUserId === u.id && (
+                                    <tr className="bg-stone-50/50">
+                                        <td colSpan={4} className="px-8 py-6 border-b border-stone-200">
+                                            <div className="space-y-4 max-w-3xl">
+                                                <div>
+                                                    <h4 className="font-bold text-stone-800 text-sm">Guruba Profile Overview</h4>
+                                                    <p className="text-xs text-stone-400 mt-0.5">Submitted: {u.gurubas[0].verification_requested_at ? new Date(u.gurubas[0].verification_requested_at).toLocaleString() : 'N/A'}</p>
+                                                </div>
+                                                
+                                                <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+                                                    <span className="font-bold text-stone-500 text-xs block uppercase tracking-wider mb-1">Biography</span>
+                                                    <p className="text-stone-700 text-sm leading-relaxed italic">
+                                                        {u.gurubas[0].bio ? `"${u.gurubas[0].bio}"` : 'No biography provided.'}
+                                                    </p>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+                                                        <span className="font-bold text-stone-500 text-xs block uppercase tracking-wider mb-1">Service Location</span>
+                                                        <span className="text-stone-700 text-sm font-medium">{u.gurubas[0].location || u.address || 'Not specified'}</span>
+                                                    </div>
+                                                    <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+                                                        <span className="font-bold text-stone-500 text-xs block uppercase tracking-wider mb-1">Gotra</span>
+                                                        <span className="text-stone-700 text-sm font-medium">{u.gotras?.name || 'Not selected'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
                         ))}
                     </tbody>
                 </table>
