@@ -160,13 +160,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     };
 
     const userCredits = profile?.credits || 0;
-    const hasEnoughCredits = userCredits >= PLATFORM_FEE;
+    const hasEnoughCredits = userCredits >= service.base_price;
 
     const handleSubmit = async () => {
         if (!user || !selectedGuruba) return;
         
-        if (!proposeTime && !selectedTime) {
-            showMessage({ type: 'error', title: 'Missing Time', content: 'Please select a time slot' });
+        if (!selectedTime) {
+            showMessage({ type: 'error', title: 'Missing Time', content: proposeTime ? 'Please select a custom time' : 'Please select a time slot' });
             return;
         }
         if (isGotraConflict && !gotraOverride) {
@@ -174,31 +174,79 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
             return;
         }
         if (!hasEnoughCredits) {
-            showMessage({ type: 'error', title: 'Insufficient Credits', content: 'You do not have enough credits for the platform fee.' });
+            showMessage({ type: 'error', title: 'Insufficient Credits', content: 'You do not have enough credits for this booking.' });
             return;
         }
 
         const basePayload: any = {
             user_id: user.id,
-            platform_fee: PLATFORM_FEE,
+            platform_fee: service.base_price,
             location_lat: location.lat,
             location_lng: location.lng,
             location_address: location.address,
             booking_note: customMessage || null,
             guruba_id: selectedGuruba.id,
             service_id: service.id,
+            is_custom_booking: proposeTime
         };
 
         if (proposeTime) {
-            basePayload.status = 'awaiting_client_confirmation';
-            basePayload.proposed_time = selectedTime ? `${date}T${selectedTime}` : null;
+            basePayload.status = 'pending';
+            basePayload.proposed_time = selectedTime ? new Date(`${date}T${selectedTime}`).toISOString() : null;
+            basePayload.scheduled_at = null;
         } else {
             basePayload.status = 'pending';
             basePayload.scheduled_at = new Date(`${date}T${selectedTime}`).toISOString();
+            basePayload.proposed_time = null;
         }
 
         try {
-            await bookService.mutateAsync(basePayload);
+            const bookingResult = await bookService.mutateAsync(basePayload);
+            const createdBooking = bookingResult?.[0];
+            if (createdBooking && selectedGuruba.profiles?.id) {
+                // Determine message content
+                let messageContent = '';
+                const timeStr = selectedTime ? new Date(`${date}T${selectedTime}`).toLocaleString() : 'N/A';
+                if (proposeTime) {
+                    messageContent = `Hi ${selectedGuruba.profiles.full_name || 'Guruba'}, I have proposed a custom time slot for ${service.title} on ${timeStr}. Are you by chance available or could you please make yourself available for that day?`;
+                } else {
+                    messageContent = `Hi ${selectedGuruba.profiles.full_name || 'Guruba'}, I have requested a booking for ${service.title} on ${timeStr}. Can you please review and accept it?`;
+                }
+                if (customMessage) {
+                    messageContent += `\nNote: ${customMessage}`;
+                }
+                
+                // Insert message into database
+                await supabase.from('messages').insert([{
+                    sender_id: user.id,
+                    receiver_id: selectedGuruba.profiles.id,
+                    content: messageContent,
+                    booking_id: createdBooking.id,
+                    message_type: proposeTime ? 'time_proposed' : 'booking_created',
+                    metadata: {
+                        booking_id: createdBooking.id,
+                        service_title: service.title,
+                        scheduled_at: createdBooking.scheduled_at,
+                        proposed_time: createdBooking.proposed_time,
+                        is_custom_booking: createdBooking.is_custom_booking
+                    }
+                }]);
+
+                // Insert notification for Guruba
+                await supabase.from('notifications').insert([{
+                    user_id: selectedGuruba.profiles.id,
+                    title: proposeTime ? 'New Custom Time Proposal' : 'New Booking Request',
+                    message: proposeTime 
+                        ? `${profile?.full_name || 'A client'} proposed a custom time for ${service.title}.`
+                        : `${profile?.full_name || 'A client'} requested a booking for ${service.title}.`,
+                    notification_type: 'booking',
+                    action_url: '/guruba?tab=requests',
+                    metadata: {
+                        booking_id: createdBooking.id,
+                        service_title: service.title
+                    }
+                }]);
+            }
             showMessage({ type: 'success', title: 'Booking Created', content: 'Your booking has been successfully requested.' });
             router.push('/booking-success');
         } catch (err: any) {
@@ -207,7 +255,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     };
 
     // Derived 
-    const isStep2Valid = date && (proposeTime || selectedTime);
+    const isStep2Valid = date && selectedTime;
 
     // Filter gurubas for this service
     const serviceGurubas = allGurubas.filter(g => 
@@ -317,9 +365,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                 />
-
                                 <div className="mt-4 flex items-start gap-3 bg-saffron-50/50 p-4 rounded-xl border border-saffron-100">
-                                    <input type="checkbox" id="propose" checked={proposeTime} onChange={(e) => setProposeTime(e.target.checked)} className="mt-0.5 rounded border-stone-300 text-saffron-600 focus:ring-saffron-500"/>
+                                    <input type="checkbox" id="propose" checked={proposeTime} onChange={(e) => { setProposeTime(e.target.checked); setSelectedTime(''); }} className="mt-0.5 rounded border-stone-300 text-saffron-600 focus:ring-saffron-500"/>
                                     <label htmlFor="propose" className="text-sm text-stone-700 cursor-pointer">
                                         <span className="font-bold block text-stone-900">Propose a custom time</span>
                                         <span className="text-xs">If you can't find a suitable slot, propose one and the Guruba will confirm.</span>
@@ -327,30 +374,44 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                 </div>
 
                                 <div className="mt-6">
-                                    <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Available Slots</h4>
-                                    <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 min-h-[140px]">
-                                        {loadingSlots ? (
-                                            <div className="flex h-full items-center justify-center text-sm text-stone-500 animate-pulse">Loading schedule...</div>
-                                        ) : !date ? (
-                                            <div className="flex h-full items-center justify-center text-sm text-stone-400 text-center">Select a date</div>
-                                        ) : availableSlots.length === 0 ? (
-                                            <div className="flex flex-col h-full items-center justify-center text-sm text-stone-500 text-center gap-2">
-                                                <Info className="h-5 w-5 text-stone-400"/>
-                                                Fully booked on this date.
+                                    {proposeTime ? (
+                                        <div>
+                                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3 font-outfit">Choose Custom Time</h4>
+                                            <input
+                                                type="time"
+                                                className="w-full rounded-xl border border-stone-200 py-3 px-4 text-sm focus:border-saffron-500 focus:ring-2 focus:ring-saffron-500 outline-none bg-stone-50 font-medium"
+                                                value={selectedTime}
+                                                onChange={(e) => setSelectedTime(e.target.value)}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Available Slots</h4>
+                                            <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 min-h-[140px]">
+                                                {loadingSlots ? (
+                                                    <div className="flex h-full items-center justify-center text-sm text-stone-500 animate-pulse">Loading schedule...</div>
+                                                ) : !date ? (
+                                                    <div className="flex h-full items-center justify-center text-sm text-stone-400 text-center">Select a date</div>
+                                                ) : availableSlots.length === 0 ? (
+                                                    <div className="flex flex-col h-full items-center justify-center text-sm text-stone-500 text-center gap-2">
+                                                        <Info className="h-5 w-5 text-stone-400"/>
+                                                        Fully booked on this date.
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {availableSlots.map((slot) => (
+                                                            <button
+                                                                key={slot} type="button" onClick={() => setSelectedTime(slot)}
+                                                                className={`py-2 text-sm font-bold rounded-xl border transition-all ${selectedTime === slot ? 'bg-saffron-500 text-white border-saffron-600 shadow-md ring-2 ring-saffron-500/20' : 'bg-white text-stone-700 border-stone-200 hover:border-saffron-400'}`}
+                                                            >
+                                                                {slot}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {availableSlots.map((slot) => (
-                                                    <button
-                                                        key={slot} type="button" onClick={() => setSelectedTime(slot)}
-                                                        className={`py-2 text-sm font-bold rounded-xl border transition-all ${selectedTime === slot ? 'bg-saffron-500 text-white border-saffron-600 shadow-md ring-2 ring-saffron-500/20' : 'bg-white text-stone-700 border-stone-200 hover:border-saffron-400'}`}
-                                                    >
-                                                        {slot}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
                         </div>
@@ -430,15 +491,15 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                             </div>
                             <div className="flex justify-between items-center py-3 bg-saffron-50/50 rounded-xl px-4 mt-4 border border-saffron-100">
                                 <span className="text-stone-700 font-bold flex items-center gap-2">
-                                    <Wallet className="h-4 w-4 text-saffron-600" /> Platform Fee
+                                    <Wallet className="h-4 w-4 text-saffron-600" /> Booking Fee
                                 </span>
-                                <span className="font-bold text-xl text-saffron-600 font-outfit">{PLATFORM_FEE} CR</span>
+                                <span className="font-bold text-xl text-saffron-600 font-outfit">{service.base_price} CR</span>
                             </div>
                         </div>
 
                         {!hasEnoughCredits && (
                             <div className="mt-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm font-medium border border-red-200">
-                                You have {userCredits} CR. You need {PLATFORM_FEE} CR to proceed. Please top up your wallet.
+                                You have {userCredits} CR. You need {service.base_price} CR to proceed. Please top up your wallet.
                             </div>
                         )}
                     </div>

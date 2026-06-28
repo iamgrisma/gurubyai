@@ -123,32 +123,96 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
   const handleBookingAction = async (bookingId: string, action: string, proposed?: string) => {
       if (action === 'confirm_proposal') {
-          updateStatusMutation.mutate({ id: bookingId, status: 'confirmed' });
+          // Client confirming Guruba's proposed time
+          const updatePayload: any = { id: bookingId, status: 'confirmed' };
           if (proposed) {
-             await supabase.from('bookings').update({ scheduled_at: proposed, status: 'confirmed' }).eq('id', bookingId);
-             queryClient.invalidateQueries({ queryKey: ['bookings'] });
+              updatePayload.scheduled_at = proposed;
           }
+          updateStatusMutation.mutate(updatePayload);
+          
           if (activeConversation) {
               await supabase.from('messages').insert([{
                   sender_id: user?.id,
                   receiver_id: activeConversation,
                   content: "I have confirmed the proposed time. Looking forward to our session!",
-                  booking_id: bookingId
+                  booking_id: bookingId,
+                  message_type: 'time_accepted'
               }]);
+              
+              // Notify Guruba
+              await supabase.from('notifications').insert([{
+                  user_id: activeConversation,
+                  title: 'Proposed Time Confirmed',
+                  message: `${currentUserProfile?.full_name || 'Client'} confirmed the proposed time for ${activeBooking?.services?.title}.`,
+                  notification_type: 'booking',
+                  action_url: '/guruba?tab=overview',
+                  metadata: { booking_id: bookingId }
+              }]);
+              
               queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
           }
-      } else {
-          updateStatusMutation.mutate({ id: bookingId, status: action });
+      } else if (action === 'confirmed') {
+          // Guruba accepting client's request
+          const updatePayload: any = { id: bookingId, status: 'confirmed' };
+          if (activeBooking && !activeBooking.scheduled_at && activeBooking.proposed_time) {
+              updatePayload.scheduled_at = activeBooking.proposed_time;
+          }
+          updateStatusMutation.mutate(updatePayload);
+          
           if (activeConversation) {
-              const msg = action === 'confirmed' 
-                  ? "I have accepted your booking request. See you soon!"
-                  : "I have declined the booking request. Please propose a new time or choose another Guruba.";
+              const timeStr = activeBooking?.scheduled_at || activeBooking?.proposed_time 
+                  ? new Date(activeBooking.scheduled_at || activeBooking.proposed_time || '').toLocaleString()
+                  : 'N/A';
               await supabase.from('messages').insert([{
                   sender_id: user?.id,
                   receiver_id: activeConversation,
-                  content: msg,
-                  booking_id: bookingId
+                  content: `I have accepted your booking request for ${activeBooking?.services?.title} on ${timeStr}. See you soon!`,
+                  booking_id: bookingId,
+                  message_type: 'booking_confirmed'
               }]);
+              
+              // Notify client
+              await supabase.from('notifications').insert([{
+                  user_id: activeConversation,
+                  title: 'Booking Request Accepted',
+                  message: `Your booking request for ${activeBooking?.services?.title} has been accepted.`,
+                  notification_type: 'booking',
+                  action_url: '/client?tab=bookings',
+                  metadata: { booking_id: bookingId }
+              }]);
+              
+              queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
+          }
+      } else if (action === 'cancelled') {
+          // Decline/reject
+          updateStatusMutation.mutate({ id: bookingId, status: 'cancelled' });
+          
+          if (activeConversation) {
+              const timeStr = activeBooking?.scheduled_at || activeBooking?.proposed_time 
+                  ? new Date(activeBooking.scheduled_at || activeBooking.proposed_time || '').toLocaleString()
+                  : 'N/A';
+              await supabase.from('messages').insert([{
+                  sender_id: user?.id,
+                  receiver_id: activeConversation,
+                  content: isClient 
+                      ? `I have declined the proposed time.` 
+                      : `I have declined the booking request for ${activeBooking?.services?.title} on ${timeStr}.`,
+                  booking_id: bookingId,
+                  message_type: isClient ? 'time_rejected' : 'booking_cancelled'
+              }]);
+              
+              // Notify other party
+              await supabase.from('notifications').insert([{
+                  user_id: activeConversation,
+                  title: isClient ? 'Proposed Time Declined' : 'Booking Request Declined',
+                  message: isClient 
+                      ? `Client declined the proposed time for ${activeBooking?.services?.title}.`
+                      : `Your booking request for ${activeBooking?.services?.title} has been declined.`,
+                  notification_type: 'booking',
+                  action_url: isClient ? '/guruba?tab=overview' : '/client?tab=bookings',
+                  metadata: { booking_id: bookingId }
+              }]);
+              
               queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
           }
       }
@@ -168,8 +232,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
               sender_id: user?.id,
               receiver_id: activeConversation,
               content: `I would like to propose a new time: ${new Date(proposedTime).toLocaleString()}. Does this work for you?`,
-              booking_id: activeBooking.id
+              booking_id: activeBooking.id,
+              message_type: 'time_proposed',
+              metadata: {
+                  booking_id: activeBooking.id,
+                  proposed_time: proposedTime
+              }
           }]);
+          
+          // Notify client
+          await supabase.from('notifications').insert([{
+              user_id: activeConversation,
+              title: 'New Time Proposed',
+              message: `Guruba proposed a new time slot for ${activeBooking.services?.title}.`,
+              notification_type: 'booking',
+              action_url: '/client?tab=bookings',
+              metadata: { booking_id: activeBooking.id }
+          }]);
+          
           queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
       }
 
@@ -271,6 +351,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                     else if (activeBooking.status === 'awaiting_client_confirmation') handleBookingAction(activeBooking.id, 'confirm_proposal', activeBooking.proposed_time);
                                 }}
                                 onDecline={() => handleBookingAction(activeBooking.id, 'cancelled')}
+                                onProposeNewTime={() => setIsProposing(true)}
                             />
                         </div>
                     )}

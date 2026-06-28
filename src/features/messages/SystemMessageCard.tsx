@@ -10,9 +10,10 @@ interface SystemMessageCardProps {
     isClient: boolean;
     onAccept: () => void;
     onDecline: () => void;
+    onProposeNewTime?: () => void;
 }
 
-export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({ message, booking, isClient, onAccept, onDecline }) => {
+export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({ message, booking, isClient, onAccept, onDecline, onProposeNewTime }) => {
     
     // Determine the state based on the booking
     const isPending = booking.status === 'pending' || booking.status === 'awaiting_client_confirmation';
@@ -49,20 +50,44 @@ export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({ message, b
                 </div>
 
                 {isPending && (
-                    <div className="pt-4 border-t border-stone-100 flex gap-2">
-                        {(!isClient && booking.status === 'pending') || (isClient && booking.status === 'awaiting_client_confirmation') ? (
-                            <>
-                                <Button variant="outline" className="flex-1 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200" onClick={onDecline}>
-                                    <XCircle className="h-4 w-4 mr-1" /> Decline
-                                </Button>
-                                <Button className="flex-1 bg-saffron-500 text-stone-900 hover:bg-saffron-400" onClick={onAccept}>
-                                    <CheckCircle className="h-4 w-4 mr-1" /> Accept
-                                </Button>
-                            </>
+                    <div className="pt-4 border-t border-stone-100 flex flex-col gap-2">
+                        {isClient ? (
+                            booking.status === 'awaiting_client_confirmation' ? (
+                                <div className="flex gap-2 w-full">
+                                    <Button variant="outline" className="flex-1 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200" onClick={onDecline}>
+                                        <XCircle className="h-4 w-4 mr-1" /> Decline
+                                    </Button>
+                                    <Button className="flex-1 bg-saffron-500 text-stone-900 hover:bg-saffron-400" onClick={onAccept}>
+                                        <CheckCircle className="h-4 w-4 mr-1" /> Confirm
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="text-center w-full text-xs text-stone-400 italic">
+                                    Waiting for Guruba to accept...
+                                </div>
+                            )
                         ) : (
-                            <div className="text-center w-full text-xs text-stone-400 italic">
-                                Waiting for the other party to respond...
-                            </div>
+                            booking.status === 'pending' ? (
+                                <div className="flex flex-col gap-2 w-full">
+                                    <div className="flex gap-2 w-full">
+                                        <Button variant="outline" className="flex-1 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200" onClick={onDecline}>
+                                            <XCircle className="h-4 w-4 mr-1" /> Decline
+                                        </Button>
+                                        <Button className="flex-1 bg-saffron-500 text-stone-900 hover:bg-saffron-400" onClick={onAccept}>
+                                            <CheckCircle className="h-4 w-4 mr-1" /> Accept
+                                        </Button>
+                                    </div>
+                                    {booking.is_custom_booking && onProposeNewTime && (
+                                        <Button variant="outline" className="w-full text-saffron-700 border-saffron-200 hover:bg-saffron-50 flex items-center justify-center" onClick={onProposeNewTime}>
+                                            <Clock className="h-4 w-4 mr-1" /> Propose New Time
+                                        </Button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center w-full text-xs text-stone-400 italic">
+                                    Waiting for client to confirm...
+                                </div>
+                            )
                         )}
                     </div>
                 )}

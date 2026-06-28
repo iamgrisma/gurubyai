@@ -162,9 +162,10 @@ export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin
 export const useUpdateBookingStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, meeting_link }: { id: string, status: string, meeting_link?: string }) => {
+    mutationFn: async ({ id, status, meeting_link, scheduled_at }: { id: string, status: string, meeting_link?: string, scheduled_at?: string }) => {
       const updateData: any = { status };
       if (meeting_link) updateData.meeting_link = meeting_link;
+      if (scheduled_at) updateData.scheduled_at = scheduled_at;
       
       const { error } = await supabase.from('bookings').update(updateData).eq('id', id);
       if (error) throw error;
@@ -190,7 +191,9 @@ export const useBookService = () => {
             booking_note: params.booking_note || null,
             location_lat: params.location_lat || null,
             location_lng: params.location_lng || null,
-            location_address: params.location_address || null
+            location_address: params.location_address || null,
+            is_custom_booking: params.is_custom_booking || false,
+            platform_fee: params.platform_fee || 0
         }]).select();
         
         if (error) {
@@ -198,9 +201,7 @@ export const useBookService = () => {
             throw error;
         }
 
-        // Ideally we should also deduct the platform fee and create a transaction,
-        // but if RLS blocks it, we might need to rely on the backend.
-        // Let's try to deduct credits directly
+        // Deduct the dynamic booking fee/price directly
         const { data: profile } = await supabase.from('profiles').select('credits').eq('id', params.user_id).single();
         if (profile && profile.credits >= params.platform_fee) {
              await supabase.from('profiles').update({ credits: profile.credits - params.platform_fee }).eq('id', params.user_id);
