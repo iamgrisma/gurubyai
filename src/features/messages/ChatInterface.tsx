@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
 import { Message, UserProfile, Booking } from '../../types';
-import { Send, User, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw, Calendar, CheckCircle, XCircle, Edit3 } from 'lucide-react';
+import { Send, User, CheckCheck, MessageSquare, Clock, EyeOff, Trash2, RefreshCw, Calendar, CheckCircle, XCircle, Edit3, ArrowLeft } from 'lucide-react';
 import { useBookings, useProfile, useUpdateBookingStatus } from '../../hooks/queries';
 import { Button } from '../../components/ui/Button';
 import { MessageBubble } from './MessageBubble';
@@ -237,7 +237,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   return (
     <div className="flex h-[600px] bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
         {/* Sidebar */}
-        <div className="w-80 border-r border-stone-100 flex flex-col bg-stone-50 hidden md:flex">
+        <div className={`w-full md:w-80 border-r border-stone-100 flex-col bg-stone-50 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 border-b border-stone-100 bg-white">
                 <h3 className="font-bold text-stone-900">Messages</h3>
             </div>
@@ -270,12 +270,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-white relative">
+        <div className={`flex-1 flex-col bg-white relative ${activeConversation ? 'flex' : 'hidden md:flex'}`}>
             {activeConversation && getActiveUser() ? (
                 <>
                     {/* Header */}
                     <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-white z-10 shadow-sm">
                         <div className="flex items-center gap-3">
+                             <button onClick={() => setActiveConversation(null)} className="md:hidden p-2 -ml-2 text-stone-500 hover:text-stone-700 rounded-full hover:bg-stone-100">
+                                <ArrowLeft className="h-5 w-5" />
+                             </button>
                              <div className="h-8 w-8 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden">
                                 {getActiveUser()?.avatar_url ? <img src={getActiveUser()?.avatar_url} className="h-full w-full object-cover" alt="" /> : <User className="h-4 w-4 text-stone-400" />}
                              </div>
