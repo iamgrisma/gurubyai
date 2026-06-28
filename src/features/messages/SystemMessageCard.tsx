@@ -123,17 +123,13 @@ export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({
                 {isConfirmed && (
                     <div className="pt-4 border-t border-stone-100 flex flex-col gap-3">
                         {isClient ? (
-                            booking.meeting_link ? (
-                                <a href={booking.meeting_link} target="_blank" rel="noreferrer" className="w-full">
+                            booking.is_online ? (
+                                <a href={`/room/${booking.id}`} className="w-full block">
                                     <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2">
-                                        <Video className="h-4 w-4" /> Join Call
+                                        <Video className="h-4 w-4" /> Join Video Call
                                     </Button>
                                 </a>
-                            ) : (
-                                <div className="text-center w-full text-xs text-stone-400 italic">
-                                    Waiting for Guruba to provide meeting link...
-                                </div>
-                            )
+                            ) : null
                         ) : (
                             <div className="flex flex-col gap-3 w-full">
                                 <div className="flex gap-2">
@@ -152,45 +148,22 @@ export const SystemMessageCard: React.FC<SystemMessageCardProps> = ({
                                     )}
                                 </div>
 
-                                {/* Meeting Link Manager */}
-                                <div className="mt-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
-                                    {isEditingLink ? (
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Meeting Link</label>
-                                            <input 
-                                                type="text" 
-                                                value={linkInput}
-                                                onChange={(e) => setLinkInput(e.target.value)}
-                                                placeholder="https://zoom.us/..."
-                                                className="w-full text-xs border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-saffron-500"
-                                            />
-                                            <div className="flex gap-2 justify-end">
-                                                <Button size="sm" variant="ghost" className="text-xs py-1 h-auto" onClick={() => setIsEditingLink(false)}>Cancel</Button>
-                                                <Button size="sm" className="text-xs bg-saffron-500 text-stone-900 hover:bg-saffron-400 py-1 h-auto" onClick={handleSaveLink}>
-                                                    <Save className="h-3 w-3 mr-1" /> Save
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ) : (
+                                {/* Meeting Link Manager - Native WebRTC */}
+                                {booking.is_online && (
+                                    <div className="mt-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
                                         <div className="flex items-center justify-between text-xs">
                                             <div className="flex items-center gap-1.5 min-w-0">
                                                 <Video className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                                                 <span className="truncate text-stone-600 max-w-[180px] block">
-                                                    {booking.meeting_link ? (
-                                                        <a href={booking.meeting_link} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Open Link</a>
-                                                    ) : (
-                                                        <span className="text-stone-400 italic">No link added</span>
-                                                    )}
+                                                    Secure Native Video Call
                                                 </span>
                                             </div>
-                                            {onAddLink && (
-                                                <button onClick={() => setIsEditingLink(true)} className="text-[10px] text-stone-500 hover:text-stone-900 border px-1.5 py-0.5 rounded font-medium bg-white">
-                                                    {booking.meeting_link ? 'Edit' : 'Add'}
-                                                </button>
-                                            )}
+                                            <a href={`/room/${booking.id}`} className="text-[10px] bg-blue-600 text-white hover:bg-blue-700 px-2 py-1 rounded font-medium flex items-center gap-1 transition-colors">
+                                                <Video className="h-3 w-3" /> Join Call
+                                            </a>
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
