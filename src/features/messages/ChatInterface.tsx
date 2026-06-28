@@ -93,10 +93,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
   // --- Realtime Subscription ---
   useEffect(() => {
-    if (!user || !activeConversation) return;
-    const channel = supabase.channel(`chat:${activeConversation}`)
+    if (!user) return;
+    const channel = supabase.channel(`chat:${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
            queryClient.invalidateQueries({ queryKey: ['messages', user.id, activeConversation] });
+           queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

@@ -91,26 +91,8 @@ export const ClientDashboard: React.FC = () => {
           status: 'confirmed',
           scheduled_at: proposedTime
         }).eq('id', bookingId);
-
-        if (booking?.gurubas?.user_id) {
-          await supabase.from('messages').insert([{
-            sender_id: user?.id,
-            receiver_id: booking.gurubas.user_id,
-            content: "I have confirmed the proposed time. Looking forward to our session!",
-            booking_id: bookingId
-          }]);
-        }
       } else {
         await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
-        
-        if (booking?.gurubas?.user_id) {
-          await supabase.from('messages').insert([{
-            sender_id: user?.id,
-            receiver_id: booking.gurubas.user_id,
-            content: "I have declined the proposed time.",
-            booking_id: bookingId
-          }]);
-        }
       }
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['messages'] });

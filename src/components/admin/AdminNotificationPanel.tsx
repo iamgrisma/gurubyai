@@ -7,6 +7,7 @@ import { useAuth } from '../../features/auth/AuthProvider';
 import { formatDistanceToNow } from '../../lib/utils';
 import { Button } from '../ui/Button';
 import { Check, Bell } from 'lucide-react';
+import Link from 'next/link';
 
 export const AdminNotificationPanel: React.FC = () => {
     const { user } = useAuth();
@@ -36,8 +37,7 @@ export const AdminNotificationPanel: React.FC = () => {
                     {notifications.map((n) => (
                         <li
                             key={n.id}
-                            className={`p-4 flex items-start gap-3 hover:bg-stone-50 transition-colors ${!n.is_read ? 'bg-blue-50' : ''
-                                }`}
+                            className={`p-4 flex items-start gap-3 hover:bg-stone-50 transition-colors ${!n.is_read ? 'bg-blue-50' : ''}`}
                         >
                             <div className="flex-1">
                                 <div className="flex items-center justify-between mb-1">
@@ -48,12 +48,12 @@ export const AdminNotificationPanel: React.FC = () => {
                                 </div>
                                 <p className="text-sm text-stone-600">{n.message}</p>
                                 {n.action_url && (
-                                    <a
+                                    <Link
                                         href={n.action_url}
                                         className="text-xs text-saffron-600 hover:underline mt-1 inline-block"
                                     >
                                         View details →
-                                    </a>
+                                    </Link>
                                 )}
                             </div>
                             {!n.is_read && (

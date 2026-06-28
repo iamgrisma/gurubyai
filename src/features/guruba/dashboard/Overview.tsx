@@ -56,27 +56,9 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
                         </p>
                     </div>
                     <Button 
-                        onClick={async () => {
-                            try {
-                                const { data: { user } } = await supabase.auth.getUser();
-                                if (!user) return;
-                                const { error } = await supabase.from('gurubas').insert([{
-                                    user_id: user.id,
-                                    bio: 'Vedic priest and spiritual guide.',
-                                    guruba_type: 'brahmin',
-                                    location: 'Kathmandu, Nepal'
-                                }]);
-                                if (error) throw error;
-                                alert("Guruba profile created successfully! You can now edit your details and request verification.");
-                                onVerificationRequested(); // Trigger refetch
-                            } catch (e) {
-                                console.error(e);
-                                alert("Failed to create profile.");
-                            }
-                        }} 
-                        className="bg-yellow-500 text-stone-900 hover:bg-yellow-600 whitespace-nowrap"
+                        onClick={() => setActiveTab('profile')}
                     >
-                        Create Profile
+                        Go to Profile Settings
                     </Button>
                 </div>
             ) : !guruba.is_verified && (
@@ -174,9 +156,15 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <Button size="sm" className="w-full sm:w-auto" onClick={() => handleBookingAction(b.id, 'completed')}>
-                                            Mark Completed
-                                        </Button>
+                                        <Button 
+                                             size="sm" 
+                                             className="w-full sm:w-auto disabled:bg-stone-300 disabled:text-stone-500 disabled:cursor-not-allowed" 
+                                             onClick={() => handleBookingAction(b.id, 'completed')}
+                                             disabled={!!b.scheduled_at && new Date(b.scheduled_at) > new Date()}
+                                             title={!!b.scheduled_at && new Date(b.scheduled_at) > new Date() ? "Cannot mark as completed before the scheduled time" : ""}
+                                         >
+                                             Mark Completed
+                                         </Button>
                                         <Button size="sm" variant="outline" className="w-full sm:w-auto text-xs" onClick={() => { setLinkBookingId(b.id); setMeetingLink(b.meeting_link || ''); }}>
                                             {b.meeting_link ? 'Edit Link' : 'Add Link'}
                                         </Button>

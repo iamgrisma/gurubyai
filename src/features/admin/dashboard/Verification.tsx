@@ -104,13 +104,13 @@ export const AdminVerification: React.FC = () => {
                                             <div className="space-y-4 max-w-3xl">
                                                 <div>
                                                     <h4 className="font-bold text-stone-800 text-sm">Guruba Profile Overview</h4>
-                                                    <p className="text-xs text-stone-400 mt-0.5">Submitted: {u.gurubas[0].verification_requested_at ? new Date(u.gurubas[0].verification_requested_at).toLocaleString() : 'N/A'}</p>
+                                                    <p suppressHydrationWarning className="text-xs text-stone-400 mt-0.5">Submitted: {u.gurubas?.[0]?.verification_requested_at ? new Date(u.gurubas[0].verification_requested_at).toLocaleString() : 'N/A'}</p>
                                                 </div>
                                                 
                                                 <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
                                                     <span className="font-bold text-stone-500 text-xs block uppercase tracking-wider mb-1">Biography</span>
                                                     <p className="text-stone-700 text-sm leading-relaxed italic">
-                                                        {u.gurubas[0].bio ? `"${u.gurubas[0].bio}"` : 'No biography provided.'}
+                                                        {u.gurubas?.[0]?.bio ? `"${u.gurubas[0].bio}"` : 'No biography provided.'}
                                                     </p>
                                                 </div>
 
