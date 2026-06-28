@@ -83,7 +83,7 @@ END;
 $$;
 
 
--- Fix handle_booking_messages trigger to prevent crash on unhandled status transitions
+-- Fix handle_booking_messages trigger to prevent crash on unhandled status transitions and support initial confirmed inserts
 CREATE OR REPLACE FUNCTION public.handle_booking_messages()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -92,24 +92,32 @@ AS $$
 BEGIN
   -- On INSERT (new booking)
   IF (TG_OP = 'INSERT') THEN
-    PERFORM public.create_booking_message(NEW.id, 'booking_created');
+    IF NEW.status = 'confirmed' THEN
+      PERFORM public.create_booking_message(NEW.id, 'booking_confirmed');
+    ELSE
+      PERFORM public.create_booking_message(NEW.id, 'booking_created');
+    END IF;
   END IF;
 
   -- On UPDATE (status changes)
   IF (TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status) THEN
-    CASE NEW.status
-      WHEN 'confirmed' THEN
-        PERFORM public.create_booking_message(NEW.id, 'booking_confirmed');
-      WHEN 'cancelled' THEN
-        PERFORM public.create_booking_message(NEW.id, 'booking_cancelled');
-      WHEN 'completed' THEN
-        PERFORM public.create_booking_message(NEW.id, 'booking_completed');
-      WHEN 'awaiting_client_confirmation' THEN
-        PERFORM public.create_booking_message(NEW.id, 'time_proposed');
+    IF NEW.status = 'confirmed' THEN
+      IF OLD.status = 'awaiting_client_confirmation' THEN
+        PERFORM public.create_booking_message(NEW.id, 'time_accepted');
       ELSE
-        -- Prevent CASE_NOT_FOUND error by doing nothing for other statuses (e.g. 'pending')
-        NULL;
-    END CASE;
+        PERFORM public.create_booking_message(NEW.id, 'booking_confirmed');
+      END IF;
+    ELSIF NEW.status = 'cancelled' THEN
+      IF OLD.status = 'awaiting_client_confirmation' THEN
+        PERFORM public.create_booking_message(NEW.id, 'time_rejected');
+      ELSE
+        PERFORM public.create_booking_message(NEW.id, 'booking_cancelled');
+      END IF;
+    ELSIF NEW.status = 'completed' THEN
+      PERFORM public.create_booking_message(NEW.id, 'booking_completed');
+    ELSIF NEW.status = 'awaiting_client_confirmation' THEN
+      PERFORM public.create_booking_message(NEW.id, 'time_proposed');
+    END IF;
   END IF;
   
   RETURN NEW;

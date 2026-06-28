@@ -107,14 +107,17 @@ export const GurubaRequests: React.FC<RequestsProps> = ({ bookings, handleBookin
                                        </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4 text-sm pt-2">
-                                        <p className="text-stone-600 flex items-center gap-2">
+                                        <p className="text-stone-600 flex items-center gap-2 col-span-2">
                                             <Clock className="h-4 w-4 text-stone-400" /> 
                                             {b.scheduled_at || b.proposed_time 
                                                 ? new Date(b.scheduled_at || b.proposed_time || '').toLocaleString() 
                                                 : 'Not scheduled'}
                                         </p>
                                         <p className="text-stone-600 flex items-center gap-2">
-                                            <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">Rs. {(b.services?.base_price || 0).toLocaleString()}</span>
+                                            <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">{(b.platform_fee || b.services?.base_price || 0)} CR</span>
+                                        </p>
+                                        <p className="text-stone-600 flex items-center gap-2">
+                                            <Video className="h-4 w-4 text-blue-500" /> Type: <span className="font-bold text-stone-700">{b.is_online ? 'Online' : 'Physical'}</span>
                                         </p>
                                     </div>
                                     {b.status === 'confirmed' && (

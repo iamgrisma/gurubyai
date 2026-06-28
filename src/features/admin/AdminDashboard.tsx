@@ -1,10 +1,10 @@
 "use client";
 
-
 // features/admin/AdminDashboard.tsx
 
 import React, { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
   LogOut,
   Shield,
   CreditCard,
+  User,
 } from 'lucide-react';
 
 // Child Components
@@ -29,8 +30,6 @@ import { AdminServices } from './dashboard/Services';
 import { AdminGotras } from './dashboard/Gotras';
 import { AdminFinancials } from './dashboard/Financials';
 import { AdminTopups } from './dashboard/Topups';
-
-import { AdminNotificationPanel } from '../../components/admin/AdminNotificationPanel';
 
 // Simple Sidebar item component
 const SidebarItem = ({ icon: Icon, label, active, onClick, isCollapsed }: any) => (
@@ -53,6 +52,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, isCollapsed }: any) =
 
 export const AdminDashboard: React.FC = () => {
   const { signOut } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     | 'overview'
     | 'concierge'
@@ -62,7 +62,6 @@ export const AdminDashboard: React.FC = () => {
     | 'financials'
     | 'verification'
     | 'topups'
-
   >('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -90,7 +89,6 @@ export const AdminDashboard: React.FC = () => {
         return <AdminFinancials />;
       case 'topups':
         return <AdminTopups />;
-
       default:
         return <AdminOverview setActiveTab={setActiveTab} />;
     }
@@ -124,6 +122,7 @@ export const AdminDashboard: React.FC = () => {
           <p className={`px-4 text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>Main</p>
           <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} isCollapsed={isSidebarCollapsed} />
           <SidebarItem icon={UserPlus} label="Concierge Booking" active={activeTab === 'concierge'} onClick={() => handleTabChange('concierge')} isCollapsed={isSidebarCollapsed} />
+          
           <div className="my-4 border-t border-stone-800 mx-2"></div>
           <p className={`px-4 text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>Management</p>
           <SidebarItem icon={Users} label="User Details" active={activeTab === 'users'} onClick={() => handleTabChange('users')} isCollapsed={isSidebarCollapsed} />
@@ -133,7 +132,12 @@ export const AdminDashboard: React.FC = () => {
           <SidebarItem icon={ScrollText} label="Gotras" active={activeTab === 'gotras'} onClick={() => handleTabChange('gotras')} isCollapsed={isSidebarCollapsed} />
           <SidebarItem icon={DollarSign} label="Financials" active={activeTab === 'financials'} onClick={() => handleTabChange('financials')} isCollapsed={isSidebarCollapsed} />
 
+          <div className="my-4 border-t border-stone-800 mx-2"></div>
+          <p className={`px-4 text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>Switch View</p>
+          <SidebarItem icon={User} label="Client Dashboard" active={false} onClick={() => router.push('/client')} isCollapsed={isSidebarCollapsed} />
+          <SidebarItem icon={Users} label="Guruba Dashboard" active={false} onClick={() => router.push('/guruba')} isCollapsed={isSidebarCollapsed} />
         </nav>
+        
         <div className="p-4 border-t border-stone-800 bg-stone-900">
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -168,4 +172,3 @@ export const AdminDashboard: React.FC = () => {
     </div>
   );
 };
-

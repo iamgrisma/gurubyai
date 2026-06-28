@@ -13,7 +13,7 @@ import { ChatInterface } from '../messages/ChatInterface';
 import { useBookings, useProfile } from '../../hooks/queries';
 import {
   Calendar, CreditCard, User, LogOut, Menu, X, RefreshCw, LayoutDashboard, MessageSquare,
-  ChevronsLeft, ChevronsRight, Search
+  ChevronsLeft, ChevronsRight, Search, Shield
 } from 'lucide-react';
 import { DashboardOverview } from './dashboard/Overview';
 import { DashboardBookings } from './dashboard/Bookings';
@@ -177,6 +177,9 @@ export const ClientDashboard: React.FC = () => {
           <SidebarItem icon={CreditCard} label="Wallet" active={activeTab === 'wallet'} onClick={() => handleTabChange('wallet')} isCollapsed={isSidebarCollapsed} />
           {!isSidebarCollapsed && <div className="my-4 h-px bg-stone-100 mx-2" />}
           <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} isCollapsed={isSidebarCollapsed} />
+          {profile?.role === 'admin' && (
+            <SidebarItem icon={Shield} label="Admin Panel" active={false} onClick={() => router.push('/admin')} isCollapsed={isSidebarCollapsed} />
+          )}
         </nav>
         <div className={`p-6 border-t border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
           <button

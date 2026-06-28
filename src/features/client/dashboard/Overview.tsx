@@ -124,6 +124,10 @@ export const DashboardOverview: React.FC<OverviewProps> = ({ user, profile, book
                                         {booking.scheduled_at || booking.proposed_time
                                             ? new Date(booking.scheduled_at || booking.proposed_time || '').toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                                             : 'N/A'}
+                                        <span className="mx-1">•</span>
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${booking.is_online ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
+                                            {booking.is_online ? 'Online' : 'Physical'}
+                                        </span>
                                     </p>
                                     {booking.meeting_link && booking.status === 'confirmed' && (
                                         <a href={booking.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-white bg-green-600 px-2 py-1 rounded mt-2 hover:bg-green-700">

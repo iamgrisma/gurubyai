@@ -124,9 +124,13 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
                                                 <h4 className="font-bold text-stone-900 text-lg">{b.services?.title}</h4>
                                                 <p className="text-sm text-stone-500 flex items-center gap-2 mt-1">
                                                     <Clock className="h-3 w-3" /> {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                <span className="mx-1">•</span>
-                                                <User className="h-3 w-3" /> {b.profiles?.full_name}
-                                            </p>
+                                                    <span className="mx-1">•</span>
+                                                    <User className="h-3 w-3" /> {b.profiles?.full_name}
+                                                    <span className="mx-1">•</span>
+                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${b.is_online ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
+                                                        {b.is_online ? 'Online' : 'Physical'}
+                                                    </span>
+                                                </p>
                                             {b.meeting_link && (
                                                 <a href={b.meeting_link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
                                                     <Video className="h-3 w-3" /> Video Link Active

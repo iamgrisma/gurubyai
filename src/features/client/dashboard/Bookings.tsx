@@ -90,6 +90,12 @@ export const DashboardBookings: React.FC<BookingsProps> = ({ bookings, setReview
                                     </p>
                                 </div>
                                 <div>
+                                    <p className="text-xs text-stone-400 uppercase">Type</p>
+                                    <p className="font-medium">
+                                        {booking.is_online ? 'Online Video' : 'Physical'}
+                                    </p>
+                                </div>
+                                <div>
                                     <p className="text-xs text-stone-400 uppercase">Fee</p>
                                     <p className="font-bold text-stone-900">{booking.platform_fee ?? 0} Credits</p>
                                 </div>

@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
@@ -14,7 +14,7 @@ import { useBookings, useUpdateBookingStatus } from '../../hooks/queries';
 import {
     Calendar, LayoutDashboard, ListChecks, User, LogOut, MessageSquare,
     Briefcase, Users, BookOpen, Menu, X, ChevronsLeft, ChevronsRight,
-    RefreshCw
+    RefreshCw, Shield
 } from 'lucide-react';
 
 // Child Components
@@ -47,6 +47,7 @@ export const GurubaDashboard: React.FC = () => {
     const queryClient = useQueryClient();
     const pathname = usePathname(); 
     const searchParams = useSearchParams();
+    const router = useRouter();
 
     // Check if we should default to profile tab (e.g. after new registration)
     const shouldShowSetup = searchParams.get('showProfileSetup') === 'true';
@@ -198,6 +199,9 @@ export const GurubaDashboard: React.FC = () => {
                     <SidebarItem icon={BookOpen} label="Resources" active={activeTab === 'resources'} onClick={() => handleTabChange('resources')} isCollapsed={isSidebarCollapsed} />
                     {!isSidebarCollapsed && <div className="my-4 h-px bg-stone-100 mx-2" />}
                     <SidebarItem icon={User} label="My Profile" active={activeTab === 'profile'} onClick={() => handleTabChange('profile')} isCollapsed={isSidebarCollapsed} />
+                    {profile?.role === 'admin' && (
+                        <SidebarItem icon={Shield} label="Admin Panel" active={false} onClick={() => router.push('/admin')} isCollapsed={isSidebarCollapsed} />
+                    )}
                 </nav>
                 <div className={`p-6 border-t border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
                     <button

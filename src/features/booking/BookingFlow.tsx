@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba, SavedLocation } from '../../types';
 import { useBookService, useProfile, useGurubas } from '../../hooks/queries';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { LocationPicker } from '../../components/ui/DynamicLocationPicker';
 import {
@@ -41,6 +42,30 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     const { data: allGurubas = [], isLoading: gurubasLoading } = useGurubas();
     const bookService = useBookService();
 
+    // Query Gurubas offering this service from guruba_services table
+    const { data: offeredGurubaServices = [], isLoading: offeredLoading } = useQuery({
+        queryKey: ['offeredGurubaServices', service.id],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('guruba_services')
+                .select(`
+                    *,
+                    gurubas (
+                        *,
+                        profiles:user_id (
+                            id,
+                            full_name,
+                            gotra_id,
+                            avatar_url
+                        )
+                    )
+                `)
+                .eq('service_id', service.id);
+            if (error) throw error;
+            return data || [];
+        }
+    });
+
     // Steps
     const [step, setStep] = useState<number>(preselectedGurubaId ? 2 : 1);
     
@@ -53,9 +78,15 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     const [availableSlots, setAvailableSlots] = useState<string[]>([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [proposeTime, setProposeTime] = useState(false);
+    const [bookingOnline, setBookingOnline] = useState(false);
     const [location, setLocation] = useState({ lat: 0, lng: 0, address: '' });
     const [customMessage, setCustomMessage] = useState('');
     const [gotraOverride, setGotraOverride] = useState(false);
+
+    // Derived values for custom pricing and online capabilities
+    const selectedGurubaService = selectedGuruba ? offeredGurubaServices.find(ogs => ogs.guruba_id === selectedGuruba.id) : null;
+    const actualPrice = selectedGurubaService?.custom_price ? Number(selectedGurubaService.custom_price) : service.base_price;
+    const isOnlineAvailable = service.is_online_enabled && selectedGurubaService?.is_online;
 
     useEffect(() => {
         if (preselectedGurubaId && allGurubas.length > 0 && !selectedGuruba) {
@@ -160,7 +191,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     };
 
     const userCredits = profile?.credits || 0;
-    const hasEnoughCredits = userCredits >= service.base_price;
+    const hasEnoughCredits = userCredits >= actualPrice;
 
     const handleSubmit = async () => {
         if (!user || !selectedGuruba) return;
@@ -180,18 +211,19 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
 
         const basePayload: any = {
             user_id: user.id,
-            platform_fee: service.base_price,
-            location_lat: location.lat,
-            location_lng: location.lng,
-            location_address: location.address,
+            platform_fee: actualPrice,
+            location_lat: bookingOnline ? null : location.lat,
+            location_lng: bookingOnline ? null : location.lng,
+            location_address: bookingOnline ? 'Online' : location.address,
             booking_note: customMessage || null,
             guruba_id: selectedGuruba.id,
             service_id: service.id,
-            is_custom_booking: proposeTime
+            is_custom_booking: proposeTime,
+            is_online: bookingOnline,
         };
 
         if (proposeTime) {
-            basePayload.status = 'pending';
+            basePayload.status = 'awaiting_client_confirmation';
             basePayload.proposed_time = selectedTime ? new Date(`${date}T${selectedTime}`).toISOString() : null;
             basePayload.scheduled_at = null;
         } else {
@@ -210,11 +242,11 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     };
 
     // Derived 
-    const isStep2Valid = date && selectedTime;
+    const isStep2Valid = date && selectedTime && (bookingOnline || location.address);
 
-    // Filter gurubas for this service
+    // Filter gurubas for this service using offeredGurubaServices mapping
     const serviceGurubas = allGurubas.filter(g => 
-        g.specialties?.some(s => s.toLowerCase().includes(service.title.toLowerCase()) || service.title.toLowerCase().includes(s.toLowerCase()))
+        offeredGurubaServices.some(ogs => ogs.guruba_id === g.id)
     );
 
     return (
@@ -254,33 +286,44 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-saffron-500"></div></div>
                     ) : serviceGurubas.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {serviceGurubas.map(g => (
-                                <div 
-                                    key={g.id} 
-                                    onClick={() => setSelectedGuruba(g)}
-                                    className={`glass-panel p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedGuruba?.id === g.id ? 'border-saffron-500 bg-saffron-50/50 shadow-md ring-4 ring-saffron-500/10' : 'border-transparent hover:border-saffron-200'}`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-14 w-14 rounded-full bg-saffron-100 flex items-center justify-center overflow-hidden shrink-0">
-                                            {g.profiles?.avatar_url ? (
-                                                <img src={g.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
-                                            ) : (
-                                                <span className="text-xl font-bold text-saffron-600">{g.profiles?.full_name?.[0]}</span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-stone-900 font-outfit">{g.profiles?.full_name}</h3>
-                                            <div className="flex items-center text-xs text-stone-500 gap-1 mt-1">
-                                                <Star className="h-3 w-3 text-saffron-500 fill-saffron-500" />
-                                                <span className="font-bold">{g.rating?.toFixed(1) || 'New'}</span>
-                                                <span className="mx-1">•</span>
-                                                <MapPin className="h-3 w-3" />
-                                                <span>{g.location}</span>
+                            {serviceGurubas.map(g => {
+                                const ogs = offeredGurubaServices.find(item => item.guruba_id === g.id);
+                                const price = ogs?.custom_price ? Number(ogs.custom_price) : service.base_price;
+                                const supportsOnline = service.is_online_enabled && ogs?.is_online;
+                                return (
+                                    <div 
+                                        key={g.id} 
+                                        onClick={() => setSelectedGuruba(g)}
+                                        className={`glass-panel p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedGuruba?.id === g.id ? 'border-saffron-500 bg-saffron-50/50 shadow-md ring-4 ring-saffron-500/10' : 'border-transparent hover:border-saffron-200'}`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-14 w-14 rounded-full bg-saffron-100 flex items-center justify-center overflow-hidden shrink-0">
+                                                {g.profiles?.avatar_url ? (
+                                                    <img src={g.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xl font-bold text-saffron-600">{g.profiles?.full_name?.[0]}</span>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="font-bold text-stone-900 font-outfit truncate">{g.profiles?.full_name}</h3>
+                                                <div className="flex items-center text-xs text-stone-500 gap-1 mt-1 flex-wrap">
+                                                    <Star className="h-3 w-3 text-saffron-500 fill-saffron-500 shrink-0" />
+                                                    <span className="font-bold">{g.rating?.toFixed(1) || 'New'}</span>
+                                                    <span className="mx-0.5 text-stone-300">•</span>
+                                                    <MapPin className="h-3 w-3 shrink-0" />
+                                                    <span className="truncate">{g.location}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                                    <span className="text-xs font-bold text-saffron-600">Rs. {price.toLocaleString()}</span>
+                                                    {supportsOnline && (
+                                                        <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Online Available</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="bg-stone-50 border border-stone-200 rounded-2xl p-8 text-center">
@@ -308,6 +351,32 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Left Col: Date & Time */}
                         <div className="space-y-6">
+                            {isOnlineAvailable && (
+                                <section className="glass-panel p-6 rounded-3xl">
+                                    <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider mb-4 flex items-center gap-2 font-outfit">
+                                        <Info className="h-4 w-4 text-stone-400" /> Booking Type
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setBookingOnline(false)}
+                                            className={`p-4 rounded-2xl border-2 text-center transition-all ${!bookingOnline ? 'border-saffron-500 bg-saffron-50/30 font-bold text-saffron-900 shadow-sm' : 'border-stone-200 text-stone-600 hover:border-stone-300'}`}
+                                        >
+                                            <span className="block text-sm">Physical/Offline</span>
+                                            <span className="text-[10px] opacity-70 block mt-1">Guruba visits you</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setBookingOnline(true)}
+                                            className={`p-4 rounded-2xl border-2 text-center transition-all ${bookingOnline ? 'border-saffron-500 bg-saffron-50/30 font-bold text-saffron-900 shadow-sm' : 'border-stone-200 text-stone-600 hover:border-stone-300'}`}
+                                        >
+                                            <span className="block text-sm">Online Video Call</span>
+                                            <span className="text-[10px] opacity-70 block mt-1">Zoom / Meet Call</span>
+                                        </button>
+                                    </div>
+                                </section>
+                            )}
+
                             <section className="glass-panel p-6 rounded-3xl">
                                 <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                                     <CalendarIcon className="h-4 w-4" /> Schedule
@@ -359,7 +428,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                                                 key={slot} type="button" onClick={() => setSelectedTime(slot)}
                                                                 className={`py-2 text-sm font-bold rounded-xl border transition-all ${selectedTime === slot ? 'bg-saffron-500 text-white border-saffron-600 shadow-md ring-2 ring-saffron-500/20' : 'bg-white text-stone-700 border-stone-200 hover:border-saffron-400'}`}
                                                             >
-                                                                {slot}
+                                                                 {slot}
                                                             </button>
                                                         ))}
                                                     </div>
@@ -377,9 +446,19 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                 <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                                     <MapPin className="h-4 w-4" /> Location & Notes
                                 </h3>
-                                <div className="rounded-xl overflow-hidden border border-stone-200">
-                                    <LocationPicker initialLocation={location.lat ? location : undefined} onLocationSelect={setLocation} />
-                                </div>
+                                {bookingOnline ? (
+                                    <div className="bg-blue-50/60 p-5 rounded-2xl border border-blue-100 flex items-start gap-3 text-sm text-blue-800">
+                                        <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <span className="font-bold block mb-1">Online Booking Selected</span>
+                                            <span>No physical location required. A meeting link (e.g. Zoom/Google Meet) will be created and shared in the chat window once your Guruba accepts the request.</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-xl overflow-hidden border border-stone-200">
+                                        <LocationPicker initialLocation={location.lat ? location : undefined} onLocationSelect={setLocation} />
+                                    </div>
+                                )}
                                 <textarea
                                     placeholder="Add any special instructions for the Guruba..." 
                                     rows={3} 
@@ -441,6 +520,10 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                 <span className="font-bold text-stone-900">{selectedGuruba?.profiles?.full_name}</span>
                             </div>
                             <div className="flex justify-between items-center py-3 border-b border-stone-100">
+                                <span className="text-stone-500 font-medium">Booking Type</span>
+                                <span className="font-bold text-stone-900">{bookingOnline ? 'Online Video Ritual' : 'Physical/Offline'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-3 border-b border-stone-100">
                                 <span className="text-stone-500 font-medium">Date & Time</span>
                                 <span className="font-bold text-stone-900">{date} at {selectedTime || 'Proposed Time'}</span>
                             </div>
@@ -448,13 +531,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                 <span className="text-stone-700 font-bold flex items-center gap-2">
                                     <Wallet className="h-4 w-4 text-saffron-600" /> Booking Fee
                                 </span>
-                                <span className="font-bold text-xl text-saffron-600 font-outfit">{service.base_price} CR</span>
+                                <span className="font-bold text-xl text-saffron-600 font-outfit">{actualPrice} CR</span>
                             </div>
                         </div>
 
                         {!hasEnoughCredits && (
                             <div className="mt-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm font-medium border border-red-200">
-                                You have {userCredits} CR. You need {service.base_price} CR to proceed. Please top up your wallet.
+                                You have {userCredits} CR. You need {actualPrice} CR to proceed. Please top up your wallet.
                             </div>
                         )}
                     </div>

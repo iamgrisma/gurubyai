@@ -193,6 +193,7 @@ export const useBookService = () => {
             location_lng: params.location_lng || null,
             location_address: params.location_address || null,
             is_custom_booking: params.is_custom_booking || false,
+            is_online: params.is_online || false,
             platform_fee: params.platform_fee || 0
         }]).select();
         

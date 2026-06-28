@@ -122,6 +122,7 @@ export interface Booking {
   // Enhanced booking fields
   guruba_name?: string; // For custom bookings without guruba_id
   is_custom_booking?: boolean;
+  is_online?: boolean;
   booking_note?: string; // Custom message/instructions
 
   created_at: string;
