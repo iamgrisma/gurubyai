@@ -18,10 +18,7 @@ export const AdminVerification: React.FC = () => {
                 .select(`
                     *,
                     profiles:user_id (
-                        *,
-                        gotras:gotra_id (
-                            name
-                        )
+                        *
                     )
                 `)
                 .eq('is_verified', false)
@@ -124,7 +121,7 @@ export const AdminVerification: React.FC = () => {
                                                     </div>
                                                     <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
                                                         <span className="font-bold text-stone-500 text-xs block uppercase tracking-wider mb-1">Gotra</span>
-                                                        <span className="text-stone-700 text-sm font-medium">{u.gotras?.name || 'Not selected'}</span>
+                                                        <span className="text-stone-700 text-sm font-medium">{u.gotra_id || 'Not selected'}</span>
                                                     </div>
                                                 </div>
                                             </div>
