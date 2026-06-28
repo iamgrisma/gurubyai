@@ -1,2 +1,4 @@
 import { ClientDashboard } from '@/features/client/ClientDashboard';
-export default function Page() { return <ClientDashboard />; }
+import { Suspense } from 'react';
+
+export default function Page() { return <Suspense fallback={null}><ClientDashboard /></Suspense>; }

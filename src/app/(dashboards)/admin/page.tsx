@@ -1,2 +1,4 @@
 import { AdminDashboard } from '@/features/admin/AdminDashboard';
-export default function Page() { return <AdminDashboard />; }
+import { Suspense } from 'react';
+
+export default function Page() { return <Suspense fallback={null}><AdminDashboard /></Suspense>; }

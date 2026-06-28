@@ -2,9 +2,9 @@
 
 // features/client/ClientDashboard.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-import { useRouter, redirect } from "next/navigation";
+import { useRouter, redirect, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
@@ -45,6 +45,18 @@ export const ClientDashboard: React.FC = () => {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+
+  useEffect(() => {
+    if (tabParam) {
+      const allowedTabs: ActiveTab[] = ['overview', 'bookings', 'messages', 'wallet', 'profile'];
+      if (allowedTabs.includes(tabParam as any)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, [tabParam]);
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [reviewModalData, setReviewModalData] = useState<{ id: string, gurubaId: string, gurubaName: string } | null>(null);

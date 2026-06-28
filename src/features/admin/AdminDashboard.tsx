@@ -2,9 +2,9 @@
 
 // features/admin/AdminDashboard.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Users,
   LayoutDashboard,
@@ -53,6 +53,9 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, isCollapsed }: any) =
 export const AdminDashboard: React.FC = () => {
   const { signOut } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+
   const [activeTab, setActiveTab] = useState<
     | 'overview'
     | 'concierge'
@@ -63,6 +66,16 @@ export const AdminDashboard: React.FC = () => {
     | 'verification'
     | 'topups'
   >('overview');
+
+  useEffect(() => {
+    if (tabParam) {
+      const allowedTabs = ['overview', 'concierge', 'users', 'services', 'gotras', 'financials', 'verification', 'topups'];
+      if (allowedTabs.includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, [tabParam]);
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
