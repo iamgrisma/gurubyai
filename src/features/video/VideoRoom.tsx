@@ -5,10 +5,10 @@ import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Loader2 } from 'lu
 import { useRouter } from 'next/navigation';
 
 interface VideoRoomProps {
-    bookingId: string;
+    roomId: string;
 }
 
-export const VideoRoom: React.FC<VideoRoomProps> = ({ bookingId }) => {
+export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId }) => {
     const { user } = useAuth();
     const router = useRouter();
     
@@ -74,25 +74,30 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ bookingId }) => {
                 };
 
                 // 3. Setup Supabase Signaling Channel
-                const channel = supabase.channel(`webrtc-${bookingId}`, {
+                const channel = supabase.channel(`webrtc-${roomId}`, {
                     config: { broadcast: { self: false, ack: true } }
                 });
                 channelRef.current = channel;
 
                 channel
-                    .on('broadcast', { event: 'user-joined' }, async () => {
-                        // Someone joined, if I am already here, I'll send an offer.
-                        setStatus('Peer joined. Negotiating connection...');
-                        try {
-                            const offer = await pc.createOffer();
-                            await pc.setLocalDescription(offer);
-                            channel.send({
-                                type: 'broadcast',
-                                event: 'sdp-offer',
-                                payload: { offer, senderId: user.id }
-                            });
-                        } catch (err) {
-                            console.error("Error creating offer:", err);
+                    .on('broadcast', { event: 'user-joined' }, async ({ payload }) => {
+                        // Someone joined. To avoid glare (race conditions), we deterministically
+                        // assign the offerer role to the user with the lexicographically larger ID.
+                        if (user.id > payload.senderId) {
+                            setStatus('Peer joined. Negotiating connection...');
+                            try {
+                                const offer = await pc.createOffer();
+                                await pc.setLocalDescription(offer);
+                                channel.send({
+                                    type: 'broadcast',
+                                    event: 'sdp-offer',
+                                    payload: { offer, senderId: user.id }
+                                });
+                            } catch (err) {
+                                console.error("Error creating offer:", err);
+                            }
+                        } else {
+                            setStatus('Peer joined. Waiting for connection...');
                         }
                     })
                     .on('broadcast', { event: 'sdp-offer' }, async ({ payload }) => {
@@ -174,7 +179,7 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ bookingId }) => {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
             }
         };
-    }, [bookingId, user]);
+    }, [roomId, user]);
 
     const toggleMic = () => {
         if (localStreamRef.current) {

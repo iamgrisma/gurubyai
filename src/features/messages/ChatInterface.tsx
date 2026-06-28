@@ -13,6 +13,8 @@ import { useBookings, useProfile, useUpdateBookingStatus } from '../../hooks/que
 import { Button } from '../../components/ui/Button';
 import { MessageBubble } from './MessageBubble';
 import { SystemMessageCard } from './SystemMessageCard';
+import { useCall } from '../video/CallProvider';
+import { Video } from 'lucide-react';
 
 interface ChatInterfaceProps {
   defaultReceiverId?: string;
@@ -33,6 +35,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const pathname = usePathname();
   const { data: currentUserProfile } = useProfile(user?.id);
   const isClient = pathname.startsWith('/client') || (currentUserProfile?.role === 'client' && !pathname.startsWith('/guruba'));
+
+  const { initiateCall } = useCall();
 
   // --- Query: Fetch Conversations ---
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery({
@@ -279,6 +283,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                  <p className="font-bold text-sm text-stone-900">{getActiveUser()?.full_name}</p>
                                  <p className="text-xs text-green-600 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-600"></span> Online</p>
                              </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => {
+                                    const activeUser = getActiveUser();
+                                    if (activeUser) {
+                                        initiateCall(activeUser.id, activeUser.full_name || 'User', activeUser.avatar_url);
+                                    }
+                                }}
+                             >
+                                <Video className="h-4 w-4 mr-1.5" /> Call
+                             </Button>
                         </div>
                     </div>
 

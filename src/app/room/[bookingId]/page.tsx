@@ -8,6 +8,6 @@ export default function RoomPage({ params }: { params: Promise<{ bookingId: stri
     const resolvedParams = use(params);
 
     return (
-        <VideoRoom bookingId={resolvedParams.bookingId} />
+        <VideoRoom roomId={resolvedParams.bookingId} />
     );
 }

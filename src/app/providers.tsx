@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { NotificationProvider } from '@/features/notifications/NotificationContext';
 import { MessageProvider } from '@/components/ui/MessageContext';
+import { CallProvider } from '@/features/video/CallProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -33,7 +34,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <NotificationProvider>
           <MessageProvider>
-            {children}
+            <CallProvider>
+              {children}
+            </CallProvider>
           </MessageProvider>
         </NotificationProvider>
       </AuthProvider>
