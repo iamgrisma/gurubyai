@@ -5,11 +5,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, Loader2 } from 'lucide-react';
 import { useNotifications } from './NotificationContext';
+import { useRouter } from 'next/navigation';
 
 export const NotificationBell: React.FC = () => {
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Close on click outside
   useEffect(() => {
@@ -25,6 +27,16 @@ export const NotificationBell: React.FC = () => {
   const handleMarkRead = (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
       markAsRead(id);
+  };
+
+  const handleNotificationClick = (notification: any) => {
+      if (!notification.is_read) {
+          markAsRead(notification.id);
+      }
+      setIsOpen(false);
+      if (notification.action_url) {
+          router.push(notification.action_url);
+      }
   };
 
   return (
@@ -67,7 +79,8 @@ export const NotificationBell: React.FC = () => {
                         {notifications.map((notification) => (
                             <li 
                                 key={notification.id} 
-                                className={`p-4 transition-colors ${notification.is_read ? 'opacity-60 bg-white' : 'bg-blue-50/40 hover:bg-blue-50/60'}`}
+                                onClick={() => handleNotificationClick(notification)}
+                                className={`p-4 transition-colors cursor-pointer hover:bg-stone-50/80 ${notification.is_read ? 'opacity-60 bg-white' : 'bg-blue-50/40'}`}
                             >
                                 <div className="flex justify-between items-start gap-3">
                                     <div className="flex-1 min-w-0">

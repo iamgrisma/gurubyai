@@ -201,52 +201,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
         }
 
         try {
-            const bookingResult = await bookService.mutateAsync(basePayload);
-            const createdBooking = bookingResult?.[0];
-            if (createdBooking && selectedGuruba.profiles?.id) {
-                // Determine message content
-                let messageContent = '';
-                const timeStr = selectedTime ? new Date(`${date}T${selectedTime}`).toLocaleString() : 'N/A';
-                if (proposeTime) {
-                    messageContent = `Hi ${selectedGuruba.profiles.full_name || 'Guruba'}, I have proposed a custom time slot for ${service.title} on ${timeStr}. Are you by chance available or could you please make yourself available for that day?`;
-                } else {
-                    messageContent = `Hi ${selectedGuruba.profiles.full_name || 'Guruba'}, I have requested a booking for ${service.title} on ${timeStr}. Can you please review and accept it?`;
-                }
-                if (customMessage) {
-                    messageContent += `\nNote: ${customMessage}`;
-                }
-                
-                // Insert message into database
-                await supabase.from('messages').insert([{
-                    sender_id: user.id,
-                    receiver_id: selectedGuruba.profiles.id,
-                    content: messageContent,
-                    booking_id: createdBooking.id,
-                    message_type: proposeTime ? 'time_proposed' : 'booking_created',
-                    metadata: {
-                        booking_id: createdBooking.id,
-                        service_title: service.title,
-                        scheduled_at: createdBooking.scheduled_at,
-                        proposed_time: createdBooking.proposed_time,
-                        is_custom_booking: createdBooking.is_custom_booking
-                    }
-                }]);
-
-                // Insert notification for Guruba
-                await supabase.from('notifications').insert([{
-                    user_id: selectedGuruba.profiles.id,
-                    title: proposeTime ? 'New Custom Time Proposal' : 'New Booking Request',
-                    message: proposeTime 
-                        ? `${profile?.full_name || 'A client'} proposed a custom time for ${service.title}.`
-                        : `${profile?.full_name || 'A client'} requested a booking for ${service.title}.`,
-                    notification_type: 'booking',
-                    action_url: '/guruba?tab=requests',
-                    metadata: {
-                        booking_id: createdBooking.id,
-                        service_title: service.title
-                    }
-                }]);
-            }
+            await bookService.mutateAsync(basePayload);
             showMessage({ type: 'success', title: 'Booking Created', content: 'Your booking has been successfully requested.' });
             router.push('/booking-success');
         } catch (err: any) {

@@ -17,7 +17,7 @@ export const DashboardBookings: React.FC<BookingsProps> = ({ bookings, setReview
 
   const handleBookingNegotiation = async (bookingId: string, action: 'accept' | 'decline', proposedTime?: string) => {
     const booking = bookings.find(b => b.id === bookingId);
-    if (!booking || !booking.gurubas?.user_id) return;
+    if (!booking) return;
 
     try {
         if (action === 'accept') {
@@ -26,49 +26,10 @@ export const DashboardBookings: React.FC<BookingsProps> = ({ bookings, setReview
                 status: 'confirmed',
                 scheduled_at: proposedTime
             }).eq('id', bookingId);
-            
-            // Insert chat message
-            await supabase.from('messages').insert([{
-                sender_id: booking.user_id,
-                receiver_id: booking.gurubas.user_id,
-                content: "I have confirmed the proposed time. Looking forward to our session!",
-                booking_id: bookingId,
-                message_type: 'time_accepted'
-            }]);
-
-            // Insert notification for Guruba
-            await supabase.from('notifications').insert([{
-                user_id: booking.gurubas.user_id,
-                title: 'Time Proposal Accepted',
-                message: `Client accepted the proposed time for ${booking.services?.title}.`,
-                notification_type: 'booking',
-                action_url: '/guruba?tab=overview',
-                metadata: { booking_id: bookingId }
-            }]);
         } else {
             await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
-            
-            // Insert chat message
-            await supabase.from('messages').insert([{
-                sender_id: booking.user_id,
-                receiver_id: booking.gurubas.user_id,
-                content: "I have declined the proposed time.",
-                booking_id: bookingId,
-                message_type: 'time_rejected'
-            }]);
-
-            // Insert notification for Guruba
-            await supabase.from('notifications').insert([{
-                user_id: booking.gurubas.user_id,
-                title: 'Time Proposal Declined',
-                message: `Client declined the proposed time for ${booking.services?.title}.`,
-                notification_type: 'booking',
-                action_url: '/guruba?tab=overview',
-                metadata: { booking_id: bookingId }
-            }]);
         }
         queryClient.invalidateQueries({ queryKey: ['bookings'] });
-        queryClient.invalidateQueries({ queryKey: ['messages'] });
     } catch(e) {
         alert("Action failed");
     }

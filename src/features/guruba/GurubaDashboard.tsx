@@ -83,48 +83,7 @@ export const GurubaDashboard: React.FC = () => {
             updatePayload.scheduled_at = booking.proposed_time;
         }
 
-        updateStatusMutation.mutate(updatePayload, {
-            onSuccess: async () => {
-                let msgContent = '';
-                const rawTime = booking.scheduled_at || booking.proposed_time;
-                const timeStr = rawTime ? new Date(rawTime).toLocaleString() : 'N/A';
-                
-                if (action === 'confirmed') {
-                    msgContent = `I have accepted your booking request for ${booking.services?.title} on ${timeStr}. See you soon!`;
-                } else if (action === 'cancelled') {
-                    msgContent = `I have declined the booking request for ${booking.services?.title} on ${timeStr}.`;
-                } else if (action === 'completed') {
-                    msgContent = `I have completed our session for ${booking.services?.title}. Thank you!`;
-                }
-
-                if (msgContent) {
-                    await supabase.from('messages').insert([{
-                        sender_id: user?.id,
-                        receiver_id: booking.user_id,
-                        content: msgContent,
-                        booking_id: bookingId,
-                        message_type: action === 'confirmed' ? 'booking_confirmed' : action === 'cancelled' ? 'booking_cancelled' : 'booking_completed'
-                    }]);
-                    
-                    // Insert notification for the client
-                    await supabase.from('notifications').insert([{
-                        user_id: booking.user_id,
-                        title: action === 'confirmed' ? 'Booking Confirmed' : action === 'cancelled' ? 'Booking Cancelled' : 'Booking Completed',
-                        message: action === 'confirmed' 
-                            ? `Your booking for ${booking.services?.title} has been confirmed.`
-                            : action === 'cancelled'
-                            ? `Your booking for ${booking.services?.title} has been declined.`
-                            : `Your booking for ${booking.services?.title} has been marked as completed.`,
-                        notification_type: 'booking',
-                        action_url: '/client?tab=bookings',
-                        metadata: {
-                            booking_id: bookingId,
-                            service_title: booking.services?.title
-                        }
-                    }]);
-                }
-            }
-        });
+        updateStatusMutation.mutate(updatePayload);
     };
 
     const handleAddLink = async (id: string, link: string) => {
