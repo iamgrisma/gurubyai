@@ -134,7 +134,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
             const slotStep = serviceDuration + buffer;
 
             const blockedRanges = (existingBookings || []).map((b: any) => {
-                const bookingDate = new Date(b.scheduled_at);
+                const bookingDate = new Date(b.scheduled_at || '');
                 const startMins = bookingDate.getHours() * 60 + bookingDate.getMinutes();
                 const duration = b.services?.duration_minutes || 60;
                 return { start: startMins, end: startMins + duration + buffer };

@@ -24,8 +24,10 @@ export const GurubaClients: React.FC<ClientsProps> = ({ bookings }) => {
           if (b.status === 'completed') {
              clients[b.profiles.id].total_spend += (b.services?.base_price || 0);
           }
-          if (new Date(b.scheduled_at) > new Date(clients[b.profiles.id].last_booking)) {
-              clients[b.profiles.id].last_booking = b.scheduled_at;
+          const bookingTime = b.scheduled_at || b.proposed_time || '';
+          const lastBookingTime = clients[b.profiles.id].last_booking;
+          if (bookingTime && (!lastBookingTime || new Date(bookingTime) > new Date(lastBookingTime))) {
+              clients[b.profiles.id].last_booking = bookingTime;
           }
       });
       return Object.values(clients);

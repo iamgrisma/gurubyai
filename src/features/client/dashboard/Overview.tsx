@@ -116,8 +116,14 @@ export const DashboardOverview: React.FC<OverviewProps> = ({ user, profile, book
                                 <div className="flex-1 text-center md:text-left">
                                     <h4 className="font-bold text-stone-900">{booking.services?.title}</h4>
                                     <p className="text-sm text-stone-500 flex items-center justify-center md:justify-start gap-2 mt-1">
-                                        <Calendar className="h-3 w-3" /> {new Date(booking.scheduled_at).toLocaleDateString()} 
-                                        <Clock className="h-3 w-3 ml-2" /> {new Date(booking.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        <Calendar className="h-3 w-3" /> 
+                                        {booking.scheduled_at || booking.proposed_time
+                                            ? new Date(booking.scheduled_at || booking.proposed_time || '').toLocaleDateString()
+                                            : 'Awaiting scheduling'}
+                                        <Clock className="h-3 w-3 ml-2" /> 
+                                        {booking.scheduled_at || booking.proposed_time
+                                            ? new Date(booking.scheduled_at || booking.proposed_time || '').toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                                            : 'N/A'}
                                     </p>
                                     {booking.meeting_link && booking.status === 'confirmed' && (
                                         <a href={booking.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-white bg-green-600 px-2 py-1 rounded mt-2 hover:bg-green-700">

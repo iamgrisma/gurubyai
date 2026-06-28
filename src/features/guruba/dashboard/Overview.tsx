@@ -111,17 +111,19 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
                         {bookings.filter(b => b.status === 'confirmed').length === 0 ? (
                             <div className="text-center py-12 text-stone-400 bg-stone-50 rounded-xl border border-dashed border-stone-200">No upcoming confirmed rituals.</div>
                         ) : (
-                            bookings.filter(b => b.status === 'confirmed').slice(0, 5).map(b => (
-                                <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-stone-100 rounded-xl hover:bg-stone-50 transition-colors gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-14 w-14 bg-saffron-50 rounded-xl flex flex-col items-center justify-center text-saffron-700 border border-saffron-100 shadow-sm">
-                                            <span className="text-xs font-bold uppercase">{new Date(b.scheduled_at).toLocaleString('default', { month: 'short' })}</span>
-                                            <span className="text-xl font-bold">{new Date(b.scheduled_at).getDate()}</span>
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-stone-900 text-lg">{b.services?.title}</h4>
-                                            <p className="text-sm text-stone-500 flex items-center gap-2 mt-1">
-                                                <Clock className="h-3 w-3" /> {new Date(b.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            bookings.filter(b => b.status === 'confirmed').slice(0, 5).map(b => {
+                                const bookingDate = new Date(b.scheduled_at || '');
+                                return (
+                                    <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-stone-100 rounded-xl hover:bg-stone-50 transition-colors gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-14 w-14 bg-saffron-50 rounded-xl flex flex-col items-center justify-center text-saffron-700 border border-saffron-100 shadow-sm">
+                                                <span className="text-xs font-bold uppercase">{bookingDate.toLocaleString('default', { month: 'short' })}</span>
+                                                <span className="text-xl font-bold">{bookingDate.getDate()}</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-stone-900 text-lg">{b.services?.title}</h4>
+                                                <p className="text-sm text-stone-500 flex items-center gap-2 mt-1">
+                                                    <Clock className="h-3 w-3" /> {bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 <span className="mx-1">•</span>
                                                 <User className="h-3 w-3" /> {b.profiles?.full_name}
                                             </p>
@@ -141,7 +143,8 @@ export const GurubaOverview: React.FC<OverviewProps> = ({
                                         </Button>
                                     </div>
                                 </div>
-                            ))
+                            );
+                        })
                         )}
                     </div>
                 </div>

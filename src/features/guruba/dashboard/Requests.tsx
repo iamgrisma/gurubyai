@@ -108,7 +108,10 @@ export const GurubaRequests: React.FC<RequestsProps> = ({ bookings, handleBookin
                                     </div>
                                     <div className="grid grid-cols-2 gap-4 text-sm pt-2">
                                         <p className="text-stone-600 flex items-center gap-2">
-                                            <Clock className="h-4 w-4 text-stone-400" /> {new Date(b.scheduled_at).toLocaleString()}
+                                            <Clock className="h-4 w-4 text-stone-400" /> 
+                                            {b.scheduled_at || b.proposed_time 
+                                                ? new Date(b.scheduled_at || b.proposed_time || '').toLocaleString() 
+                                                : 'Not scheduled'}
                                         </p>
                                         <p className="text-stone-600 flex items-center gap-2">
                                             <DollarSign className="h-4 w-4 text-green-600" /> Pays <span className="font-bold text-green-700">Rs. {(b.services?.base_price || 0).toLocaleString()}</span>

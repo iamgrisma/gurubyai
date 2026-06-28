@@ -102,7 +102,7 @@ export interface Booking {
   user_id: string;
   guruba_id?: string; // Now optional for custom bookings
   service_id?: string; // Now optional for multi-service bookings
-  scheduled_at: string;
+  scheduled_at?: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_client_confirmation';
   is_reviewed?: boolean;
   services?: Service;

@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   user_id uuid REFERENCES public.profiles(id) NOT NULL,
   guruba_id uuid REFERENCES public.gurubas(id),
   service_id uuid REFERENCES public.services(id),
-  scheduled_at timestamptz NOT NULL,
+  scheduled_at timestamptz,
   status text CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled', 'awaiting_client_confirmation')) DEFAULT 'pending',
   proposed_time timestamptz,
   confirmation_deadline timestamptz,

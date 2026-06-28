@@ -72,11 +72,19 @@ export const DashboardBookings: React.FC<BookingsProps> = ({ bookings, setReview
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 py-4 border-t border-stone-50">
                                 <div>
                                     <p className="text-xs text-stone-400 uppercase">Date</p>
-                                    <p className="font-medium">{new Date(booking.scheduled_at).toLocaleDateString()}</p>
+                                    <p className="font-medium">
+                                        {booking.scheduled_at || booking.proposed_time
+                                            ? new Date(booking.scheduled_at || booking.proposed_time || '').toLocaleDateString()
+                                            : 'Awaiting scheduling'}
+                                    </p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-stone-400 uppercase">Time</p>
-                                    <p className="font-medium">{new Date(booking.scheduled_at).toLocaleTimeString()}</p>
+                                    <p className="font-medium">
+                                        {booking.scheduled_at || booking.proposed_time
+                                            ? new Date(booking.scheduled_at || booking.proposed_time || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                            : 'N/A'}
+                                    </p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-stone-400 uppercase">Fee</p>
