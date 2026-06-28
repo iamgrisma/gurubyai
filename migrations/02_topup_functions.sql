@@ -99,23 +99,29 @@ BEGIN
     END IF;
   END IF;
 
-  -- On UPDATE (status changes)
-  IF (TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status) THEN
-    IF NEW.status = 'confirmed' THEN
-      IF OLD.status = 'awaiting_client_confirmation' THEN
-        PERFORM public.create_booking_message(NEW.id, 'time_accepted');
-      ELSE
-        PERFORM public.create_booking_message(NEW.id, 'booking_confirmed');
+  -- On UPDATE
+  IF (TG_OP = 'UPDATE') THEN
+    -- Status changes
+    IF (OLD.status IS DISTINCT FROM NEW.status) THEN
+      IF NEW.status = 'confirmed' THEN
+        IF OLD.status = 'awaiting_client_confirmation' THEN
+          PERFORM public.create_booking_message(NEW.id, 'time_accepted');
+        ELSE
+          PERFORM public.create_booking_message(NEW.id, 'booking_confirmed');
+        END IF;
+      ELSIF NEW.status = 'cancelled' THEN
+        IF OLD.status = 'awaiting_client_confirmation' THEN
+          PERFORM public.create_booking_message(NEW.id, 'time_rejected');
+        ELSE
+          PERFORM public.create_booking_message(NEW.id, 'booking_cancelled');
+        END IF;
+      ELSIF NEW.status = 'completed' THEN
+        PERFORM public.create_booking_message(NEW.id, 'booking_completed');
+      ELSIF NEW.status = 'awaiting_client_confirmation' THEN
+        PERFORM public.create_booking_message(NEW.id, 'time_proposed');
       END IF;
-    ELSIF NEW.status = 'cancelled' THEN
-      IF OLD.status = 'awaiting_client_confirmation' THEN
-        PERFORM public.create_booking_message(NEW.id, 'time_rejected');
-      ELSE
-        PERFORM public.create_booking_message(NEW.id, 'booking_cancelled');
-      END IF;
-    ELSIF NEW.status = 'completed' THEN
-      PERFORM public.create_booking_message(NEW.id, 'booking_completed');
-    ELSIF NEW.status = 'awaiting_client_confirmation' THEN
+    -- If status remains awaiting_client_confirmation but proposed_time changes
+    ELSIF (NEW.status = 'awaiting_client_confirmation' AND OLD.proposed_time IS DISTINCT FROM NEW.proposed_time AND NEW.proposed_time IS NOT NULL) THEN
       PERFORM public.create_booking_message(NEW.id, 'time_proposed');
     END IF;
   END IF;
