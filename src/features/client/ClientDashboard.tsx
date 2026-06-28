@@ -51,7 +51,7 @@ export const ClientDashboard: React.FC = () => {
 
   // --- Queries ---
   const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
-  const { data: bookingsData = [], isLoading: bookingsLoading } = useBookings(user?.id);
+  const { data: bookingsData = [], isLoading: bookingsLoading } = useBookings(user?.id, 'client');
   const { data: myReviews = [] } = useQuery({
     queryKey: ['myReviews', user?.id],
     queryFn: async () => {

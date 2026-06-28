@@ -191,7 +191,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     };
 
     const userCredits = profile?.credits || 0;
-    const hasEnoughCredits = userCredits >= actualPrice;
+    const hasEnoughCredits = userCredits >= PLATFORM_FEE;
 
     const handleSubmit = async () => {
         if (!user || !selectedGuruba) return;
@@ -211,7 +211,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
 
         const basePayload: any = {
             user_id: user.id,
-            platform_fee: actualPrice,
+            platform_fee: PLATFORM_FEE,
             location_lat: bookingOnline ? null : location.lat,
             location_lng: bookingOnline ? null : location.lng,
             location_address: bookingOnline ? 'Online' : location.address,
@@ -223,7 +223,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
         };
 
         if (proposeTime) {
-            basePayload.status = 'awaiting_client_confirmation';
+            basePayload.status = 'pending';
             basePayload.proposed_time = selectedTime ? new Date(`${date}T${selectedTime}`).toISOString() : null;
             basePayload.scheduled_at = null;
         } else {
@@ -527,17 +527,22 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                 <span className="text-stone-500 font-medium">Date & Time</span>
                                 <span className="font-bold text-stone-900">{date} at {selectedTime || 'Proposed Time'}</span>
                             </div>
+                            </div>
+                            <div className="flex justify-between items-center py-3 border-b border-stone-100">
+                                <span className="text-stone-500 font-medium">Service Price</span>
+                                <span className="font-bold text-stone-900">Rs. {actualPrice}</span>
+                            </div>
                             <div className="flex justify-between items-center py-3 bg-saffron-50/50 rounded-xl px-4 mt-4 border border-saffron-100">
                                 <span className="text-stone-700 font-bold flex items-center gap-2">
-                                    <Wallet className="h-4 w-4 text-saffron-600" /> Booking Fee
+                                    <Wallet className="h-4 w-4 text-saffron-600" /> Platform Booking Fee
                                 </span>
-                                <span className="font-bold text-xl text-saffron-600 font-outfit">{actualPrice} CR</span>
+                                <span className="font-bold text-xl text-saffron-600 font-outfit">{PLATFORM_FEE} CR</span>
                             </div>
                         </div>
 
                         {!hasEnoughCredits && (
                             <div className="mt-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm font-medium border border-red-200">
-                                You have {userCredits} CR. You need {actualPrice} CR to proceed. Please top up your wallet.
+                                You have {userCredits} CR. You need {PLATFORM_FEE} CR for the platform fee to proceed. Please top up your wallet.
                             </div>
                         )}
                     </div>
@@ -549,7 +554,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         <Button 
                             onClick={handleSubmit} 
                             isLoading={bookService.isPending}
-                            disabled={!hasEnoughCredits}
+                            disabled={bookService.isPending || !hasEnoughCredits}
                             className="bg-saffron-500 text-stone-900 hover:bg-saffron-400 px-8"
                         >
                             Confirm Booking <CheckCircle className="h-4 w-4 ml-2" />

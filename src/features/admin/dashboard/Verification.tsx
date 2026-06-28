@@ -8,17 +8,27 @@ import { GurubaVerificationBadge } from '../../../components/shared/GurubaVerifi
 export const AdminVerification: React.FC = () => {
     const queryClient = useQueryClient();
 
-    // Re-fetch users here to ensure fresh data for this specific tab
+    // Re-fetch pending verification requests directly from the database
     const { data: users = [], isLoading } = useQuery({
-        queryKey: ['adminUsers'], // Share cache key
+        queryKey: ['adminVerificationRequests'],
         queryFn: async () => {
-            const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(100);
-            const { data: gurubas } = await supabase.from('gurubas').select('user_id, is_verified, guruba_type, verification_requested_at');
+            const { data, error } = await supabase
+                .from('gurubas')
+                .select(`
+                    *,
+                    profiles:user_id (
+                        *
+                    )
+                `)
+                .eq('is_verified', false)
+                .not('verification_requested_at', 'is', null);
 
-            return profiles?.map(p => ({
-                ...p,
-                gurubas: gurubas?.filter(g => g.user_id === p.id) || []
-            })) || [];
+            if (error) throw error;
+
+            return (data || []).map((g: any) => ({
+                ...g.profiles,
+                gurubas: [g]
+            }));
         }
     });
 
@@ -28,26 +38,25 @@ export const AdminVerification: React.FC = () => {
                 const { error } = await supabase.from('gurubas').update({ is_verified: true }).eq('user_id', userId);
                 if (error) throw error;
             } else {
-                // Reject logic - Set is_verified to false
-                const { error } = await supabase.from('gurubas').update({ is_verified: false }).eq('user_id', userId);
+                // Reject logic - Reset is_verified and verification_requested_at to null so they can request again
+                const { error } = await supabase.from('gurubas').update({ 
+                    is_verified: false,
+                    verification_requested_at: null 
+                }).eq('user_id', userId);
                 if (error) throw error;
             }
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            queryClient.invalidateQueries({ queryKey: ['adminVerificationRequests'] });
             queryClient.invalidateQueries({ queryKey: ['adminStats'] });
+            queryClient.invalidateQueries({ queryKey: ['gurubaProfile'] });
         }
     });
 
     if (isLoading) return <div>Loading...</div>;
 
-    // Only show users who are gurubas, NOT verified, AND have requested verification
-    const pendingGurubas = users.filter((u: any) =>
-        u.role === 'guruba' &&
-        u.gurubas?.[0] &&
-        !u.gurubas[0].is_verified &&
-        u.gurubas[0].verification_requested_at !== null
-    );
+    // Only show users who are gurubas, NOT verified, AND have requested verification (already filtered by query)
+    const pendingGurubas = users;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">

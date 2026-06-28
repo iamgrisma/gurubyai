@@ -3,6 +3,7 @@
 // features/messages/ChatInterface.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
@@ -29,8 +30,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const pathname = usePathname();
   const { data: currentUserProfile } = useProfile(user?.id);
-  const isClient = currentUserProfile?.role === 'client';
+  const isClient = pathname.startsWith('/client') || (currentUserProfile?.role === 'client' && !pathname.startsWith('/guruba'));
 
   // --- Query: Fetch Conversations ---
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery({
@@ -147,6 +149,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       } else if (action === 'cancelled') {
           // Decline/reject
           updateStatusMutation.mutate({ id: bookingId, status: 'cancelled' }, {
+              onSuccess: () => {
+                  queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
+              }
+          });
+      } else if (action === 'completed') {
+          updateStatusMutation.mutate({ id: bookingId, status: 'completed' }, {
               onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
               }

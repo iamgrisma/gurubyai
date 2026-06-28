@@ -80,7 +80,7 @@ export const GurubaServices: React.FC<ServicesProps> = ({ guruba }) => {
                             <Button size="sm" variant={isSelected ? 'secondary' : 'primary'} onClick={() => toggleService(s.id, isSelected)}>
                                 {isSelected ? <><XCircle className="h-4 w-4 mr-2" />Remove</> : <><PlusCircle className="h-4 w-4 mr-2"/>Add to my services</>}
                             </Button>
-                            {isSelected && (
+                            {isSelected && s.is_online_enabled && (
                                 <button onClick={() => toggleOnlineService(s.id, myService!.is_online)} className={`text-xs p-2 rounded-lg flex items-center justify-center gap-2 w-full ${myService!.is_online ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-600'}`}>
                                     <Video className="h-4 w-4"/> Available for Online Ritual? {myService!.is_online ? <Check className="h-4 w-4" /> : ''}
                                 </button>
