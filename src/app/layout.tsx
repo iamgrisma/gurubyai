@@ -13,6 +13,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  manifest: "/manifest.json",
   title: {
     template: "%s | Guruba",
     default: "Guruba - Book Trusted Purohits & Pandits Online",
