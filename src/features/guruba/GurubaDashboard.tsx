@@ -14,7 +14,7 @@ import { useBookings, useUpdateBookingStatus } from '../../hooks/queries';
 import {
     Calendar, LayoutDashboard, ListChecks, User, LogOut, MessageSquare,
     Briefcase, Users, BookOpen, Menu, X, ChevronsLeft, ChevronsRight,
-    RefreshCw, Shield
+    RefreshCw, Shield, AlertCircle
 } from 'lucide-react';
 
 // Child Components
