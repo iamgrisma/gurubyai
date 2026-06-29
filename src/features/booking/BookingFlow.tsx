@@ -656,7 +656,16 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                             </div>
                         </div>
 
-                        {!hasEnoughCredits && (
+                        {!user ? (
+                            <div className="mt-6 bg-saffron-50 text-saffron-900 p-5 rounded-2xl border border-saffron-200 text-center shadow-sm">
+                                <h3 className="font-bold mb-2">Account Required</h3>
+                                <p className="text-sm text-saffron-700 mb-4">Please log in or create an account to complete your booking.</p>
+                                <div className="flex justify-center gap-3">
+                                    <Button onClick={() => router.push(`/login?redirect=/book/${service.id}`)} variant="outline" className="border-saffron-300 text-saffron-700 hover:bg-saffron-100">Log In</Button>
+                                    <Button onClick={() => router.push(`/register?redirect=/book/${service.id}`)} className="bg-saffron-500 text-stone-900 hover:bg-saffron-400">Sign Up</Button>
+                                </div>
+                            </div>
+                        ) : !hasEnoughCredits && (
                             <div className="mt-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm font-medium border border-red-200">
                                 You have {userCredits} CR. You need {PLATFORM_FEE} CR for the platform fee to proceed. Please top up your wallet.
                             </div>
@@ -670,7 +679,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         <Button 
                             onClick={handleSubmit} 
                             isLoading={bookService.isPending}
-                            disabled={bookService.isPending || !hasEnoughCredits}
+                            disabled={!user || bookService.isPending || !hasEnoughCredits}
                             className="bg-saffron-500 text-stone-900 hover:bg-saffron-400 px-8 w-full md:w-auto ml-4"
                         >
                             Confirm Booking <CheckCircle className="h-4 w-4 ml-2 hidden md:inline" />

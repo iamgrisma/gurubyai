@@ -75,7 +75,7 @@ export const PublicHeader: React.FC = () => {
                     </div>
                   )}
 
-                  <Link href="/messages">
+                  <Link href={`${getDashboardPath()}?tab=messages`}>
                     <Button variant="ghost" size="sm" className="gap-2 hover:bg-stone-100">
                       <MessageCircle className="h-4 w-4" />
                       Messages

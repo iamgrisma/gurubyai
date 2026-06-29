@@ -28,10 +28,10 @@ export const BottomNavigation: React.FC = () => {
               active={pathname.includes('tab=bookings')} 
             />
             <NavItem 
-              href="/messages" 
+              href={profile?.role === 'admin' ? '/admin' : profile?.role === 'guruba' ? '/guruba?tab=messages' : '/client?tab=messages'} 
               icon={MessageCircle} 
               label="Messages" 
-              active={pathname === '/messages'}
+              active={pathname.includes('tab=messages')}
               badge={unreadCount > 0 ? unreadCount : undefined}
             />
             <NavItem 
