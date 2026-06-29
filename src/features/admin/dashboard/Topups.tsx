@@ -1,12 +1,11 @@
 "use client";
 
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
 import { Button } from '../../../components/ui/Button';
 import { TopupRequest } from '../../../types';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, ArrowUpRight } from 'lucide-react';
 import { Pagination } from '../../../components/ui/Pagination';
 
 const ITEMS_PER_PAGE = 10;
@@ -58,9 +57,6 @@ export const AdminTopups: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['topupRequests'] });
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-            // showMessage is not available in this component context based on imports, using alert for now as per original code
-            // Ideally we should use the MessageContext but I'll stick to the existing pattern or improve it if I see the hook usage.
-            // The original code used alert.
         },
         onError: (e: any) => {
             console.error(e);
@@ -75,59 +71,66 @@ export const AdminTopups: React.FC = () => {
                 <p className="text-stone-500">Approve or reject credit requests from users.</p>
             </div>
 
-            <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-full">
-                <div className="overflow-x-auto flex-1">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-stone-50 text-stone-600 font-semibold uppercase text-xs tracking-wider">
-                            <tr>
-                                <th className="px-6 py-4">User</th>
-                                <th className="px-6 py-4">Amount Requested</th>
-                                <th className="px-6 py-4">Date</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                            {isLoading ? (
-                                <tr><td colSpan={4} className="p-8 text-center text-stone-500">Loading...</td></tr>
-                            ) : requests.length === 0 ? (
-                                <tr><td colSpan={4} className="p-8 text-center text-stone-500">No pending requests.</td></tr>
-                            ) : (
-                                requests.map(req => (
-                                    <tr key={req.id} className="hover:bg-stone-50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <p className="font-bold text-stone-900">{req.profiles?.full_name}</p>
-                                            <p className="text-xs text-stone-500">{req.profiles?.email}</p>
-                                        </td>
-                                        <td className="px-6 py-4 font-bold text-green-600">
-                                            +{req.amount} CR
-                                        </td>
-                                        <td className="px-6 py-4 text-stone-500">
-                                            {new Date(req.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-red-600 hover:bg-red-50 border-red-200"
-                                                    onClick={() => processTopup.mutate({ id: req.id, status: 'rejected' })}
-                                                >
-                                                    <XCircle className="h-4 w-4 mr-1" /> Reject
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => processTopup.mutate({ id: req.id, status: 'approved' })}
-                                                >
-                                                    <CheckCircle className="h-4 w-4 mr-1" /> Approve
-                                                </Button>
+            <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-stone-200/50 shadow-sm overflow-hidden flex flex-col h-full">
+                <div className="flex-1 overflow-y-auto">
+                    {isLoading ? (
+                        <div className="p-8 space-y-4">
+                            {Array(4).fill(0).map((_, i) => (
+                                <div key={i} className="h-24 bg-stone-100 animate-pulse rounded-2xl w-full"></div>
+                            ))}
+                        </div>
+                    ) : requests.length === 0 ? (
+                        <div className="p-8 text-center text-stone-500">No pending requests.</div>
+                    ) : (
+                        <div className="divide-y divide-stone-100">
+                            {requests.map(req => (
+                                <div key={req.id} className="p-4 sm:p-6 hover:bg-stone-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-100 to-emerald-200 flex items-center justify-center text-green-700 font-bold shrink-0">
+                                            <ArrowUpRight className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-stone-900 text-lg">{req.profiles?.full_name}</p>
+                                            <div className="flex items-center gap-2 text-sm text-stone-500">
+                                                <span>{req.profiles?.email}</span>
+                                                <span className="text-stone-300">•</span>
+                                                <span className="flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    {new Date(req.created_at).toLocaleDateString()}
+                                                </span>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-auto w-full border-t sm:border-0 pt-4 sm:pt-0 border-stone-100">
+                                        <div className="flex flex-col sm:items-end">
+                                            <span className="text-xs text-stone-400 font-medium uppercase tracking-wider mb-0.5">Amount</span>
+                                            <span className="font-mono font-bold text-green-600 text-xl">
+                                                +{req.amount} CR
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2 w-full sm:w-auto">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 sm:flex-none text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200 rounded-xl font-bold h-10 px-4"
+                                                onClick={() => processTopup.mutate({ id: req.id, status: 'rejected' })}
+                                            >
+                                                <XCircle className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Reject</span>
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="flex-1 sm:flex-none bg-green-500 hover:bg-green-600 border-none rounded-xl font-bold h-10 px-4"
+                                                onClick={() => processTopup.mutate({ id: req.id, status: 'approved' })}
+                                            >
+                                                <CheckCircle className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Approve</span>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <Pagination
                     currentPage={page}

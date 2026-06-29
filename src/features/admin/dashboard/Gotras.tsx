@@ -1,18 +1,18 @@
 "use client";
 
-
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
 import { Button } from '../../../components/ui/Button';
 import { Gotra } from '../../../types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, CheckCircle, XCircle, Search } from 'lucide-react';
 
 export const AdminGotras: React.FC = () => {
   const queryClient = useQueryClient();
   const [newGotraName, setNewGotraName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: gotras = [] } = useQuery({
+  const { data: gotras = [], isLoading } = useQuery({
       queryKey: ['adminGotras'],
       queryFn: async () => {
           const { data } = await supabase.from('gotras').select('*').order('name');
@@ -36,55 +36,81 @@ export const AdminGotras: React.FC = () => {
       }
   });
 
+  const filteredGotras = gotras.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
   return (
       <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                   <h2 className="text-2xl font-bold text-stone-900">Gotra Registry</h2>
                   <p className="text-stone-500">Manage approved Gotras for user profiles.</p>
               </div>
-              <form onSubmit={(e) => { e.preventDefault(); if (newGotraName.trim()) gotraMutation.mutate({ action: 'add', name: newGotraName.trim() }); }} className="flex gap-2">
+              
+              <form onSubmit={(e) => { e.preventDefault(); if (newGotraName.trim()) gotraMutation.mutate({ action: 'add', name: newGotraName.trim() }); }} className="flex w-full md:w-auto gap-2">
                   <input 
-                      className="border border-stone-300 rounded-lg px-4 py-2 text-sm bg-white text-stone-900 focus:ring-2 focus:ring-saffron-500 focus:border-saffron-500 outline-none shadow-sm" 
+                      className="flex-1 md:w-64 border border-stone-200 rounded-xl px-4 py-2 text-sm bg-white/50 backdrop-blur text-stone-900 focus:ring-2 focus:ring-saffron-500 focus:border-saffron-500 outline-none shadow-sm transition-all" 
                       placeholder="Add new Gotra..." 
                       value={newGotraName} 
                       onChange={e => setNewGotraName(e.target.value)} 
                   />
-                  <Button size="sm" type="submit">Add</Button>
+                  <Button className="rounded-xl px-6 bg-stone-900 hover:bg-stone-800" type="submit">Add</Button>
               </form>
           </div>
-          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden max-w-3xl">
-              <table className="w-full text-sm text-left">
-                  <thead className="bg-stone-50 text-stone-600 font-semibold uppercase text-xs tracking-wider">
-                      <tr>
-                          <th className="px-6 py-4">Gotra Name</th>
-                          <th className="px-6 py-4">Status</th>
-                          <th className="px-6 py-4 text-right">Actions</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                      {gotras.map(g => (
-                          <tr key={g.id} className="hover:bg-stone-50 transition-colors">
-                              <td className="px-6 py-4 font-bold text-stone-900">{g.name}</td>
-                              <td className="px-6 py-4">
-                                  <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${g.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                      {g.status}
-                                  </span>
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                  {g.status === 'pending' ? (
-                                      <div className="flex justify-end gap-2">
-                                          <button onClick={() => gotraMutation.mutate({id: g.id, action: 'approve'})} className="text-green-600 hover:text-green-800 font-bold text-xs">Approve</button>
-                                          <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="text-red-600 hover:text-red-800 font-bold text-xs">Reject</button>
-                                      </div>
-                                  ) : (
-                                      <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="text-stone-400 hover:text-red-600 transition-colors"><Trash2 className="h-4 w-4" /></button>
-                                  )}
-                              </td>
-                          </tr>
-                      ))}
-                  </tbody>
-              </table>
+
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-stone-200/50 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-stone-100 bg-stone-50/50">
+                  <div className="relative max-w-sm">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                      <input 
+                          className="w-full pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-saffron-500 outline-none transition-all"
+                          placeholder="Search gotras..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                  </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto max-h-[600px] p-4 sm:p-6">
+                  {isLoading ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {Array(6).fill(0).map((_, i) => (
+                              <div key={i} className="h-16 bg-stone-100 animate-pulse rounded-2xl w-full"></div>
+                          ))}
+                      </div>
+                  ) : filteredGotras.length === 0 ? (
+                      <div className="py-12 text-center text-stone-500">No Gotras found matching your criteria.</div>
+                  ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {filteredGotras.map(g => (
+                              <div key={g.id} className="bg-white border border-stone-100 hover:border-saffron-200 hover:shadow-md transition-all rounded-2xl p-4 flex items-center justify-between group">
+                                  <div className="flex flex-col">
+                                      <span className="font-bold text-stone-900 text-lg group-hover:text-saffron-700 transition-colors">{g.name}</span>
+                                      <span className={`text-[10px] font-black uppercase tracking-wider ${g.status === 'approved' ? 'text-green-600' : 'text-yellow-600'}`}>
+                                          {g.status}
+                                      </span>
+                                  </div>
+                                  
+                                  <div>
+                                      {g.status === 'pending' ? (
+                                          <div className="flex items-center gap-1">
+                                              <button onClick={() => gotraMutation.mutate({id: g.id, action: 'approve'})} className="p-2 text-green-500 hover:bg-green-50 rounded-xl transition-colors" title="Approve">
+                                                  <CheckCircle className="h-5 w-5" />
+                                              </button>
+                                              <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="p-2 text-red-400 hover:bg-red-50 rounded-xl transition-colors" title="Reject">
+                                                  <XCircle className="h-5 w-5" />
+                                              </button>
+                                          </div>
+                                      ) : (
+                                          <button onClick={() => gotraMutation.mutate({id: g.id, action: 'reject'})} className="p-2 text-stone-300 hover:bg-red-50 hover:text-red-500 rounded-xl transition-colors" title="Delete">
+                                              <Trash2 className="h-5 w-5" />
+                                          </button>
+                                      )}
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
           </div>
       </div>
   );

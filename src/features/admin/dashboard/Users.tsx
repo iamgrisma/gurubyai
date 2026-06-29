@@ -1,8 +1,5 @@
 "use client";
 
-
-// features/admin/dashboard/Users.tsx
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
@@ -122,69 +119,70 @@ export const AdminUsers: React.FC = () => {
               </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-full">
-              <div className="overflow-x-auto flex-1">
-                  <table className="w-full text-sm text-left">
-                      <thead className="bg-stone-50 text-stone-600 font-semibold uppercase text-xs tracking-wider">
-                          <tr>
-                              <th className="px-6 py-4">User</th>
-                              <th className="px-6 py-4">Role</th>
-                              <th className="px-6 py-4">Credits</th>
-                              <th className="px-6 py-4">Status</th>
-                              <th className="px-6 py-4 text-right">Actions</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                          {usersLoading ? (
-                              <tr><td colSpan={5} className="p-8 text-center text-stone-500">Loading...</td></tr>
-                          ) : users.length === 0 ? (
-                              <tr><td colSpan={5} className="p-8 text-center text-stone-500">No users found.</td></tr>
-                          ) : (
-                              users.map((u: any) => (
-                                  <tr key={u.id} className="hover:bg-stone-50 transition-colors group">
-                                      <td className="px-6 py-4">
-                                          <div className="flex flex-col">
-                                              <span className="font-bold text-stone-900">{u.full_name}</span>
-                                              <span className="text-xs text-stone-500">{u.email}</span>
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-stone-200/50 shadow-sm overflow-hidden flex flex-col h-full">
+              <div className="flex-1 overflow-y-auto">
+                  {usersLoading ? (
+                      <div className="p-8 space-y-4">
+                          {Array(4).fill(0).map((_, i) => (
+                              <div key={i} className="h-20 bg-stone-100 animate-pulse rounded-2xl w-full"></div>
+                          ))}
+                      </div>
+                  ) : users.length === 0 ? (
+                      <div className="p-8 text-center text-stone-500">No users found.</div>
+                  ) : (
+                      <div className="divide-y divide-stone-100">
+                          {users.map((u: any) => (
+                              <div key={u.id} className="p-4 sm:p-6 hover:bg-stone-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                  <div className="flex items-center gap-4">
+                                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-royal-100 to-royal-200 flex items-center justify-center text-royal-700 font-bold text-lg shrink-0">
+                                          {u.full_name?.charAt(0) || 'U'}
+                                      </div>
+                                      <div>
+                                          <div className="flex items-center gap-2">
+                                              <span className="font-bold text-stone-900 text-lg">{u.full_name}</span>
+                                              <span className={`uppercase text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                                  u.role === 'admin' ? 'bg-royal-900 text-white border-royal-950' :
+                                                  u.role === 'guruba' ? 'bg-saffron-100 text-saffron-800 border-saffron-200' :
+                                                  'bg-stone-100 text-stone-700 border-stone-200'
+                                              }`}>
+                                                  {u.role}
+                                              </span>
                                           </div>
-                                      </td>
-                                      <td className="px-6 py-4">
-                                          <span className={`uppercase text-[10px] font-bold px-2 py-1 rounded border ${
-                                              u.role === 'admin' ? 'bg-stone-800 text-white border-stone-900' :
-                                              u.role === 'guruba' ? 'bg-saffron-50 text-saffron-700 border-saffron-200' :
-                                              'bg-blue-50 text-blue-700 border-blue-200'
-                                          }`}>
-                                              {u.role}
+                                          <span className="text-sm text-stone-500">{u.email}</span>
+                                      </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-auto w-full border-t sm:border-0 pt-4 sm:pt-0 border-stone-100">
+                                      <div className="flex flex-col sm:items-end">
+                                          <span className="text-xs text-stone-400 font-medium uppercase tracking-wider mb-0.5">Credits</span>
+                                          <span className="font-mono font-bold text-stone-700 text-lg">
+                                              {(u.credits || 0).toLocaleString()}
                                           </span>
-                                      </td>
-                                      <td className="px-6 py-4 font-mono font-bold text-stone-700">
-                                          {(u.credits || 0).toLocaleString()} CR
-                                      </td>
-                                      <td className="px-6 py-4">
-                                          {u.role === 'guruba' && (
-                                              u.gurubas?.[0]?.is_verified 
-                                              ? <div className="flex items-center gap-2">
-                                                  <GurubaVerificationBadge isVerified={true} gurubaType={u.gurubas?.[0]?.guruba_type} />
-                                                  <span className="text-xs font-medium text-stone-600 capitalize">{u.gurubas[0].guruba_type?.replace('_', ' ')}</span>
-                                                </div>
-                                              : <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pending</span>
-                                          )}
-                                      </td>
-                                      <td className="px-6 py-4 text-right">
-                                          <div className="flex justify-end gap-2">
-                                              <Button size="sm" variant="outline" onClick={() => resetPasswordMutation.mutate(u.email)} title="Reset Password" className="border-stone-300 hover:bg-stone-100 text-stone-500">
-                                                  <KeyRound className="h-4 w-4" />
-                                              </Button>
-                                              <Button size="sm" variant="outline" onClick={() => handleAddCredits(u.id)} title="Add Credits" className="border-stone-300 hover:bg-stone-100">
-                                                  <PlusCircle className="h-4 w-4 mr-1" /> Credit
-                                              </Button>
+                                      </div>
+                                      
+                                      {u.role === 'guruba' && (
+                                          <div className="flex flex-col sm:items-end hidden sm:flex">
+                                              <span className="text-xs text-stone-400 font-medium uppercase tracking-wider mb-0.5">Verification</span>
+                                              {u.gurubas?.[0]?.is_verified 
+                                                  ? <GurubaVerificationBadge isVerified={true} gurubaType={u.gurubas?.[0]?.guruba_type} />
+                                                  : <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-bold">Pending</span>
+                                              }
                                           </div>
-                                      </td>
-                                  </tr>
-                              ))
-                          )}
-                      </tbody>
-                  </table>
+                                      )}
+
+                                      <div className="flex items-center gap-2">
+                                          <Button size="sm" variant="outline" onClick={() => resetPasswordMutation.mutate(u.email)} title="Reset Password" className="rounded-xl border-stone-200 hover:bg-stone-100 text-stone-500 w-10 h-10 p-0 flex items-center justify-center">
+                                              <KeyRound className="h-4 w-4" />
+                                          </Button>
+                                          <Button size="sm" variant="outline" onClick={() => handleAddCredits(u.id)} title="Add Credits" className="rounded-xl border-stone-200 hover:bg-stone-100 text-stone-700 font-bold px-4 h-10">
+                                              <PlusCircle className="h-4 w-4 mr-2 text-saffron-500" /> Top-up
+                                          </Button>
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
               </div>
               <Pagination 
                   currentPage={page}

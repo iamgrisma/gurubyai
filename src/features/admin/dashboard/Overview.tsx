@@ -17,7 +17,7 @@ const StatCard = ({ title, value, icon: Icon, trend, trendLabel, color = "blue" 
     };
 
     return (
-        <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl border border-stone-200/50 shadow-sm hover:shadow-lg transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
                 <div className={`p-3 rounded-lg ${colorStyles[color]}`}>
                     <Icon className="h-6 w-6" />
@@ -42,7 +42,7 @@ interface OverviewProps {
 }
 
 export const AdminOverview: React.FC<OverviewProps> = ({ setActiveTab }) => {
-    const { data: stats = { users: 0, gurubas: 0, bookings: 0, revenue: 0, pending_verifications: 0, pending_gotras: 0 } } = useQuery({
+    const { data: stats = { users: 0, gurubas: 0, bookings: 0, revenue: 0, pending_verifications: 0, pending_gotras: 0 }, isLoading } = useQuery({
         queryKey: ['adminStats'],
         queryFn: async () => {
             const { count: uCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
@@ -66,14 +66,22 @@ export const AdminOverview: React.FC<OverviewProps> = ({ setActiveTab }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard title="Total Revenue" value={`Cr ${(stats.revenue || 0).toLocaleString()}`} icon={DollarSign} trend={12} trendLabel="vs last month" color="green" />
-                <StatCard title="Total Users" value={stats.users} icon={Users} trend={5} trendLabel="new this week" color="blue" />
-                <StatCard title="Active Gurubas" value={stats.gurubas} icon={UserPlus} trend={2} trendLabel="verified recently" color="purple" />
-                <StatCard title="Total Bookings" value={stats.bookings} icon={Calendar} trend={8} trendLabel="completion rate" color="orange" />
+                {isLoading ? (
+                    Array(4).fill(0).map((_, i) => (
+                        <div key={i} className="bg-stone-100 animate-pulse h-36 rounded-3xl"></div>
+                    ))
+                ) : (
+                    <>
+                        <StatCard title="Total Revenue" value={`Cr ${(stats.revenue || 0).toLocaleString()}`} icon={DollarSign} trend={12} trendLabel="vs last month" color="green" />
+                        <StatCard title="Total Users" value={stats.users} icon={Users} trend={5} trendLabel="new this week" color="blue" />
+                        <StatCard title="Active Gurubas" value={stats.gurubas} icon={UserPlus} trend={2} trendLabel="verified recently" color="purple" />
+                        <StatCard title="Total Bookings" value={stats.bookings} icon={Calendar} trend={8} trendLabel="completion rate" color="orange" />
+                    </>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white rounded-xl border border-stone-200 shadow-sm p-6">
+                <div className="lg:col-span-2 bg-white/90 backdrop-blur-md rounded-3xl border border-stone-200/50 shadow-sm p-6 lg:p-8">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-lg text-stone-900">Revenue Analytics</h3>
                         <select className="text-xs border-stone-200 rounded-md text-stone-500">
@@ -94,9 +102,9 @@ export const AdminOverview: React.FC<OverviewProps> = ({ setActiveTab }) => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-6">
-                    <h3 className="font-bold text-lg text-stone-900 mb-4">Pending Actions</h3>
-                    <div className="space-y-3">
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-stone-200/50 shadow-sm p-6 lg:p-8">
+                    <h3 className="font-bold text-lg text-stone-900 mb-6">Pending Actions</h3>
+                    <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-100">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-white rounded-full shadow-sm text-yellow-600"><Shield className="h-4 w-4" /></div>
