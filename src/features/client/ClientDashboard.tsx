@@ -189,8 +189,10 @@ export const ClientDashboard: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-full text-saffron-600">
-            <RefreshCw className="h-8 w-8 animate-spin" />
+          <div className="flex flex-col gap-4 w-full animate-pulse mt-4">
+            <div className="h-24 md:h-32 bg-stone-200/50 rounded-3xl w-full"></div>
+            <div className="h-64 bg-stone-200/50 rounded-3xl w-full"></div>
+            <div className="h-40 bg-stone-200/50 rounded-3xl w-full"></div>
           </div>
         ) : (
           renderContent()

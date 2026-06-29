@@ -56,6 +56,13 @@ export const PublicHeader: React.FC = () => {
                 Find a Guruba
               </Link>
 
+              <Link href="/about" className="text-sm font-medium text-stone-600 hover:text-saffron-600 transition-colors">
+                About Us
+              </Link>
+              <Link href="/faq" className="text-sm font-medium text-stone-600 hover:text-saffron-600 transition-colors">
+                FAQ
+              </Link>
+
               <div className="h-6 w-px bg-stone-200 mx-2"></div>
 
               {session ? (

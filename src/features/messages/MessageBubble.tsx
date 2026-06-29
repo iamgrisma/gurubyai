@@ -22,11 +22,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn }) 
   }
 
   return (
-    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}>
-      <div className={`max-w-[75%] rounded-2xl px-5 py-3 ${
+    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 relative group`}>
+      <div className={`max-w-[80%] md:max-w-[70%] rounded-2xl px-4 py-2.5 relative ${
         isOwn 
-          ? 'bg-saffron-500 text-stone-900 rounded-tr-sm shadow-md' 
-          : 'bg-white border border-stone-200 text-stone-800 rounded-tl-sm shadow-sm'
+          ? 'bg-gradient-to-br from-saffron-500 to-orange-500 text-stone-900 rounded-br-sm shadow-md' 
+          : 'bg-white border border-stone-200 text-stone-800 rounded-bl-sm shadow-sm'
       }`}>
         <p className="text-sm leading-relaxed">{message.content}</p>
         
@@ -39,11 +39,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn }) 
             </div>
         )}
 
-        <div className={`flex items-center justify-end gap-1 mt-2 text-[10px] ${isOwn ? 'text-saffron-900/60' : 'text-stone-400'}`}>
-          <Clock className="h-3 w-3" />
+        <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isOwn ? 'text-saffron-900/70' : 'text-stone-400'}`}>
           <span>{new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           {isOwn && (
-            <CheckCheck className={`h-3 w-3 ml-1 ${message.is_read ? 'text-stone-800' : 'opacity-50'}`} />
+            <CheckCheck className={`h-3 w-3 ml-0.5 ${message.is_read ? 'text-stone-800' : 'opacity-50'}`} />
           )}
         </div>
       </div>

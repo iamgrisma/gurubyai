@@ -232,12 +232,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   };
   const filteredMessages = messages.filter(m => !isMessageExpired(m));
 
-  if (conversationsLoading) return <div className="flex h-[calc(100vh-140px)] md:h-[700px] items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-saffron-500"/></div>;
+  if (conversationsLoading) return <div className="flex h-full items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-saffron-500"/></div>;
 
   return (
-    <div className="flex h-[calc(100vh-140px)] md:h-[700px] glass-panel rounded-2xl overflow-hidden mt-4">
+    <div className="flex h-[calc(100vh-11rem)] md:h-[700px] -mx-4 md:mx-0 md:glass-panel md:rounded-2xl overflow-hidden md:mt-4 bg-white/40 md:bg-transparent">
         {/* Sidebar */}
-        <div className={`w-full md:w-80 border-r border-stone-200/50 flex-col bg-white/40 backdrop-blur-md ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`w-full md:w-80 border-r border-stone-200/50 flex-col bg-white/60 backdrop-blur-md ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-5 border-b border-stone-200/50 bg-white/60">
                 <h3 className="font-outfit font-bold text-xl text-stone-900 tracking-tight">Messages</h3>
             </div>
@@ -270,12 +270,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
         </div>
 
         {/* Chat Area */}
-        <div className={`flex-1 flex-col bg-white/40 relative ${activeConversation ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`flex-1 flex-col bg-stone-50/50 relative ${activeConversation ? 'flex' : 'hidden md:flex'}`}>
             {activeConversation && getActiveUser() ? (
                 <>
                     {/* Header */}
-                    <div className="p-4 border-b border-stone-200/50 flex justify-between items-center bg-white/60 backdrop-blur-md z-10 shadow-sm">
-                        <div className="flex items-center gap-3">
+                    <div className="p-3 md:p-4 border-b border-stone-200/50 flex justify-between items-center bg-white/80 backdrop-blur-md z-10 shadow-sm shrink-0">
+                        <div className="flex items-center gap-2 md:gap-3">
                              <button onClick={() => setActiveConversation(null)} className="md:hidden p-2 -ml-2 text-stone-500 hover:text-stone-700 rounded-full hover:bg-stone-100">
                                 <ArrowLeft className="h-5 w-5" />
                              </button>
@@ -319,7 +319,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                     )}
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 bg-stone-50/50">
+                    <div className="flex-1 overflow-y-auto p-4 bg-stone-50/50 scroll-smooth">
                         {/* Active Booking Action Card */}
                         {activeBooking && (
                             <div className="mb-4">
@@ -354,13 +354,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                     </div>
 
                     {/* Input */}
-                    <div className="p-4 bg-white border-t border-stone-100">
+                    <div className="p-3 bg-white/80 backdrop-blur-xl border-t border-stone-200 shrink-0 mb-safe">
                         <form onSubmit={(e) => { e.preventDefault(); sendMessageMutation.mutate(); }} className="flex items-center gap-2">
                             <input 
-                                type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type your message..."
-                                className="flex-1 rounded-full border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-saffron-500 focus:ring-saffron-500 focus:bg-white transition-all"
+                                type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Message..."
+                                className="flex-1 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-sm md:text-base focus:border-saffron-500 focus:ring-2 focus:ring-saffron-500/20 outline-none transition-all shadow-sm"
                             />
-                            <button type="submit" disabled={!newMessage.trim()} className="h-10 w-10 bg-saffron-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-saffron-700 disabled:opacity-50 transition-all">
+                            <button type="submit" disabled={!newMessage.trim()} className="h-10 w-10 shrink-0 bg-saffron-600 text-white rounded-full flex items-center justify-center shadow-md shadow-saffron-500/20 hover:bg-saffron-700 disabled:opacity-50 transition-all active:scale-95">
                                 <Send className="h-4 w-4 ml-0.5" />
                             </button>
                         </form>

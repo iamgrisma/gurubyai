@@ -471,7 +471,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                 <input
                                     type="date"
                                     min={new Date().toISOString().split('T')[0]}
-                                    className="w-full rounded-xl border border-stone-200 py-3 px-4 text-sm focus:border-saffron-500 focus:ring-2 focus:ring-saffron-500 outline-none bg-stone-50 font-medium"
+                                    className="w-full rounded-xl border border-white/60 py-3 px-4 text-sm focus:border-saffron-500 focus:ring-2 focus:ring-saffron-500 outline-none bg-white/40 backdrop-blur-md font-medium shadow-sm"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                 />
@@ -489,7 +489,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                             <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3 font-outfit">Choose Custom Time</h4>
                                             <input
                                                 type="time"
-                                                className="w-full rounded-xl border border-stone-200 py-3 px-4 text-sm focus:border-saffron-500 focus:ring-2 focus:ring-saffron-500 outline-none bg-stone-50 font-medium"
+                                                className="w-full rounded-xl border border-white/60 py-3 px-4 text-sm focus:border-saffron-500 focus:ring-2 focus:ring-saffron-500 outline-none bg-white/40 backdrop-blur-md font-medium shadow-sm"
                                                 value={selectedTime}
                                                 onChange={(e) => setSelectedTime(e.target.value)}
                                             />
@@ -497,7 +497,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                     ) : (
                                         <div>
                                             <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">Available Slots</h4>
-                                            <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 min-h-[140px]">
+                                            <div className="bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 p-4 min-h-[140px] shadow-sm">
                                                 {loadingSlots ? (
                                                     <div className="flex h-full items-center justify-center text-sm text-stone-500 animate-pulse">Loading schedule...</div>
                                                 ) : !date ? (
@@ -512,7 +512,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                                         {availableSlots.map((slot) => (
                                                             <button
                                                                 key={slot} type="button" onClick={() => setSelectedTime(slot)}
-                                                                className={`py-2 text-sm font-bold rounded-xl border transition-all ${selectedTime === slot ? 'bg-saffron-500 text-white border-saffron-600 shadow-md ring-2 ring-saffron-500/20' : 'bg-white text-stone-700 border-stone-200 hover:border-saffron-400'}`}
+                                                                className={`py-2 text-sm font-bold rounded-xl border transition-all ${selectedTime === slot ? 'bg-gradient-to-r from-saffron-500 to-orange-500 text-white border-saffron-600 shadow-md shadow-saffron-500/20 scale-105' : 'bg-white/60 text-stone-700 border-white/80 hover:border-saffron-400 hover:bg-white active:scale-95'}`}
                                                             >
                                                                  {slot}
                                                             </button>

@@ -50,11 +50,10 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
     };
 
     return (
-        <div className="relative">
-            <label className="block text-sm font-medium text-stone-700 mb-1">Gotra</label>
-            <div className="relative">
+        <div className="relative w-full">
+            <div className="relative w-full">
                 <input 
-                    className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border"
+                    className="w-full bg-transparent border-none focus:ring-0 p-0 text-right text-stone-700 placeholder-stone-400 outline-none"
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }}
                     onFocus={() => setShowDropdown(true)}
@@ -196,51 +195,61 @@ export const DashboardProfile: React.FC<ProfileProps> = ({ user, profile }) => {
                 </Button>
             </div>
 
-            <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8">
-                <div className="flex items-center gap-6 mb-8">
-                    <div className="h-24 w-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden relative group cursor-pointer">
-                        {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : <UserIcon className="h-10 w-10 text-stone-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+            <div className="bg-white md:rounded-2xl border-y md:border border-stone-200 -mx-4 md:mx-0 shadow-sm overflow-hidden mb-6">
+                <div className="flex flex-col md:flex-row items-center gap-4 p-6 border-b border-stone-100 bg-stone-50/50">
+                    <div className="h-20 w-20 rounded-full bg-stone-200 border-2 border-white shadow-sm overflow-hidden relative group cursor-pointer shrink-0">
+                        {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : <UserIcon className="h-10 w-10 text-stone-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
                     </div>
-                    <div>
+                    <div className="text-center md:text-left flex-1">
                         <h3 className="text-xl font-bold text-stone-900">{profileForm.full_name || 'Your Name'}</h3>
-                        <p className="text-stone-500">{user?.email}</p>
+                        <p className="text-sm text-stone-500">{user?.email}</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
+                <div className="divide-y divide-stone-100">
+                    <div className="flex justify-between items-center px-4 md:px-6 py-4 bg-white hover:bg-stone-50 transition-colors">
+                        <label className="text-sm font-bold text-stone-900 w-1/3">Full Name</label>
                         <input 
-                            className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
+                            className="w-2/3 bg-transparent border-none focus:ring-0 p-0 text-right text-stone-700 placeholder-stone-400 outline-none" 
                             value={profileForm.full_name}
                             onChange={e => setProfileForm({...profileForm, full_name: e.target.value})}
-                            placeholder="Enter your full name"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Phone Number</label>
-                        <input 
-                            className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
-                            value={profileForm.phone}
-                            onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
-                            placeholder="e.g. 9800000000"
+                            placeholder="Name"
                         />
                     </div>
                     
-                    <GotraSelect 
-                        value={profileForm.gotra_id}
-                        onChange={(val) => setProfileForm({...profileForm, gotra_id: val})}
-                    />
-
-                    <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">City</label>
+                    <div className="flex justify-between items-center px-4 md:px-6 py-4 bg-white hover:bg-stone-50 transition-colors">
+                        <label className="text-sm font-bold text-stone-900 w-1/3">Phone</label>
                         <input 
-                            className="w-full rounded-lg border-stone-200 focus:ring-saffron-500 focus:border-saffron-500 p-2 border" 
+                            className="w-2/3 bg-transparent border-none focus:ring-0 p-0 text-right text-stone-700 placeholder-stone-400 outline-none" 
+                            value={profileForm.phone}
+                            onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                            placeholder="Phone Number"
+                        />
+                    </div>
+                    
+                    <div className="flex justify-between items-center px-4 md:px-6 py-4 bg-white hover:bg-stone-50 transition-colors relative">
+                        <label className="text-sm font-bold text-stone-900 w-1/3">Gotra</label>
+                        <div className="w-2/3 text-right">
+                            <GotraSelect 
+                                value={profileForm.gotra_id}
+                                onChange={(val) => setProfileForm({...profileForm, gotra_id: val})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center px-4 md:px-6 py-4 bg-white hover:bg-stone-50 transition-colors">
+                        <label className="text-sm font-bold text-stone-900 w-1/3">City</label>
+                        <input 
+                            className="w-2/3 bg-transparent border-none focus:ring-0 p-0 text-right text-stone-700 placeholder-stone-400 outline-none" 
                             value={profileForm.city}
                             onChange={e => setProfileForm({...profileForm, city: e.target.value})}
+                            placeholder="City"
                         />
                     </div>
                 </div>
+            </div>
+
+            <div className="bg-white md:rounded-2xl border-y md:border border-stone-200 -mx-4 md:mx-0 shadow-sm p-4 md:p-6 mb-6">
 
                 <div className="mb-8 border-t border-stone-100 pt-6">
                     <div className="flex justify-between items-center mb-4">
