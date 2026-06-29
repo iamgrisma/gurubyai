@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { PublicHeader } from '../../components/shared/PublicHeader';
+import { PublicFooter } from '../../components/shared/PublicFooter';
 import { HelpCircle, ChevronDown } from 'lucide-react';
 
 const FAQS = [
@@ -68,9 +69,7 @@ export default function FAQPage() {
                 </div>
             </main>
 
-            <footer className="py-8 text-center text-stone-500 text-sm border-t border-stone-200 bg-white">
-                © {new Date().getFullYear()} Guruba Connect. Designed for Devotion.
-            </footer>
+            <PublicFooter />
         </div>
     );
 }

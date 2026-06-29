@@ -4,11 +4,12 @@
 
 import React, { useState, useMemo } from 'react';
 
-import { useRouter, redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useGurubas, useServices } from '../../hooks/queries';
 import { Button } from '../../components/ui/Button';
 import { Search, MapPin, Star, Award, User, Filter, ArrowRight, X, Calendar } from 'lucide-react';
 import { GurubaVerificationBadge } from '../../components/shared/GurubaVerificationBadge';
+import { PublicFooter } from '../../components/shared/PublicFooter';
 import { Service } from '../../types';
 
 const GurubaCardSkeleton = () => (
@@ -248,6 +249,8 @@ export const GurubaDirectory: React.FC = () => {
               </div>
           </div>
       )}
+      
+      <PublicFooter />
     </div>
   );
 };

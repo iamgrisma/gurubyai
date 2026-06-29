@@ -1,5 +1,6 @@
 import React from 'react';
 import { PublicHeader } from '../../components/shared/PublicHeader';
+import { PublicFooter } from '../../components/shared/PublicFooter';
 import { ShieldCheck, UserCheck, Scale, FileText } from 'lucide-react';
 
 export default function TrustPage() {
@@ -68,9 +69,7 @@ export default function TrustPage() {
                 </div>
             </main>
 
-            <footer className="py-8 text-center text-stone-500 text-sm border-t border-stone-200 bg-white">
-                © {new Date().getFullYear()} Guruba Connect. Designed for Devotion.
-            </footer>
+            <PublicFooter />
         </div>
     );
 }
