@@ -55,7 +55,11 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                 <input 
                     className="w-full bg-transparent border-none focus:ring-0 p-0 text-right text-stone-700 placeholder-stone-400 outline-none"
                     value={searchTerm}
-                    onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }}
+                    onChange={(e) => { 
+                        setSearchTerm(e.target.value); 
+                        onChange(e.target.value);
+                        setShowDropdown(true); 
+                    }}
                     onFocus={() => setShowDropdown(true)}
                     placeholder="Search or add Gotra..."
                 />
