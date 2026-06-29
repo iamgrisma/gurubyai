@@ -2,7 +2,7 @@
 
 // features/notifications/NotificationContext.tsx
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
@@ -21,6 +21,16 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase.channel(`notifications:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+           queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, queryClient]);
 
   // --- Query: Fetch Notifications ---
   const { data: notifications = [], isLoading: loading } = useQuery({

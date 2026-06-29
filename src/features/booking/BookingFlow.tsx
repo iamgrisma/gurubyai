@@ -23,7 +23,7 @@ import {
     Star,
     MapPin
 } from 'lucide-react';
-import { PLATFORM_FEE } from '../../lib/constants';
+import { PLATFORM_FEE, MAX_RECOMMENDED_DISTANCE } from '../../lib/constants';
 import { useMessage } from '../../components/ui/MessageContext';
 
 interface BookingFlowProps {
@@ -56,7 +56,9 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                             id,
                             full_name,
                             gotra_id,
-                            avatar_url
+                            avatar_url,
+                            latitude,
+                            longitude
                         )
                     )
                 `)
@@ -82,6 +84,10 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     const [location, setLocation] = useState({ lat: 0, lng: 0, address: '' });
     const [customMessage, setCustomMessage] = useState('');
     const [gotraOverride, setGotraOverride] = useState(false);
+    
+    // Geospatial Distance States
+    const [roadDistance, setRoadDistance] = useState<number | null>(null);
+    const [distanceLoading, setDistanceLoading] = useState(false);
 
     // Derived values for custom pricing and online capabilities
     const selectedGurubaService = selectedGuruba ? offeredGurubaServices.find(ogs => ogs.guruba_id === selectedGuruba.id) : null;
@@ -109,6 +115,51 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     const gurubaGotra = selectedGuruba?.profiles?.gotra_id;
     const isNA = (g?: string) => !g || g.toLowerCase() === 'not applicable' || g.toLowerCase() === 'n/a';
     const isGotraConflict = !isNA(userGotra) && !isNA(gurubaGotra) && userGotra?.toLowerCase() === gurubaGotra?.toLowerCase();
+
+    // Distance Calculation Effect (OSRM API + Haversine Fallback)
+    useEffect(() => {
+        if (bookingOnline || !location.lat || !selectedGuruba?.profiles?.latitude || !selectedGuruba?.profiles?.longitude) {
+            setRoadDistance(null);
+            return;
+        }
+
+        const fetchDistance = async () => {
+            setDistanceLoading(true);
+            try {
+                const lon1 = location.lng;
+                const lat1 = location.lat;
+                const lon2 = selectedGuruba.profiles!.longitude!;
+                const lat2 = selectedGuruba.profiles!.latitude!;
+                
+                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`);
+                if (!response.ok) throw new Error('OSRM API failed');
+                
+                const data = await response.json();
+                if (data.routes && data.routes.length > 0) {
+                    // Distance is returned in meters, convert to km
+                    setRoadDistance(data.routes[0].distance / 1000);
+                } else {
+                    throw new Error('No routes found');
+                }
+            } catch (err) {
+                console.warn('Falling back to Haversine straight-line distance:', err);
+                const R = 6371; // Radius of the earth in km
+                const dLat = (selectedGuruba.profiles!.latitude! - location.lat) * (Math.PI / 180);
+                const dLon = (selectedGuruba.profiles!.longitude! - location.lng) * (Math.PI / 180);
+                const a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(location.lat * (Math.PI / 180)) * Math.cos(selectedGuruba.profiles!.latitude! * (Math.PI / 180)) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2); 
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+                setRoadDistance(R * c);
+            } finally {
+                setDistanceLoading(false);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchDistance, 500); // Debounce
+        return () => clearTimeout(timeoutId);
+    }, [location.lat, location.lng, selectedGuruba?.profiles?.latitude, selectedGuruba?.profiles?.longitude, bookingOnline]);
 
     // Fetch slots when date or guruba changes
     useEffect(() => {
@@ -490,8 +541,39 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="rounded-xl overflow-hidden border border-stone-200">
-                                        <LocationPicker initialLocation={location.lat ? location : undefined} onLocationSelect={setLocation} />
+                                    <div className="space-y-4">
+                                        <div className="rounded-xl overflow-hidden border border-stone-200">
+                                            <LocationPicker initialLocation={location.lat ? location : undefined} onLocationSelect={setLocation} />
+                                        </div>
+                                        
+                                        {/* Distance Display */}
+                                        {location.lat !== 0 && selectedGuruba?.profiles?.latitude && (
+                                            <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col gap-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                                                        <Navigation className="h-4 w-4 text-saffron-600" />
+                                                        Distance to Guruba
+                                                    </span>
+                                                    {distanceLoading ? (
+                                                        <span className="text-sm text-stone-500 animate-pulse">Calculating...</span>
+                                                    ) : roadDistance !== null ? (
+                                                        <span className="text-sm font-bold text-stone-900">{roadDistance.toFixed(1)} km</span>
+                                                    ) : (
+                                                        <span className="text-sm text-stone-500">Unavailable</span>
+                                                    )}
+                                                </div>
+                                                
+                                                {roadDistance !== null && roadDistance > MAX_RECOMMENDED_DISTANCE && (
+                                                    <div className="mt-2 bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-2">
+                                                        <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                                                        <p className="text-xs text-red-800">
+                                                            This location is more than {MAX_RECOMMENDED_DISTANCE}km away from the Guruba's base. 
+                                                            They may decline the booking or request additional travel compensation.
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 <textarea
@@ -523,7 +605,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         </div>
                     </div>
 
-                    <div className="flex justify-between pt-6 border-t border-stone-200 mt-8">
+                    <div className="fixed md:static bottom-[calc(env(safe-area-inset-bottom)+60px)] md:bottom-auto left-0 w-full md:w-auto bg-white/90 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none p-4 md:p-0 border-t md:border-t border-stone-200 mt-8 flex justify-between z-40">
                         <Button variant="ghost" onClick={() => setStep(1)} className="text-stone-500">
                             <ChevronLeft className="h-4 w-4 mr-2" /> Back
                         </Button>
@@ -581,7 +663,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         )}
                     </div>
 
-                    <div className="flex justify-between pt-6 border-t border-stone-200">
+                    <div className="fixed md:static bottom-[calc(env(safe-area-inset-bottom)+60px)] md:bottom-auto left-0 w-full md:w-auto bg-white/90 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none p-4 md:p-0 border-t md:border-t border-stone-200 mt-8 flex justify-between z-40">
                         <Button variant="ghost" onClick={() => setStep(2)} className="text-stone-500">
                             <ChevronLeft className="h-4 w-4 mr-2" /> Back
                         </Button>
@@ -589,9 +671,9 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                             onClick={handleSubmit} 
                             isLoading={bookService.isPending}
                             disabled={bookService.isPending || !hasEnoughCredits}
-                            className="bg-saffron-500 text-stone-900 hover:bg-saffron-400 px-8"
+                            className="bg-saffron-500 text-stone-900 hover:bg-saffron-400 px-8 w-full md:w-auto ml-4"
                         >
-                            Confirm Booking <CheckCircle className="h-4 w-4 ml-2" />
+                            Confirm Booking <CheckCircle className="h-4 w-4 ml-2 hidden md:inline" />
                         </Button>
                     </div>
                 </div>

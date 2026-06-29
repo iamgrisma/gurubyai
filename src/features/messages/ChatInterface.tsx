@@ -232,14 +232,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   };
   const filteredMessages = messages.filter(m => !isMessageExpired(m));
 
-  if (conversationsLoading) return <div className="flex h-[600px] items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-stone-400"/></div>;
+  if (conversationsLoading) return <div className="flex h-[calc(100vh-140px)] md:h-[700px] items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-saffron-500"/></div>;
 
   return (
-    <div className="flex h-[600px] bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden">
+    <div className="flex h-[calc(100vh-140px)] md:h-[700px] glass-panel rounded-2xl overflow-hidden mt-4">
         {/* Sidebar */}
-        <div className={`w-full md:w-80 border-r border-stone-100 flex-col bg-stone-50 ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
-            <div className="p-4 border-b border-stone-100 bg-white">
-                <h3 className="font-bold text-stone-900">Messages</h3>
+        <div className={`w-full md:w-80 border-r border-stone-200/50 flex-col bg-white/40 backdrop-blur-md ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
+            <div className="p-5 border-b border-stone-200/50 bg-white/60">
+                <h3 className="font-outfit font-bold text-xl text-stone-900 tracking-tight">Messages</h3>
             </div>
             <div className="flex-1 overflow-y-auto">
                 {conversations.length === 0 ? (
@@ -270,11 +270,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
         </div>
 
         {/* Chat Area */}
-        <div className={`flex-1 flex-col bg-white relative ${activeConversation ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`flex-1 flex-col bg-white/40 relative ${activeConversation ? 'flex' : 'hidden md:flex'}`}>
             {activeConversation && getActiveUser() ? (
                 <>
                     {/* Header */}
-                    <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-white z-10 shadow-sm">
+                    <div className="p-4 border-b border-stone-200/50 flex justify-between items-center bg-white/60 backdrop-blur-md z-10 shadow-sm">
                         <div className="flex items-center gap-3">
                              <button onClick={() => setActiveConversation(null)} className="md:hidden p-2 -ml-2 text-stone-500 hover:text-stone-700 rounded-full hover:bg-stone-100">
                                 <ArrowLeft className="h-5 w-5" />

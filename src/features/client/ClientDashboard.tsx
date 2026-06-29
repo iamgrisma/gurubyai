@@ -132,19 +132,13 @@ export const ClientDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 flex font-sans">
-      <div
-        className={`fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setIsMobileMenuOpen(false)}
-      />
-
       <aside className={`
-        fixed top-0 left-0 z-50 h-full bg-white border-r border-stone-200 flex flex-col
-        transition-transform lg:transition-all duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16
-        ${isMobileMenuOpen ? 'translate-x-0 w-72 shadow-2xl' : '-translate-x-full w-72'}
-        ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-72'}
+        hidden md:flex flex-col bg-white border-r border-stone-200 z-10
+        h-[calc(100vh-4rem)] sticky top-16
+        transition-all duration-300 ease-in-out
+        ${isSidebarCollapsed ? 'w-20' : 'w-72'}
       `}>
-        <div className={`p-6 border-b border-stone-100 ${isSidebarCollapsed ? 'lg:p-2' : ''}`}>
+        <div className={`p-6 border-b border-stone-100 ${isSidebarCollapsed ? 'p-2' : ''}`}>
           <div className="flex justify-between items-center lg:hidden mb-4">
             <span className="font-bold text-lg text-stone-900">Menu</span>
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded-md hover:bg-stone-100">
@@ -189,12 +183,9 @@ export const ClientDashboard: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto h-[calc(100vh-4rem)]">
-        <div className="lg:hidden mb-6 flex items-center gap-4">
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-lg shadow-sm border border-stone-200 text-stone-600">
-            <Menu className="h-6 w-6" />
-          </button>
-          <span className="font-bold text-stone-900 text-lg capitalize">{activeTab}</span>
+      <main className="flex-1 p-4 md:p-10 overflow-y-auto h-[calc(100vh-4rem)] pb-safe-area pb-24 md:pb-10">
+        <div className="md:hidden mb-4 flex items-center justify-between">
+          <span className="font-outfit font-bold text-stone-900 text-2xl capitalize">{activeTab}</span>
         </div>
 
         {loading ? (

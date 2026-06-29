@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { PublicHeader } from "@/components/shared/PublicHeader";
+import { BottomNavigation } from "@/components/shared/BottomNavigation";
 import "leaflet/dist/leaflet.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: 'swap' });
@@ -59,7 +60,7 @@ export default function RootLayout({
               {children}
             </div>
           </main>
-          <footer className="bg-stone-950 py-12 text-center text-stone-400 mt-auto border-t border-stone-800">
+          <footer className="hidden md:flex bg-stone-950 py-12 text-center text-stone-400 mt-auto border-t border-stone-800">
             <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded bg-gradient-to-br from-saffron-500 to-orange-600 flex items-center justify-center text-white font-bold">G</div>
@@ -68,7 +69,23 @@ export default function RootLayout({
               <p className="text-sm">&copy; {new Date().getFullYear()} Guruba Connect. All rights reserved.</p>
             </div>
           </footer>
+          <BottomNavigation />
         </Providers>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                    console.log('ServiceWorker registration successful');
+                  }, function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                  });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

@@ -13,12 +13,32 @@
     --font-outfit: 'Outfit', sans-serif;
   }
   
+  html {
+    -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
+  }
+
   body {
     @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-sans antialiased selection:bg-saffron-200 selection:text-saffron-900;
+    /* Safe area for iOS notches/bottom bars */
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-outfit tracking-tight;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Hide scrollbar entirely on mobile for native app feel */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
@@ -51,11 +71,15 @@
   }
 
   .glass-panel {
-    @apply bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300;
+    @apply bg-white/60 backdrop-blur-3xl border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.06)] transition-all duration-300;
   }
   
   .glass-panel-dark {
-    @apply bg-royal-900/80 backdrop-blur-2xl border border-royal-700/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300;
+    @apply bg-royal-950/70 backdrop-blur-3xl border border-royal-700/50 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transition-all duration-300;
+  }
+
+  .interactive-card {
+    @apply hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-saffron-500/20 transition-all duration-300 cursor-pointer;
   }
 
   /* Custom Scrollbar */

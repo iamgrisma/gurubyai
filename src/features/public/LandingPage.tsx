@@ -241,7 +241,7 @@ export const LandingPage: React.FC = () => {
                   {FEATURES.map((feature, idx) => (
                      <div
                         key={idx}
-                        className="group relative overflow-hidden rounded-3xl bg-white p-6 md:p-8 shadow-sm hover:shadow-2xl transition-all duration-500 border border-stone-100 hover:border-saffron-200 hover:-translate-y-2 active:scale-95"
+                        className="group relative overflow-hidden rounded-3xl glass-panel interactive-card p-6 md:p-8"
                         style={{
                            animationDelay: `${idx * 100}ms`,
                         }}

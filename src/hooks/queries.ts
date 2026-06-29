@@ -1,6 +1,7 @@
 
 // hooks/queries.ts
 
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { Booking, Guruba, Service, UserProfile } from '../types';
@@ -109,7 +110,19 @@ export const useGurubas = () => {
 };
 
 // --- BOOKINGS ---
-export const useBookings = (userId?: string, role?: 'client' | 'guruba' | 'admin') => {
+export const useBookings = (userId?: string, role: 'client' | 'guruba' = 'client') => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase.channel(`bookings:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+           queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [userId, queryClient]);
+
   return useQuery({
     queryKey: ['bookings', userId, role],
     queryFn: async () => {
