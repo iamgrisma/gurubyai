@@ -7,29 +7,30 @@ export default {
         extend: {
             colors: {
                 saffron: {
-                    50: '#fff8e1',
-                    100: '#ffecb3',
-                    200: '#ffe082',
-                    300: '#ffd54f',
-                    400: '#ffca28',
-                    500: '#ff9800', // Primary Highlight
-                    600: '#f57c00',
-                    700: '#e65100',
-                    800: '#ef6c00',
-                    900: '#bf360c',
+                    50: '#fff9f0',
+                    100: '#ffedd5',
+                    200: '#ffd6a6',
+                    300: '#ffb56b',
+                    400: '#ff8c2b',
+                    500: '#ff6b00', // Deep vibrant pure Saffron (Marigold/Orange mix)
+                    600: '#e65200',
+                    700: '#bf3b00',
+                    800: '#992e00',
+                    900: '#7a2704',
+                    950: '#421100',
                 },
                 royal: {
-                    50: '#f4f4f9',
-                    100: '#e7e6f2',
-                    200: '#d5d4ea',
-                    300: '#b8b4dd',
-                    400: '#948dca',
-                    500: '#7365b5',
-                    600: '#5a499d',
-                    700: '#4c3e83',
-                    800: '#3f356b',
-                    900: '#262044', // Dark backgrounds
-                    950: '#1a152d'
+                    50: '#f6f6f9',
+                    100: '#ebebf1',
+                    200: '#d3d4e0',
+                    300: '#aeb1c6',
+                    400: '#8388a7',
+                    500: '#62688b',
+                    600: '#4d5171',
+                    700: '#3f425b',
+                    800: '#35374a',
+                    900: '#2c2e3d',
+                    950: '#1b1c26' // Premium deep slate/royal background
                 }
             },
             fontFamily: {

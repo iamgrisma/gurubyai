@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/queries';
 import { Button } from '../../components/ui/Button';
+import { PublicFooter } from '../../components/shared/PublicFooter';
 import {
    Calendar, ShieldCheck, ArrowRight, Video, MessageSquare, CheckCircle,
    Clock, Heart, RefreshCw, Sparkles, Star, Users, TrendingUp, MapPin
