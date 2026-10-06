@@ -164,8 +164,8 @@ export const useMarkMessageRead = () => {
 
     return useMutation({
         mutationFn: async (messageId: string) => {
-            const { error } = await supabase.rpc('mark_message_read', {
-                p_message_id: messageId,
+            const { error } = await supabase.rpc('mark_messages_read', {
+                p_message_ids: [messageId],
             });
             if (error) throw error;
         },
@@ -182,7 +182,7 @@ export const useMarkAllMessagesRead = () => {
 
     return useMutation({
         mutationFn: async (senderId: string) => {
-            const { error } = await supabase.rpc('mark_all_messages_read', {
+            const { error } = await supabase.rpc('mark_all_messages_read_from_sender', {
                 p_sender_id: senderId,
             });
             if (error) throw error;
