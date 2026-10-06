@@ -22,11 +22,6 @@ export const LoginPage: React.FC = () => {
   const [showResend, setShowResend] = useState(false);
   
   useEffect(() => {
-    const clearSession = async () => {
-      await supabase.auth.signOut();
-    };
-    clearSession();
-
     const emailParam = searchParams.get('email');
     const successMsgParam = searchParams.get('successMessage');
     if (emailParam) setEmail(emailParam);
@@ -61,7 +56,7 @@ export const LoginPage: React.FC = () => {
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: loginEmail.trim(),
-        password: loginPass.trim(),
+        password: loginPass,
       });
 
       if (authError) throw authError;
