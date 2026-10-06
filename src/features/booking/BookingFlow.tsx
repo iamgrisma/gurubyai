@@ -81,7 +81,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
   const { data: profile } = useProfile(user?.id);
   const bookService = useBookService();
 
-  const [step, setStep] = useState<number>(preselectedGurubaId ? 2 : 1);
+  const [step, setStep] = useState<number>(1);
   const [selectedGuruba, setSelectedGuruba] = useState<Guruba | null>(null);
   const [date, setDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -201,7 +201,12 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
   useEffect(() => {
     if (preselectedGurubaId && serviceGurubas.length > 0) {
       const found = serviceGurubas.find((g) => g.id === preselectedGurubaId);
-      if (found) setSelectedGuruba(found);
+      if (found) {
+        setSelectedGuruba(found);
+        setStep(2);
+      } else {
+        setStep(1);
+      }
     }
   }, [preselectedGurubaId, serviceGurubas]);
 
@@ -218,11 +223,17 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
   }, [selectedGuruba, isOnlineAvailable, bookingMode]);
 
   useEffect(() => {
-    if (profile?.latitude !== undefined && profile?.longitude !== undefined) {
+    if (
+      Number.isFinite(Number(profile?.latitude)) &&
+      Number.isFinite(Number(profile?.longitude)) &&
+      Math.abs(Number(profile?.latitude)) > 0.000001 &&
+      Math.abs(Number(profile?.longitude)) > 0.000001 &&
+      profile?.address
+    ) {
       setLocation({
-        lat: profile.latitude,
-        lng: profile.longitude,
-        address: profile.address || '',
+        lat: Number(profile.latitude),
+        lng: Number(profile.longitude),
+        address: profile.address,
       });
     }
   }, [profile]);
