@@ -646,7 +646,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         <div className="flex flex-col items-end gap-1">
                             {!isStep2Valid && (
                                 <span className="text-[11px] font-semibold text-stone-500">
-                                    Select ${missingStep2Fields.map(f => ({ date: 'date', time: 'time', location: 'location' }[f])).join(' + ')}
+                                    Select {missingStep2Fields.map(f => ({ date: 'date', time: 'time', location: 'location' }[f])).join(' + ')}
                                 </span>
                             )}
                             <Button 
