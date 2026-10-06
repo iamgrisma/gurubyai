@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import { Search, MapPin, Locate, X, Check, Loader2 } from 'lucide-react';
 import L from 'leaflet';
@@ -36,10 +36,10 @@ interface LocationPickerProps {
   readonly?: boolean;
 }
 
-const reverseGeocode = async (lat: number, lng: number) => {
+const reverseGeocode = async (lat: number, lng: number, signal?: AbortSignal) => {
   const response = await fetch(
     `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-    { headers: { Accept: 'application/json' } }
+    { headers: { Accept: 'application/json' }, signal }
   );
   if (!response.ok) throw new Error('Reverse geocoding failed');
   const data = await response.json();
@@ -62,6 +62,10 @@ const MapEvents = ({
   useMapEvents({
     click: async (e) => {
       const { lat, lng } = e.latlng;
+      const requestId = ++requestIdRef.current;
+      reverseAbortRef.current?.abort();
+      const controller = new AbortController();
+      reverseAbortRef.current = controller;
       const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
       setPosition([lat, lng]);
       setAddress('Finding address…');
@@ -70,13 +74,16 @@ const MapEvents = ({
       map.flyTo([lat, lng], Math.max(map.getZoom(), 15), { duration: 0.25 });
 
       try {
-        const address = await reverseGeocode(lat, lng);
+        const address = await reverseGeocode(lat, lng, controller.signal);
+        if (requestId !== requestIdRef.current) return;
         setAddress(address);
         onPick({ lat, lng, address });
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (requestId !== requestIdRef.current) return;
         setAddress(fallback);
       } finally {
-        setBusy(false);
+        if (requestId === requestIdRef.current) setBusy(false);
       }
     },
   });
@@ -106,6 +113,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const requestIdRef = useRef(0);
+  const reverseAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (initialLocation && Number.isFinite(initialLocation.lat) && Number.isFinite(initialLocation.lng)) {
@@ -117,6 +126,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const displayCenter = useMemo(() => position || defaultCenter, [position]);
 
   const selectResult = (result: SearchResult) => {
+    requestIdRef.current += 1;
+    reverseAbortRef.current?.abort();
     const lat = Number(result.lat);
     const lng = Number(result.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
@@ -134,6 +145,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     const query = searchQuery.trim();
     if (!query || searching) return;
 
+    requestIdRef.current += 1;
+    reverseAbortRef.current?.abort();
     setSearching(true);
     setError('');
     try {
@@ -191,6 +204,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   };
+
+  useEffect(() => () => reverseAbortRef.current?.abort(), []);
 
   return (
     <div className="w-full rounded-2xl border border-stone-200 bg-white overflow-hidden">
