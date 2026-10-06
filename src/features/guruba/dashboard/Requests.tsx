@@ -50,11 +50,12 @@ export const GurubaRequests: React.FC<RequestsProps> = ({ bookings, handleBookin
 
       try {
           const confirmationDeadline = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-          await supabase.from('bookings').update({ 
-              status: 'awaiting_client_confirmation',
-              proposed_time: proposedTime,
-              confirmation_deadline: confirmationDeadline
-          }).eq('id', bookingId);
+          const { error } = await supabase.rpc('propose_booking_time', {
+              p_booking_id: bookingId,
+              p_proposed_time: propDate.toISOString(),
+              p_confirmation_deadline: confirmationDeadline,
+          });
+          if (error) throw error;
           
           queryClient.invalidateQueries({ queryKey: ['bookings'] });
           setProposingBookingId(null);
