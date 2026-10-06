@@ -23,11 +23,14 @@ export const AdminGotras: React.FC = () => {
   const gotraMutation = useMutation({
       mutationFn: async ({ id, action, name }: { id?: string, action: 'approve' | 'reject' | 'add', name?: string }) => {
           if (action === 'add' && name) {
-              await supabase.from('gotras').insert({ name, status: 'approved' });
+              const { error } = await supabase.rpc('admin_manage_gotra', { p_action: 'add', p_name: name });
+              if (error) throw error;
           } else if (action === 'approve' && id) {
-              await supabase.from('gotras').update({ status: 'approved' }).eq('id', id);
+              const { error } = await supabase.rpc('admin_manage_gotra', { p_action: 'approve', p_gotra_id: id });
+              if (error) throw error;
           } else if (action === 'reject' && id) {
-              await supabase.from('gotras').delete().eq('id', id);
+              const { error } = await supabase.rpc('admin_manage_gotra', { p_action: 'reject', p_gotra_id: id });
+              if (error) throw error;
           }
       },
       onSuccess: () => {
