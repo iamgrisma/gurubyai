@@ -31,17 +31,23 @@ export const GurubaServices: React.FC<ServicesProps> = ({ guruba }) => {
 
   const toggleService = async (serviceId: string, currentStatus: boolean) => {
       if (!guruba) return;
-      if (currentStatus) {
-          await supabase.from('guruba_services').delete().match({ guruba_id: guruba.id, service_id: serviceId });
-      } else {
-          await supabase.from('guruba_services').insert({ guruba_id: guruba.id, service_id: serviceId, is_online: false });
-      }
+      const { error } = await supabase.rpc('set_my_guruba_service', {
+          p_service_id: serviceId,
+          p_enabled: !currentStatus,
+          p_online: false,
+      });
+      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['myServices'] });
   };
 
   const toggleOnlineService = async (serviceId: string, currentOnline: boolean) => {
        if (!guruba) return;
-       await supabase.from('guruba_services').update({ is_online: !currentOnline }).match({ guruba_id: guruba.id, service_id: serviceId });
+       const { error } = await supabase.rpc('set_my_guruba_service', {
+           p_service_id: serviceId,
+           p_enabled: true,
+           p_online: !currentOnline,
+       });
+       if (error) throw error;
        queryClient.invalidateQueries({ queryKey: ['myServices'] });
   };
 
