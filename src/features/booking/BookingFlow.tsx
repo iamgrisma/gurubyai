@@ -164,11 +164,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
     queryKey: ['savedLocations', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('saved_locations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_my_saved_locations');
       if (error) throw error;
       return (data || []) as SavedLocation[];
     },

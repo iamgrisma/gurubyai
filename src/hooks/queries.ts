@@ -129,37 +129,9 @@ export const useBookings = (userId?: string, role: 'client' | 'guruba' = 'client
       if (!userId) return [];
       
       try {
-        let query = supabase
-            .from('bookings')
-            .select(`
-            *,
-            services:service_id (title, duration_minutes, base_price, image_url),
-            gurubas:guruba_id (
-                id,
-                user_id,
-                location,
-                profiles:user_id (id, full_name, avatar_url, phone)
-            ),
-            profiles:user_id (id, full_name, avatar_url, phone, email) 
-            `)
-            .order('scheduled_at', { ascending: true });
-
-        if (role === 'guruba') {
-            const { data: gurubaData, error: gError } = await supabase
-                .from('gurubas')
-                .select('id')
-                .eq('user_id', userId)
-                .maybeSingle();
-            
-            if (gError || !gurubaData) return [];
-            query = query.eq('guruba_id', gurubaData.id);
-        } else if (role === 'client') {
-            query = query.eq('user_id', userId);
-        }
-
-        const { data, error } = await query;
+        const { data, error } = await supabase.rpc('get_my_bookings', { p_role: role });
         if (error) throw error;
-        return (data || []) as Booking[];
+        return (data || []).map((row: any) => ({ ...row, services: row.services || undefined, gurubas: row.gurubas || undefined, profiles: row.profiles || undefined })) as Booking[];
       } catch (e) {
           console.error("Error fetching bookings:", e);
           return [];

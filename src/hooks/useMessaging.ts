@@ -30,15 +30,7 @@ export const useMessages = (otherUserId?: string) => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return [];
 
-            const { data, error } = await supabase
-                .from('messages')
-                .select(`
-          *,
-          sender:sender_id(id, full_name, avatar_url),
-          receiver:receiver_id(id, full_name, avatar_url)
-        `)
-                .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
-                .order('created_at', { ascending: true });
+            const { data, error } = await supabase.rpc('get_my_messages', { p_other_user_id: otherUserId });
 
             if (error) throw error;
             return data as Message[];
@@ -54,15 +46,9 @@ export const useBookingMessages = (bookingId?: string) => {
         queryKey: ['bookingMessages', bookingId],
         queryFn: async () => {
             if (!bookingId) return [];
-            const { data, error } = await supabase
-                .from('messages')
-                .select(`
-          *,
-          sender:sender_id(id, full_name, avatar_url),
-          receiver:receiver_id(id, full_name, avatar_url)
-        `)
-                .eq('booking_id', bookingId)
-                .order('created_at', { ascending: true });
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return [];
+            const { data, error } = await supabase.rpc('get_my_messages', { p_other_user_id: user.id, p_booking_id: bookingId });
 
             if (error) throw error;
             return data as Message[];

@@ -50,3 +50,10 @@ begin
     raise exception 'private profile projection RPC missing';
   end if;
 end $$;
+
+-- B3 private read projection assertions.
+do $$ begin
+  if to_regprocedure('public.get_my_bookings(text)') is null then raise exception 'get_my_bookings RPC missing'; end if;
+  if to_regprocedure('public.get_my_message_users()') is null then raise exception 'get_my_message_users RPC missing'; end if;
+  if to_regprocedure('public.get_my_messages(uuid,uuid)') is null then raise exception 'get_my_messages RPC missing'; end if;
+end $$;

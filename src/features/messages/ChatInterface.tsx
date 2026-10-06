@@ -43,21 +43,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       queryKey: ['conversations', user?.id],
       queryFn: async () => {
           if (!user) return [];
-          // Fetch distinct interactions
-          const { data: sent } = await supabase.from('messages').select('receiver_id').eq('sender_id', user.id);
-          const { data: received } = await supabase.from('messages').select('sender_id').eq('receiver_id', user.id);
-          
-          const ids = new Set([
-              ...(sent?.map(x => x.receiver_id) || []),
-              ...(received?.map(x => x.sender_id) || [])
-          ]);
-          if (defaultReceiverId) ids.add(defaultReceiverId);
-          
-          const uniqueIds = Array.from(ids);
-          if (uniqueIds.length === 0) return [];
-
-          const { data: profiles } = await supabase.from('profiles').select('*').in('id', uniqueIds);
-          return (profiles || []) as UserProfile[];
+          const { data, error } = await supabase.rpc('get_my_message_users');
+          if (error) throw error;
+          const users = (data || []) as UserProfile[];
+          if (defaultReceiverId && !users.some(u => u.id === defaultReceiverId)) {
+              const { data: fallback } = await supabase.from('profiles').select('id,email,full_name,role,phone,avatar_url,city,credits').eq('id', defaultReceiverId).maybeSingle();
+              if (fallback) users.push(fallback as UserProfile);
+          }
+          return users;
       },
       enabled: !!user
   });
@@ -74,11 +67,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       queryKey: ['messages', user?.id, activeConversation],
       queryFn: async () => {
           if (!user || !activeConversation) return [];
-          const { data } = await supabase
-            .from('messages')
-            .select('*')
-            .or(`and(sender_id.eq.${user.id},receiver_id.eq.${activeConversation}),and(sender_id.eq.${activeConversation},receiver_id.eq.${user.id})`)
-            .order('created_at', { ascending: true });
+          const { data, error } = await supabase.rpc('get_my_messages', { p_other_user_id: activeConversation });
+          if (error) throw error;
             
           if (data && data.length > 0) {
               const lastMsg = data[data.length - 1];
