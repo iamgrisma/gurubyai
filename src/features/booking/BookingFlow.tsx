@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Service, Guruba, SavedLocation } from '../../types';
 import { useBookService, useProfile } from '../../hooks/queries';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { LocationPicker } from '../../components/ui/DynamicLocationPicker';
 import {
@@ -72,6 +72,7 @@ const toBookingTimestamp = (date: string, time: string) => {
 
 export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { showMessage } = useMessage();
   const searchParams = useSearchParams();
