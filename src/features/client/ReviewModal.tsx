@@ -27,12 +27,10 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ bookingId, gurubaId, g
     mutationFn: async () => {
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from('reviews').insert({
-        booking_id: bookingId,
-        guruba_id: gurubaId,
-        user_id: user.id,
-        rating,
-        comment
+      const { error } = await supabase.rpc('create_review', {
+        p_booking_id: bookingId,
+        p_rating: rating,
+        p_comment: comment || null,
       });
 
       if (error) throw error;
