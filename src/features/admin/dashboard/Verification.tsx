@@ -35,17 +35,11 @@ export const AdminVerification: React.FC = () => {
 
     const verifyGurubaMutation = useMutation({
         mutationFn: async ({ userId, action }: { userId: string, action: 'approve' | 'reject' }) => {
-            if (action === 'approve') {
-                const { error } = await supabase.from('gurubas').update({ is_verified: true }).eq('user_id', userId);
-                if (error) throw error;
-            } else {
-                // Reject logic - Reset is_verified and verification_requested_at to null so they can request again
-                const { error } = await supabase.from('gurubas').update({ 
-                    is_verified: false,
-                    verification_requested_at: null 
-                }).eq('user_id', userId);
-                if (error) throw error;
-            }
+            const { error } = await supabase.rpc('admin_set_guruba_verification', {
+                p_user_id: userId,
+                p_approved: action === 'approve',
+            });
+            if (error) throw error;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminVerificationRequests'] });
