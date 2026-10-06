@@ -324,23 +324,18 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
 
     setSavingLocation(true);
     try {
-      const { data, error } = await supabase
-        .from('saved_locations')
-        .insert({
-          user_id: user.id,
-          name: savedLocationName.trim(),
-          latitude: location.lat,
-          longitude: location.lng,
-          address: location.address,
-        })
-        .select('*')
-        .single();
+      const { data: locationId, error } = await supabase.rpc('save_my_location', {
+        p_name: savedLocationName.trim(),
+        p_latitude: location.lat,
+        p_longitude: location.lng,
+        p_address: location.address,
+      });
 
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ['savedLocations', user.id] });
       setSavedLocationName('');
-      showMessage({ type: 'success', title: 'Location saved', content: data.name + ' has been added to your saved locations.' });
+      showMessage({ type: 'success', title: 'Location saved', content: savedLocationName.trim() + ' has been added to your saved locations.' });
     } catch (error: any) {
       showMessage({ type: 'error', title: 'Could not save location', content: error?.message || 'Please try again.' });
     } finally {
