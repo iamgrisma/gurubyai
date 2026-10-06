@@ -336,14 +336,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                     onProposeNewTime={() => setIsProposing(true)}
                                     onComplete={() => handleBookingAction(activeBooking.id, 'completed')}
                                     onAddLink={async (link) => {
+                                        const normalizedLink = link.trim().startsWith('wa.me/')
+                                            ? `https://${link.trim()}`
+                                            : link.trim();
                                         const { error } = await supabase.rpc('set_booking_meeting_link', {
                                             p_booking_id: activeBooking.id,
-                                            p_meeting_link: link,
+                                            p_meeting_link: normalizedLink,
                                         });
                                         if (error) {
                                             alert("Failed to update meeting link: " + error.message);
                                         } else {
                                             queryClient.invalidateQueries({ queryKey: ['bookings'] });
+                                            queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
                                         }
                                     }}
                                 />
