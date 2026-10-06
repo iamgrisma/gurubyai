@@ -174,14 +174,42 @@ export const useBookings = (userId?: string, role: 'client' | 'guruba' = 'client
 
 export const useUpdateBookingStatus = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async ({ id, status, meeting_link, scheduled_at }: { id: string, status: string, meeting_link?: string, scheduled_at?: string }) => {
-      const updateData: any = { status };
-      if (meeting_link) updateData.meeting_link = meeting_link;
-      if (scheduled_at) updateData.scheduled_at = scheduled_at;
-      
-      const { error } = await supabase.from('bookings').update(updateData).eq('id', id);
-      if (error) throw error;
+    mutationFn: async ({
+      id,
+      status,
+      meeting_link,
+      scheduled_at,
+    }: {
+      id: string;
+      status: string;
+      meeting_link?: string;
+      scheduled_at?: string;
+    }) => {
+      // Booking state is server-owned. Never write booking rows directly.
+      if (meeting_link) {
+        const { error } = await supabase.rpc('set_booking_meeting_link', {
+          p_booking_id: id,
+          p_meeting_link: meeting_link,
+        });
+        if (error) throw error;
+      }
+
+      if (status === 'confirmed') {
+        const { error } = await supabase.rpc('confirm_booking', { p_booking_id: id });
+        if (error) throw error;
+      } else if (status === 'cancelled') {
+        const { error } = await supabase.rpc('cancel_booking', { p_booking_id: id });
+        if (error) throw error;
+      } else if (status === 'completed') {
+        const { error } = await supabase.rpc('complete_booking', { p_booking_id: id });
+        if (error) throw error;
+      } else {
+        throw new Error('Unsupported booking status transition');
+      }
+
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
