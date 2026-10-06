@@ -21,13 +21,18 @@ export const AdminServices: React.FC = () => {
 
   const serviceMutation = useMutation({
       mutationFn: async ({ id, ...data }: any) => {
-          if (id) {
-             const { error } = await supabase.from('services').update(data).eq('id', id);
-             if (error) throw error;
-          } else {
-             const { error } = await supabase.from('services').insert(data);
-             if (error) throw error;
-          }
+          const { error } = await supabase.rpc('admin_upsert_service', {
+              p_service_id: id || null,
+              p_title: data.title,
+              p_description: data.description,
+              p_base_price: data.base_price,
+              p_duration_minutes: data.duration_minutes,
+              p_image_url: data.image_url || null,
+              p_category: data.category || null,
+              p_is_featured: data.is_featured,
+              p_is_online_enabled: data.is_online_enabled,
+          });
+          if (error) throw error;
       },
       onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -37,7 +42,7 @@ export const AdminServices: React.FC = () => {
 
   const deleteServiceMutation = useMutation({
       mutationFn: async (id: string) => {
-          const { error } = await supabase.from('services').delete().eq('id', id);
+          const { error } = await supabase.rpc('admin_delete_service', { p_service_id: id });
           if (error) throw error;
       },
       onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services'] })
