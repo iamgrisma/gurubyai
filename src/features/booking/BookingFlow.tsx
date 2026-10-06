@@ -61,9 +61,6 @@ const getTodayInNepal = () =>
     day: '2-digit',
   }).format(new Date());
 
-const toNepalDateTime = (date: string, time: string) =>
-  new Date(new Date(`${date}T${time}:00`).toLocaleString('en-US', { timeZone: NEPAL_TIMEZONE }));
-
 const toBookingTimestamp = (date: string, time: string) => {
   // The app operates on Nepal local booking times. Convert the selected
   // calendar/time values to an ISO timestamp without relying on the browser TZ.
