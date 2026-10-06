@@ -60,3 +60,5 @@ revoke select, insert, update, delete on table public.bookings from anon;
 revoke select, insert, update, delete on table public.topup_requests from anon;
 revoke select, insert, update, delete on table public.notifications from anon;
 revoke select, insert, update, delete on table public.transactions from anon;
+
+revoke select on table public.booking_services, public.custom_services, public.gotras, public.job_queue, public.messages, public.notifications, public.saved_locations, public.topup_requests, public.transactions from anon;
