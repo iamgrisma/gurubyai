@@ -227,7 +227,14 @@ export const useBookService = () => {
 
   return useMutation({
     mutationFn: async (params: any) => {
-      const { data: bookingId, error } = await supabase.rpc('book_service', {
+      const requestKey =
+        typeof params.request_key === 'string' && params.request_key.length >= 8
+          ? params.request_key
+          : (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+      const { data: bookingId, error } = await supabase.rpc('book_service_idempotent', {
         p_user_id: params.user_id,
         p_guruba_id: params.guruba_id,
         p_service_id: params.service_id,
@@ -240,6 +247,7 @@ export const useBookService = () => {
         p_booking_note: params.booking_note || null,
         p_is_custom_booking: Boolean(params.is_custom_booking),
         p_is_online: Boolean(params.is_online),
+        p_request_key: requestKey,
       });
 
       if (error) {
@@ -253,6 +261,24 @@ export const useBookService = () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    },
+  });
+};
+
+export const useRescheduleBooking = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, scheduled_at }: { id: string; scheduled_at: string }) => {
+      const { error } = await supabase.rpc('reschedule_booking', {
+        p_booking_id: id,
+        p_new_scheduled_at: scheduled_at,
+      });
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
   });
 };
