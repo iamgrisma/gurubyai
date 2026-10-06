@@ -91,6 +91,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
   const [gotraOverride, setGotraOverride] = useState(false);
   const [roadDistance, setRoadDistance] = useState<number | null>(null);
   const [distanceLoading, setDistanceLoading] = useState(false);
+  const [savedLocationName, setSavedLocationName] = useState('');
+  const [savingLocation, setSavingLocation] = useState(false);
 
   const { data: offeredGurubaServices = [], isLoading: offeredLoading, error: offeredError } =
     useQuery<OfferedGurubaService[]>({
@@ -289,6 +291,50 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
   const canReview =
     Boolean(user && selectedGuruba && timeReady && locationReady) &&
     (!isGotraConflict || gotraOverride);
+
+  const handleSaveSelectedLocation = async () => {
+    if (!user) {
+      showMessage({ type: 'error', title: 'Login required', content: 'Please log in to save locations.' });
+      return;
+    }
+    if (!location.lat || !location.lng || !location.address) {
+      showMessage({ type: 'error', title: 'Choose a location first', content: 'Search, use your current location, or tap the map before saving.' });
+      return;
+    }
+    if (!savedLocationName.trim()) {
+      showMessage({ type: 'error', title: 'Name this location', content: 'Give this location a name such as Home, Office, or Parents House.' });
+      return;
+    }
+    if (savedLocations.length >= 5) {
+      showMessage({ type: 'error', title: 'Saved location limit reached', content: 'You can keep up to 5 saved locations. Manage them from your profile.' });
+      return;
+    }
+
+    setSavingLocation(true);
+    try {
+      const { data, error } = await supabase
+        .from('saved_locations')
+        .insert({
+          user_id: user.id,
+          name: savedLocationName.trim(),
+          latitude: location.lat,
+          longitude: location.lng,
+          address: location.address,
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['savedLocations', user.id] });
+      setSavedLocationName('');
+      showMessage({ type: 'success', title: 'Location saved', content: data.name + ' has been added to your saved locations.' });
+    } catch (error: any) {
+      showMessage({ type: 'error', title: 'Could not save location', content: error?.message || 'Please try again.' });
+    } finally {
+      setSavingLocation(false);
+    }
+  };
 
   const handleSelectGuruba = (guruba: Guruba) => {
     setSelectedGuruba(guruba);
@@ -774,70 +820,98 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
 
             <div className="space-y-5">
               <section className="glass-panel p-5 rounded-3xl">
-                <h3 className="font-bold text-stone-900 flex items-center gap-2 mb-4">
-                  <MapPin className="h-4 w-4 text-saffron-600" /> Location
-                </h3>
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="font-bold text-stone-900 flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-saffron-600" /> Service Location
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-1">Choose exactly where the service should happen. You can reuse or save locations.</p>
+                  </div>
+                  {bookingMode === 'offline' && (
+                    <span className={"text-[10px] font-bold px-2 py-1 rounded-full " + (locationReady ? 'bg-green-50 text-green-700' : 'bg-stone-100 text-stone-500')}>
+                      {locationReady ? 'Location selected' : 'Required'}
+                    </span>
+                  )}
+                </div>
 
                 {bookingMode === 'online' ? (
                   <div className="rounded-2xl bg-blue-50 border border-blue-100 p-5 text-sm text-blue-900">
                     <Video className="h-6 w-6 mb-2 text-blue-600" />
                     <p className="font-bold">Online booking selected</p>
-                    <p className="mt-1 text-xs">
-                      No physical address is required. The Guruba will provide the meeting details after accepting the booking.
-                    </p>
+                    <p className="mt-1 text-xs">No physical address is required. Meeting details will be shared after the Guruba accepts the booking.</p>
                   </div>
                 ) : (
-                  <>
+                  <div className="space-y-4">
                     {savedLocations.length > 0 && (
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Bookmark className="h-4 w-4 text-stone-500" />
-                          <span className="text-xs font-bold text-stone-500 uppercase">Saved Locations</span>
+                      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-stone-500">Saved locations</p>
+                            <p className="text-[11px] text-stone-400">Tap one to use it for this booking.</p>
+                          </div>
+                          <span className="text-[10px] font-bold text-stone-400">{savedLocations.length}/5</span>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {savedLocations.map((saved) => (
-                            <button
-                              key={saved.id}
-                              type="button"
-                              onClick={() =>
-                                setLocation({
-                                  lat: saved.latitude,
-                                  lng: saved.longitude,
-                                  address: saved.address || saved.name,
-                                })
-                              }
-                              className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-700 hover:border-saffron-400 hover:bg-saffron-50"
-                            >
-                              {saved.name}
-                            </button>
-                          ))}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {savedLocations.map((saved) => {
+                            const active = location.lat === saved.latitude && location.lng === saved.longitude;
+                            return (
+                              <button key={saved.id} type="button" onClick={() => setLocation({
+                                lat: saved.latitude, lng: saved.longitude, address: saved.address || saved.name
+                              })} className={"text-left rounded-xl border p-3 transition-all " + (active ? 'border-saffron-500 bg-saffron-50 ring-2 ring-saffron-500/10' : 'border-stone-200 bg-white hover:border-saffron-300')}>
+                                <div className="flex items-start gap-2">
+                                  <div className={"h-8 w-8 rounded-lg flex items-center justify-center shrink-0 " + (active ? 'bg-saffron-200 text-saffron-800' : 'bg-stone-100 text-stone-500')}>
+                                    <Bookmark className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-stone-800 truncate">{saved.name}</p>
+                                    <p className="text-[11px] leading-4 text-stone-500 line-clamp-2">{saved.address || 'Saved coordinates'}</p>
+                                  </div>
+                                  {active && <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />}
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
 
-                    <div className="rounded-xl overflow-hidden border border-stone-200">
-                      <LocationPicker
-                        initialLocation={location.lat && location.lng ? location : undefined}
-                        onLocationSelect={setLocation}
-                      />
+                    <LocationPicker initialLocation={location.lat && location.lng ? location : undefined} onLocationSelect={setLocation} />
+
+                    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <div className="flex items-start gap-3">
+                        <Bookmark className="h-5 w-5 text-saffron-600 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-stone-800">Save this location for later</p>
+                          <p className="text-xs text-stone-500 mt-0.5">Keep up to 5 locations such as Home, Office, Parents House, or Mandir.</p>
+                          <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                            <input value={savedLocationName} onChange={(e) => setSavedLocationName(e.target.value)} placeholder="Location name, e.g. Home" maxLength={50} className="flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-saffron-500 focus:ring-2 focus:ring-saffron-500/20" />
+                            <Button type="button" size="sm" onClick={handleSaveSelectedLocation} isLoading={savingLocation} disabled={!location.lat || !location.lng || !location.address || !savedLocationName.trim() || savingLocation || savedLocations.length >= 5} className="shrink-0">
+                              <Bookmark className="h-4 w-4 mr-1" /> Save Location
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {location.address && (
-                      <div className="mt-3 rounded-xl bg-stone-50 border border-stone-200 p-3 text-xs text-stone-600">
-                        <span className="font-bold text-stone-800 block mb-1">Selected location</span>
-                        {location.address}
+                      <div className="rounded-xl bg-green-50 border border-green-100 p-3">
+                        <div className="flex items-start gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-green-800">Booking will use this exact location</p>
+                            <p className="text-xs text-green-700 mt-0.5 break-words">{location.address}</p>
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {location.lat !== 0 && selectedGuruba.profiles?.latitude && (
-                      <div className="mt-3 rounded-xl bg-stone-50 border border-stone-200 p-3">
+                      <div className="rounded-xl bg-stone-50 border border-stone-200 p-3">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-semibold text-stone-700 flex items-center gap-2">
-                            <Navigation className="h-4 w-4 text-saffron-600" /> Distance
+                            <Navigation className="h-4 w-4 text-saffron-600" /> Road distance
                           </span>
-                          <span className="font-bold text-stone-900">
-                            {distanceLoading ? 'Calculating...' : roadDistance !== null ? `${roadDistance.toFixed(1)} km` : 'Unavailable'}
-                          </span>
+                          <span className="font-bold text-stone-900">{distanceLoading ? 'Calculating...' : roadDistance !== null ? roadDistance.toFixed(1) + ' km' : 'Unavailable'}</span>
                         </div>
                         {roadDistance !== null && roadDistance > MAX_RECOMMENDED_DISTANCE && (
                           <p className="mt-2 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg p-2">
@@ -846,7 +920,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         )}
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </section>
 
