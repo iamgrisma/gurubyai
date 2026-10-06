@@ -39,8 +39,8 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
     const handleRequestNew = async () => {
         if (!searchTerm.trim()) return;
         try {
-            const { error } = await supabase.from('gotras').insert({ name: searchTerm.trim(), status: 'pending' });
-            if (error && error.code !== '23505') throw error;
+            const { error } = await supabase.rpc('request_gotra', { p_name: searchTerm.trim() });
+            if (error) throw error;
             onChange(searchTerm.trim());
             setShowDropdown(false);
             alert(`Requested to add '${searchTerm}'.`);
@@ -146,7 +146,17 @@ export const DashboardProfile: React.FC<ProfileProps> = ({ user, profile }) => {
         if (!user) return;
         setUpdateLoading(true);
         try {
-            const { error } = await supabase.from('profiles').update(profileForm).eq('id', user.id);
+            const { error } = await supabase.rpc('update_my_profile', {
+                p_full_name: profileForm.full_name,
+                p_phone: profileForm.phone,
+                p_gotra_id: profileForm.gotra_id,
+                p_avatar_url: profile?.avatar_url || null,
+                p_city: profileForm.city,
+                p_latitude: profileForm.latitude || null,
+                p_longitude: profileForm.longitude || null,
+                p_address: profileForm.address,
+                p_languages: profile?.languages || null,
+            });
             if (error) throw error;
             await queryClient.invalidateQueries({ queryKey: ['profile'] });
             alert("Profile updated successfully");
@@ -168,12 +178,11 @@ export const DashboardProfile: React.FC<ProfileProps> = ({ user, profile }) => {
         }
 
         try {
-            const { error } = await supabase.from('saved_locations').insert({
-                user_id: user.id,
-                name: newLocName.trim(),
-                latitude: profileForm.latitude,
-                longitude: profileForm.longitude,
-                address: profileForm.address
+            const { error } = await supabase.rpc('save_my_location', {
+                p_name: newLocName.trim(),
+                p_latitude: profileForm.latitude,
+                p_longitude: profileForm.longitude,
+                p_address: profileForm.address || null,
             });
             if (error) throw error;
             setNewLocName('');
@@ -186,7 +195,11 @@ export const DashboardProfile: React.FC<ProfileProps> = ({ user, profile }) => {
 
     const handleDeleteLocation = async (id: string) => {
         if (!confirm("Delete this location?")) return;
-        await supabase.from('saved_locations').delete().eq('id', id);
+        const { error } = await supabase.rpc('delete_my_location', { p_location_id: id });
+        if (error) {
+            alert("Failed to delete location: " + error.message);
+            return;
+        }
         queryClient.invalidateQueries({ queryKey: ['savedLocations'] });
     };
 
