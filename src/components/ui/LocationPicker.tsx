@@ -51,11 +51,15 @@ const MapEvents = ({
   setPosition,
   setAddress,
   setBusy,
+  requestIdRef,
+  reverseAbortRef,
 }: {
   onPick: (loc: Location) => void;
   setPosition: (pos: [number, number]) => void;
   setAddress: (addr: string) => void;
   setBusy: (busy: boolean) => void;
+  requestIdRef: React.MutableRefObject<number>;
+  reverseAbortRef: React.MutableRefObject<AbortController | null>;
 }) => {
   const map = useMap();
 
@@ -307,6 +311,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               setPosition={setPosition}
               setAddress={setAddress}
               setBusy={setBusy}
+              requestIdRef={requestIdRef}
+              reverseAbortRef={reverseAbortRef}
             />
           )}
           {position && (
