@@ -31,35 +31,33 @@ export const AdminConcierge: React.FC = () => {
       setFilteredClients(data as UserProfile[] || []);
   };
 
-  const fetchAvailableGurubas = async () => {
-      if(!selectedService) return;
+  const fetchAvailableGurubas = async (service: Service | null = selectedService) => {
+      if(!service) return;
       const { data } = await supabase.from('gurubas').select('*, profiles:user_id(full_name, gotra_id)');
       const filtered = data?.filter((g: any) => 
-          !g.specialties?.length || g.specialties.includes(selectedService.title)
+          !g.specialties?.length || g.specialties.includes(service.title)
       ) as Guruba[];
       setFilteredGurubas(filtered || []);
   };
 
   const checkAvailability = async () => {
-      if(!selectedGuruba || !bookingDate) return;
-      const dayOfWeek = new Date(bookingDate).getDay();
-      const { data: schedule } = await supabase.from('guruba_availability').select('*').eq('guruba_id', selectedGuruba.id).eq('day_of_week', dayOfWeek).single();
-      
-      if(!schedule) { setAvailableSlots([]); return; }
-      const slots = [];
-      let h = parseInt(schedule.start_time.split(':')[0]);
-      const endH = parseInt(schedule.end_time.split(':')[0]);
-      for(let i=h; i<endH; i++) {
-          slots.push(`${i.toString().padStart(2,'0')}:00`);
-          slots.push(`${i.toString().padStart(2,'0')}:30`);
+      if(!selectedGuruba || !selectedService || !bookingDate) return;
+      const { data, error } = await supabase.rpc('get_available_booking_slots', {
+          p_guruba_id: selectedGuruba.id,
+          p_service_id: selectedService.id,
+          p_date: bookingDate,
+      });
+      if (error) {
+          setAvailableSlots([]);
+          return;
       }
-      setAvailableSlots(slots);
+      setAvailableSlots(((data || []) as { slot_time: string }[]).map(row => row.slot_time));
   };
 
   const handleConciergeBooking = async () => {
       if(!selectedClient || !selectedService || !selectedGuruba || !bookingDate || !bookingTime) return;
       try {
-          const scheduledAt = new Date(`${bookingDate}T${bookingTime}`).toISOString();
+          const scheduledAt = new Date(`${bookingDate}T${bookingTime}:00+05:45`).toISOString();
           const { error } = await supabase.rpc('admin_create_booking', {
               p_user_id: selectedClient.id,
               p_guruba_id: selectedGuruba.id,
@@ -137,7 +135,7 @@ export const AdminConcierge: React.FC = () => {
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {services.map(s => (
-                                  <div key={s.id} onClick={() => { setSelectedService(s); setBookingStep(3); fetchAvailableGurubas(); }} className="p-4 border border-stone-200 rounded-xl hover:border-saffron-500 hover:shadow-md cursor-pointer transition-all">
+                                  <div key={s.id} onClick={() => { setSelectedService(s); setBookingStep(3); fetchAvailableGurubas(s); }} className="p-4 border border-stone-200 rounded-xl hover:border-saffron-500 hover:shadow-md cursor-pointer transition-all">
                                       <p className="font-bold text-stone-900 text-lg">{s.title}</p>
                                       <p className="text-sm text-stone-500 mt-1 flex justify-between">
                                           <span>{s.category}</span>
