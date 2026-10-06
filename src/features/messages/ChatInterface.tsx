@@ -47,8 +47,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
           if (error) throw error;
           const users = (data || []) as UserProfile[];
           if (defaultReceiverId && !users.some(u => u.id === defaultReceiverId)) {
-              const { data: fallback } = await supabase.from('profiles').select('id,email,full_name,role,phone,avatar_url,city,credits').eq('id', defaultReceiverId).maybeSingle();
-              if (fallback) users.push(fallback as UserProfile);
+              const { data: fallback, error: fallbackError } = await supabase.rpc('get_my_message_user', { p_user_id: defaultReceiverId });
+              if (!fallbackError && fallback?.length) users.push(fallback[0] as UserProfile);
           }
           return users;
       },
