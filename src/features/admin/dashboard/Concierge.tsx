@@ -60,14 +60,13 @@ export const AdminConcierge: React.FC = () => {
       if(!selectedClient || !selectedService || !selectedGuruba || !bookingDate || !bookingTime) return;
       try {
           const scheduledAt = new Date(`${bookingDate}T${bookingTime}`).toISOString();
-          await supabase.from('bookings').insert({
-              user_id: selectedClient.id,
-              guruba_id: selectedGuruba.id,
-              service_id: selectedService.id,
-              scheduled_at: scheduledAt,
-              status: 'confirmed', 
-              platform_fee: 0 
+          const { error } = await supabase.rpc('admin_create_booking', {
+              p_user_id: selectedClient.id,
+              p_guruba_id: selectedGuruba.id,
+              p_service_id: selectedService.id,
+              p_scheduled_at: scheduledAt,
           });
+          if (error) throw error;
           alert("Booking Created!");
           setBookingStep(1); setSelectedClient(null); setSelectedService(null); setSelectedGuruba(null);
           queryClient.invalidateQueries({ queryKey: ['adminStats'] });
