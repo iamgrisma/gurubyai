@@ -132,9 +132,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
       if (action === 'confirm_proposal') {
           // Client confirming Guruba's proposed time
           const updatePayload: any = { id: bookingId, status: 'confirmed' };
-          if (proposed) {
-              updatePayload.scheduled_at = proposed;
-          }
           updateStatusMutation.mutate(updatePayload, {
               onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
@@ -192,11 +189,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
           }
       }
 
-      await supabase.from('bookings').update({ 
-          status: 'awaiting_client_confirmation',
-          proposed_time: proposedTime,
-          confirmation_deadline: new Date(Date.now() + 3600000).toISOString()
-      }).eq('id', activeBooking.id);
+      const { error } = await supabase.rpc('propose_booking_time', {
+          p_booking_id: activeBooking.id,
+          p_proposed_time: new Date(proposedTime).toISOString(),
+          p_confirmation_deadline: new Date(Date.now() + 3600000).toISOString(),
+      });
+      if (error) {
+          alert('Failed to send proposal: ' + error.message);
+          return;
+      }
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
 
@@ -332,9 +333,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
                                     onProposeNewTime={() => setIsProposing(true)}
                                     onComplete={() => handleBookingAction(activeBooking.id, 'completed')}
                                     onAddLink={async (link) => {
-                                        const { error } = await supabase.from('bookings').update({ meeting_link: link }).eq('id', activeBooking.id);
+                                        const { error } = await supabase.rpc('set_booking_meeting_link', {
+                                            p_booking_id: activeBooking.id,
+                                            p_meeting_link: link,
+                                        });
                                         if (error) {
-                                            alert("Failed to update meeting link");
+                                            alert("Failed to update meeting link: " + error.message);
                                         } else {
                                             queryClient.invalidateQueries({ queryKey: ['bookings'] });
                                         }
