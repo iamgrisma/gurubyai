@@ -59,3 +59,5 @@ execute function public.protect_profile_fields();
 
 revoke execute on function public.is_admin(uuid) from public, anon;
 grant execute on function public.is_admin(uuid) to authenticated;
+
+revoke execute on function public.protect_profile_fields() from public, anon, authenticated;
