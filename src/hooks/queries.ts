@@ -191,49 +191,35 @@ export const useUpdateBookingStatus = () => {
 
 export const useBookService = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (params: any) => {
-        // Direct insert into bookings table
-        const { data, error } = await supabase.from('bookings').insert([{
-            user_id: params.user_id,
-            guruba_id: params.guruba_id,
-            service_id: params.service_id,
-            scheduled_at: params.scheduled_at || null,
-            proposed_time: params.proposed_time || null,
-            status: params.status || 'pending',
-            booking_note: params.booking_note || null,
-            location_lat: params.location_lat || null,
-            location_lng: params.location_lng || null,
-            location_address: params.location_address || null,
-            is_custom_booking: params.is_custom_booking || false,
-            is_online: params.is_online || false,
-            platform_fee: params.platform_fee || 0
-        }]).select();
-        
-        if (error) {
-            console.error("Booking error:", error);
-            throw error;
-        }
+      const { data: bookingId, error } = await supabase.rpc('book_service', {
+        p_user_id: params.user_id,
+        p_guruba_id: params.guruba_id,
+        p_service_id: params.service_id,
+        p_scheduled_at: params.scheduled_at || null,
+        p_platform_fee: Math.max(0, Number(params.platform_fee || 0)),
+        p_location_lat: params.location_lat ?? null,
+        p_location_lng: params.location_lng ?? null,
+        p_location_address: params.location_address ?? null,
+        p_proposed_time: params.proposed_time || null,
+        p_booking_note: params.booking_note || null,
+        p_is_custom_booking: Boolean(params.is_custom_booking),
+        p_is_online: Boolean(params.is_online),
+      });
 
-        // Deduct the dynamic booking fee/price directly
-        const { data: profile } = await supabase.from('profiles').select('credits').eq('id', params.user_id).single();
-        if (profile && profile.credits >= params.platform_fee) {
-             await supabase.from('profiles').update({ credits: profile.credits - params.platform_fee }).eq('id', params.user_id);
-             await supabase.from('transactions').insert([{
-                 user_id: params.user_id,
-                 amount: -params.platform_fee,
-                 type: 'booking_fee',
-                 description: 'Booking platform fee',
-                 status: 'completed'
-             }]);
-        }
+      if (error) {
+        console.error('Booking error:', error);
+        throw error;
+      }
 
-        return data;
+      return bookingId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] }); 
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-    }
+    },
   });
 };
