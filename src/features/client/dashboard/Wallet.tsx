@@ -35,10 +35,8 @@ export const DashboardWallet: React.FC<WalletProps> = ({ profile }) => {
     const topupMutation = useMutation({
         mutationFn: async (amount: number) => {
             if (!user) return;
-            const { error } = await supabase.from('topup_requests').insert({
-                user_id: user.id,
-                amount: amount,
-                status: 'pending'
+            const { error } = await supabase.rpc('request_topup', {
+                p_amount: amount,
             });
             if (error) throw error;
         },
