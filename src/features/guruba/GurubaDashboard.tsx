@@ -10,7 +10,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { Guruba } from '../../types';
 import { ChatInterface } from '../messages/ChatInterface';
-import { useBookings, useUpdateBookingStatus } from '../../hooks/queries';
+import { useBookings, useSetBookingMeetingLink, useUpdateBookingStatus } from '../../hooks/queries';
 import {
     Calendar, LayoutDashboard, ListChecks, User, LogOut, MessageSquare,
     Briefcase, Users, BookOpen, Menu, X, ChevronsLeft, ChevronsRight,
@@ -74,6 +74,7 @@ export const GurubaDashboard: React.FC = () => {
 
     // --- Mutations ---
     const updateStatusMutation = useUpdateBookingStatus();
+    const setMeetingLinkMutation = useSetBookingMeetingLink();
 
     const handleBookingAction = async (bookingId: string, action: 'confirmed' | 'cancelled' | 'completed') => {
         const booking = bookings.find(b => b.id === bookingId);
@@ -88,15 +89,24 @@ export const GurubaDashboard: React.FC = () => {
     };
 
     const handleAddLink = async (id: string, link: string) => {
-        if (!link.startsWith('http') && !link.startsWith('wa.me')) {
-            alert("Please enter a valid URL (starting with http://, https://, or wa.me/)");
+        const normalizedLink = link.trim().startsWith('wa.me/')
+            ? `https://${link.trim()}`
+            : link.trim();
+
+        try {
+            new URL(normalizedLink);
+        } catch {
+            alert("Please enter a valid URL (for example https://meet.google.com/... or https://wa.me/...)");
             return;
         }
-        updateStatusMutation.mutate({ id: id, status: 'confirmed', meeting_link: link }, {
-            onSuccess: () => {
-                alert("Meeting link updated!");
+
+        setMeetingLinkMutation.mutate(
+            { id, meeting_link: normalizedLink },
+            {
+                onSuccess: () => alert("Meeting link updated!"),
+                onError: (error: any) => alert(`Failed to update meeting link: ${error.message}`),
             }
-        });
+        );
     };
 
     // Derived Data
