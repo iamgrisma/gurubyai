@@ -26,7 +26,7 @@ export const DashboardWallet: React.FC<WalletProps> = ({ profile }) => {
         queryKey: ['transactions', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const { data } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+            const { data } = await supabase.rpc('get_my_transactions');
             return data as Transaction[] || [];
         },
         enabled: !!user?.id
