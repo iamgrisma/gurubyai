@@ -36,8 +36,8 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
     const handleRequestNew = async () => {
         if (!searchTerm.trim()) return;
         try {
-            const { error } = await supabase.from('gotras').insert({ name: searchTerm.trim(), status: 'pending' });
-            if (error && error.code !== '23505') throw error;
+            const { error } = await supabase.rpc('request_gotra', { p_name: searchTerm.trim() });
+            if (error) throw error;
             onChange(searchTerm.trim());
             setShowDropdown(false);
             alert(`Requested to add '${searchTerm}'. Selected pending approval.`);
@@ -130,36 +130,16 @@ export const GurubaProfile: React.FC<ProfileProps> = ({ guruba, showSetupAlert }
   const saveProfile = async () => {
       setSavingProfile(true);
       try {
-          if (!guruba) {
-              // Create new Guruba profile
-              const { error: gError } = await supabase.from('gurubas').insert([{ 
-                  user_id: user?.id,
-                  bio, 
-                  guruba_type: gurubaType, 
-                  location: location.address 
-              }]);
-              
-              if (gError) throw gError;
-          } else {
-              // Update Guruba specific details
-              const { error: gError } = await supabase.from('gurubas').update({ 
-                  bio, 
-                  guruba_type: gurubaType, 
-                  location: location.address 
-              }).eq('id', guruba.id);
-              
-              if (gError) throw gError;
-          }
-
-          // Update Shared Profile details (coords, gotra)
-          const { error: pError } = await supabase.from('profiles').update({ 
-              gotra_id: gotraId,
-              latitude: location.lat,
-              longitude: location.lng,
-              address: location.address
-          }).eq('id', user?.id);
-
-          if (pError) throw pError;
+          const { error: gError } = await supabase.rpc('upsert_my_guruba_profile', {
+              p_bio: bio,
+              p_guruba_type: gurubaType,
+              p_location: location.address,
+              p_gotra_id: gotraId || null,
+              p_latitude: location.lat || null,
+              p_longitude: location.lng || null,
+              p_address: location.address || null,
+          });
+          if (gError) throw gError;
           
           queryClient.invalidateQueries({ queryKey: ['gurubaProfile'] });
           alert(guruba ? "Profile updated successfully!" : "Guruba profile created successfully!");
