@@ -23,13 +23,16 @@
 - Legacy financial RPC execution revoked for `anon` and `authenticated`.
 - Booking domain state-machine RPCs added.
 - Direct client INSERT/UPDATE/DELETE on `bookings` and `booking_services` revoked.
-- Backend architecture and booking API contract documented in `docs/`.
+- Backend architecture and booking API contract documented in docs/.
+- Core API mutation boundary completed: protected domain tables have no authenticated INSERT/UPDATE/DELETE privileges.
+- Profile, Guruba profile/service, wallet top-up, saved locations, Gotra requests/admin, messaging, reviews, service catalog, verification and booking operations now use server-authoritative RPCs.
+- Admin concierge availability now uses the same server availability RPC as the client booking flow.
+- Message read operations were aligned with the deployed read RPCs.
 
-## Next backend work
+## Remaining after B3
 1. Replace broad direct-table reads with intentional API projections/views.
 2. Consolidate RLS policies by domain and role.
-3. Finish booking operations: rescheduling, meeting links, refund/cancellation policy, and idempotency.
+3. Finish booking policy edge cases: rescheduling, refund/cancellation policy, and idempotency.
 4. Formalize wallet/transaction ledger and remove the legacy balance model.
-5. Add notifications/messages domain operations.
-6. Add API contract/OpenAPI and automated authorization tests.
-7. Only then rebuild Web and Android clients.
+5. Add OpenAPI contract and automated authorization/integration tests.
+6. Then rebuild Web (B10) and Android/Expo (B11).
