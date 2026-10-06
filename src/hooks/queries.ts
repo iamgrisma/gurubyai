@@ -13,11 +13,7 @@ export const useProfile = (userId?: string) => {
     queryFn: async () => {
       if (!userId) return null;
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle();
+        const { data, error } = await supabase.rpc('get_my_profile').maybeSingle();
         
         if (error) {
             console.warn("Profile fetch error:", error);
@@ -85,22 +81,26 @@ export const useGurubas = () => {
     queryKey: ['gurubas'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('gurubas')
-          .select(`
-            *,
-            profiles:user_id (
-              id,
-              full_name,
-              gotra_id,
-              avatar_url
-            )
-          `);
+        const { data, error } = await supabase.rpc('get_public_gurubas');
         if (error) {
             console.error(error);
             return [];
         }
-        return (data || []) as Guruba[];
+        const rows = (data || []).map((row: any) => ({
+          id: row.guruba_id,
+          user_id: row.user_id,
+          bio: row.bio,
+          years_experience: row.years_experience,
+          rating: row.rating,
+          location: row.location,
+          specialties: row.specialties,
+          languages: row.languages,
+          guruba_type: row.guruba_type,
+          review_count: row.review_count,
+          is_verified: row.is_verified,
+          profiles: { id: row.user_id, full_name: row.full_name, avatar_url: row.avatar_url },
+        }));
+        return rows as Guruba[];
       } catch (e) {
         console.error("Exception fetching gurubas:", e);
         return [];
