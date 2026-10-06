@@ -28,3 +28,25 @@ begin
   if has_function_privilege('authenticated','public.recover_stale_job_queue(integer)','EXECUTE') then raise exception 'recover_stale_job_queue must not be client callable'; end if;
   raise notice 'B9 authorization and queue hardening assertions passed';
 end $$;
+
+
+-- Profile exposure hardening: anonymous clients must not have direct SELECT.
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count
+  from information_schema.role_table_grants
+  where table_schema='public'
+    and table_name='profiles'
+    and grantee='anon'
+    and privilege_type='SELECT';
+  if v_count <> 0 then
+    raise exception 'anon profile SELECT grant still exists';
+  end if;
+  if to_regprocedure('public.get_public_gurubas()') is null then
+    raise exception 'public Guruba projection RPC missing';
+  end if;
+  if to_regprocedure('public.get_my_profile()') is null then
+    raise exception 'private profile projection RPC missing';
+  end if;
+end $$;
