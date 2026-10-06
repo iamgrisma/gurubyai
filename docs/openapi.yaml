@@ -1,0 +1,177 @@
+openapi: 3.0.3
+info:
+  title: GurubyAI Backend API
+  version: 1.0.0
+  description: Authoritative domain API for web and Android clients.
+servers:
+  - url: https://axctxzjqnxbloxakhhmx.supabase.co
+paths:
+  /rpc/book_service_idempotent:
+    post:
+      operationId: bookService
+      security: [{ bearerAuth: [] }]
+      summary: Create a booking exactly once for a request key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookServiceRequest'
+      responses:
+        '200': { description: Booking UUID returned. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /rpc/confirm_booking:
+    post:
+      operationId: confirmBooking
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [p_booking_id], properties: { p_booking_id: { type: string, format: uuid } } }
+      responses:
+        '200': { description: Confirmed. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /rpc/propose_booking_time:
+    post:
+      operationId: proposeBookingTime
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_booking_id, p_proposed_time]
+              properties:
+                p_booking_id: { type: string, format: uuid }
+                p_proposed_time: { type: string, format: date-time }
+                p_confirmation_deadline: { type: string, format: date-time, nullable: true }
+      responses:
+        '200': { description: Proposal created. }
+  /rpc/respond_booking_time:
+    post:
+      operationId: respondBookingTime
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_booking_id, p_accept]
+              properties:
+                p_booking_id: { type: string, format: uuid }
+                p_accept: { type: boolean }
+      responses:
+        '200': { description: Response recorded. }
+  /rpc/reschedule_booking:
+    post:
+      operationId: rescheduleBooking
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_booking_id, p_new_scheduled_at]
+              properties:
+                p_booking_id: { type: string, format: uuid }
+                p_new_scheduled_at: { type: string, format: date-time }
+      responses:
+        '200': { description: Rescheduled. }
+  /rpc/cancel_booking:
+    post:
+      operationId: cancelBooking
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_booking_id]
+              properties:
+                p_booking_id: { type: string, format: uuid }
+      responses:
+        '200': { description: Cancelled and fee refunded when applicable. }
+  /rpc/complete_booking:
+    post:
+      operationId: completeBooking
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [p_booking_id], properties: { p_booking_id: { type: string, format: uuid } } }
+      responses:
+        '200': { description: Completed. }
+  /rpc/request_topup:
+    post:
+      operationId: requestTopup
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [p_amount], properties: { p_amount: { type: integer, minimum: 1, maximum: 1000000 } } }
+      responses:
+        '200': { description: Top-up request UUID returned. }
+  /rpc/approve_topup_request:
+    post:
+      operationId: approveTopup
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [p_request_id], properties: { p_request_id: { type: string, format: uuid } } }
+      responses:
+        '200': { description: Approved. }
+  /rpc/reject_topup_request:
+    post:
+      operationId: rejectTopup
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [p_request_id], properties: { p_request_id: { type: string, format: uuid } } }
+      responses:
+        '200': { description: Rejected. }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    BookServiceRequest:
+      type: object
+      required:
+        - p_user_id
+        - p_guruba_id
+        - p_service_id
+        - p_platform_fee
+        - p_request_key
+      properties:
+        p_user_id: { type: string, format: uuid }
+        p_guruba_id: { type: string, format: uuid }
+        p_service_id: { type: string, format: uuid }
+        p_scheduled_at: { type: string, format: date-time, nullable: true }
+        p_platform_fee: { type: integer, minimum: 0 }
+        p_location_lat: { type: number, nullable: true }
+        p_location_lng: { type: number, nullable: true }
+        p_location_address: { type: string, nullable: true }
+        p_proposed_time: { type: string, format: date-time, nullable: true }
+        p_booking_note: { type: string, nullable: true }
+        p_is_custom_booking: { type: boolean }
+        p_is_online: { type: boolean }
+        p_request_key: { type: string, minLength: 8, maxLength: 128 }
+  responses:
+    BadRequest:
+      description: Domain validation failed.
+    Unauthorized:
+      description: Missing or invalid authentication.
