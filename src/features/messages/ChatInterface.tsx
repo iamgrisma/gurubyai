@@ -130,13 +130,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
 
   const handleBookingAction = async (bookingId: string, action: string, proposed?: string) => {
       if (action === 'confirm_proposal') {
-          // Client confirming Guruba's proposed time
-          const updatePayload: any = { id: bookingId, status: 'confirmed' };
-          updateStatusMutation.mutate(updatePayload, {
-              onSuccess: () => {
-                  queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
-              }
+          const { error } = await supabase.rpc('respond_booking_time', {
+              p_booking_id: bookingId,
+              p_accept: true,
           });
+          if (error) {
+              alert('Could not accept proposed time: ' + error.message);
+              return;
+          }
+          queryClient.invalidateQueries({ queryKey: ['bookings'] });
+          queryClient.invalidateQueries({ queryKey: ['messages', user?.id, activeConversation] });
       } else if (action === 'confirmed') {
           // Guruba accepting client's request
           const updatePayload: any = { id: bookingId, status: 'confirmed' };
