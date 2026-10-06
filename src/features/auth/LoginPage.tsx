@@ -30,9 +30,7 @@ export const LoginPage: React.FC = () => {
 
   const checkUserRoleAndRedirect = async (userId: string) => {
         const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', userId)
+            .rpc('get_my_profile')
             .maybeSingle();
         
         const from = searchParams.get('from');
