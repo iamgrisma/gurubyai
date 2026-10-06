@@ -34,8 +34,8 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      disabled={isLoading || disabled}
       {...props}
+      disabled={isLoading || disabled}
     >
       {isLoading ? (
         <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
