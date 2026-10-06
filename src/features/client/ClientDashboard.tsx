@@ -87,12 +87,14 @@ export const ClientDashboard: React.FC = () => {
       const booking = bookings.find(b => b.id === bookingId);
       if (action === 'accept') {
         if (!proposedTime) return;
-        await supabase.from('bookings').update({
-          status: 'confirmed',
-          scheduled_at: proposedTime
-        }).eq('id', bookingId);
+        const { error } = await supabase.rpc('respond_booking_time', {
+          p_booking_id: bookingId,
+          p_accept: true,
+        });
+        if (error) throw error;
       } else {
-        await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+        const { error } = await supabase.rpc('cancel_booking', { p_booking_id: bookingId });
+        if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['messages'] });
