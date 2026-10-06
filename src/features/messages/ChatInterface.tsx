@@ -86,7 +86,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
               // Side effect: Mark read
               const unreadIds = data.filter(m => m.receiver_id === user.id && !m.is_read).map(m => m.id);
               if (unreadIds.length > 0) {
-                  await supabase.from('messages').update({ is_read: true, seen_at: new Date().toISOString() }).in('id', unreadIds);
+                  await supabase.rpc('mark_messages_read', { p_message_ids: unreadIds });
               }
           }
           return (data || []) as Message[];
