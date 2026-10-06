@@ -212,12 +212,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
   const sendMessageMutation = useMutation({
       mutationFn: async () => {
           if (!user || !activeConversation || !newMessage.trim()) return;
-          const { error } = await supabase.from('messages').insert([{
-            sender_id: user.id,
-            receiver_id: activeConversation,
-            content: newMessage.trim(),
-            booking_id: activeBooking?.id || null
-          }]);
+          const { error } = await supabase.rpc('send_message', {
+            p_receiver_id: activeConversation,
+            p_content: newMessage.trim(),
+            p_booking_id: activeBooking?.id || null,
+            p_message_type: 'text',
+            p_metadata: {},
+          });
           if (error) throw error;
       },
       onSuccess: () => {
