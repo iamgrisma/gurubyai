@@ -327,8 +327,42 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
         }
     };
 
-    // Derived 
-    const isStep2Valid = date && selectedTime && (bookingOnline || location.address);
+    // Step 2 validation. Keep this explicit so mobile users can see exactly
+    // why Review Booking cannot proceed instead of getting a silently disabled button.
+    const missingStep2Fields = [
+        !date ? 'date' : null,
+        !selectedTime ? 'time' : null,
+        !bookingOnline && !location.address ? 'location' : null,
+    ].filter(Boolean) as string[];
+
+    const isStep2Valid = missingStep2Fields.length === 0;
+
+    const handleReviewBooking = () => {
+        if (isGotraConflict && !gotraOverride) {
+            showMessage({
+                type: 'error',
+                title: 'Gotra Confirmation Required',
+                content: 'Please confirm the gotra match before reviewing the booking.',
+            });
+            return;
+        }
+
+        if (!isStep2Valid) {
+            const labels: Record<string, string> = {
+                date: 'date',
+                time: 'time slot',
+                location: 'location',
+            };
+            showMessage({
+                type: 'error',
+                title: 'Booking Details Incomplete',
+                content: `Please select your ${missingStep2Fields.map(f => labels[f]).join(' and ')} before reviewing the booking.`,
+            });
+            return;
+        }
+
+        setStep(3);
+    };
 
     // Filter gurubas for this service using offeredGurubaServices mapping
     const serviceGurubas = allGurubas.filter(g => 
@@ -609,13 +643,19 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ service }) => {
                         <Button variant="ghost" onClick={() => setStep(1)} className="text-stone-500">
                             <ChevronLeft className="h-4 w-4 mr-2" /> Back
                         </Button>
-                        <Button 
-                            onClick={() => setStep(3)} 
-                            disabled={!isStep2Valid || (isGotraConflict && !gotraOverride)}
-                            className="bg-stone-900 text-white hover:bg-stone-800"
-                        >
-                            Review Booking <ChevronRight className="h-4 w-4 ml-2" />
-                        </Button>
+                        <div className="flex flex-col items-end gap-1">
+                            {!isStep2Valid && (
+                                <span className="text-[11px] font-semibold text-stone-500">
+                                    Select ${missingStep2Fields.map(f => ({ date: 'date', time: 'time', location: 'location' }[f])).join(' + ')}
+                                </span>
+                            )}
+                            <Button 
+                                onClick={handleReviewBooking}
+                                className="bg-stone-900 text-white hover:bg-stone-800"
+                            >
+                                Review Booking <ChevronRight className="h-4 w-4 ml-2" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
