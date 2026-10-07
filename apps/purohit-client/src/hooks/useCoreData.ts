@@ -12,7 +12,7 @@ export const useGurubaProfile=()=>useQuery({queryKey:['guruba-profile'],queryFn:
 export const useGurubaServices=()=>useQuery({queryKey:['guruba-services'],queryFn:api.api.getMyGurubaServices});
 export const useAvailability=()=>useQuery({queryKey:['availability'],queryFn:api.api.getMyAvailability});
 export const useBookService=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.bookService,onSuccess:()=>q.invalidateQueries({queryKey:['bookings']})})};
-export const useCancelBooking=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.cancelBooking,onSuccess:()=>{q.invalidateQueries({queryKey:['bookings']});q.invalidateQueries({queryKey:['transactions']})})}};
+export const useCancelBooking=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.cancelBooking,onSuccess:()=>{q.invalidateQueries({queryKey:['bookings']});q.invalidateQueries({queryKey:['transactions']})}})};
 export const useRescheduleBooking=()=>{const q=useQueryClient();return useMutation({mutationFn:({id,at}:{id:string;at:string})=>api.api.rescheduleBooking(id,at),onSuccess:()=>q.invalidateQueries({queryKey:['bookings']})})};
 export const useRequestTopup=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.requestTopup,onSuccess:()=>q.invalidateQueries({queryKey:['transactions']})})};
 export const useSaveLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:({name,lat,lng,address}:{name:string;lat:number;lng:number;address?:string})=>api.api.saveLocation(name,lat,lng,address),onSuccess:()=>q.invalidateQueries({queryKey:['locations']})})};
