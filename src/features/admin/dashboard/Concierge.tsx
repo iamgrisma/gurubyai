@@ -33,8 +33,10 @@ export const AdminConcierge: React.FC = () => {
 
   const fetchAvailableGurubas = async (service: Service | null = selectedService) => {
       if(!service) return;
-      const { data } = await supabase.from('gurubas').select('*, profiles:user_id(full_name, gotra_id)');
-      const filtered = data?.filter((g: any) => 
+      const { data, error } = await supabase.rpc('admin_get_gurubas_for_concierge');
+      if (error) throw error;
+      const rows = (data || []) as any[];
+      const filtered = rows.filter((g: any) =>
           !g.specialties?.length || g.specialties.includes(service.title)
       ) as Guruba[];
       setFilteredGurubas(filtered || []);
