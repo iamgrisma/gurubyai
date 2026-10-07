@@ -1,0 +1,26 @@
+name = "purohit-cf-backend"
+main = "src/index.ts"
+compatibility_date = "2026-10-07"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare R2 Bucket for Purohit media, avatars, and documents
+[[r2_buckets]]
+binding = "PUROHIT_STORAGE"
+bucket_name = "purohit"
+preview_bucket_name = "purohit-preview"
+
+# Cloudflare Durable Object for Low-Latency, Resilient WebRTC Signaling
+[durable_objects]
+bindings = [
+  { name = "SIGNALING_ROOM", class_name = "MeetingSignalingDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["MeetingSignalingDO"]
+
+# Optional CORS and Environment variables
+[vars]
+ENVIRONMENT = "production"
+MAX_UPLOAD_SIZE_MB = "15"
+CORS_ALLOW_ORIGIN = "*"

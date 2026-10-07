@@ -87,6 +87,15 @@ Only after B0-B9. Web is a presentation client of the backend contract.
 ### B11 — Android/Expo
 Only after B0-B9. Mobile uses the same backend/API contract as web.
 
+### B12 — Rewarded Ads & Points Monetization
+Replaces manual fiat payment top-ups with rewarded video ad credits (Google AdMob / Unity Ads), anti-farming cooldowns, daily caps, and idempotency keys to ensure Apple App Store Guideline 3.1.1 compliance.
+
+### B13 — Cloudflare R2 Media Storage
+Dedicated object storage under `purohit` R2 bucket for user avatars, Guruba verification credentials, and consultation attachments with CDN caching and zero egress costs.
+
+### B14 — Resilient WebRTC Signaling via Durable Objects
+Stateful room coordination via Cloudflare Durable Objects (`MeetingSignalingDO`) providing message sequence buffering and seamless replay across high-latency and unstable mobile network reconnections.
+
 ## Latest implementation checkpoint — 2026-10-07
 
 B3 read-boundary work is now materially aligned in `main`: admin dashboards use admin read projections, Concierge Guruba discovery uses the admin projection, and Guruba self-profile loading uses a private projection RPC. The private Guruba projection is also applied in the production database and verified as authenticated-only with a pinned search path.
