@@ -19,8 +19,12 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
 
     useEffect(() => {
         const fetchGotras = async () => {
-            const { data } = await supabase.from('gotras').select('*').eq('status', 'approved').order('name');
-            setGotras(data || []);
+            const { data, error } = await supabase.rpc('get_approved_gotras');
+            if (error) {
+                console.error(error);
+                return;
+            }
+            setGotras((data || []) as Gotra[]);
         };
         fetchGotras();
     }, []);
