@@ -63,8 +63,9 @@ export const GurubaDashboard: React.FC = () => {
         queryKey: ['gurubaProfile', user?.id],
         queryFn: async () => {
             if (!user?.id) return null;
-            const { data } = await supabase.from('gurubas').select('*, profiles:user_id(*)').eq('user_id', user.id).single();
-            return data as Guruba;
+            const { data, error } = await supabase.rpc('get_my_guruba_profile');
+            if (error) throw error;
+            return data?.[0] as Guruba || null;
         },
         enabled: !!user?.id
     });
