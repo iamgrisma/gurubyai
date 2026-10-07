@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Linking from 'expo-linking';
 import { api, type LocationSearchResult } from '../src/data/contracts';
 import { useDeleteLocation, useSaveLocation, useSavedLocations } from '../src/hooks/useCoreData';
 import { Page } from '../src/ui/layout';
@@ -7,6 +8,11 @@ import { theme } from '../src/ui/theme';
 
 const isValidCoordinate = (value: number, min: number, max: number) =>
   Number.isFinite(value) && value >= min && value <= max;
+
+async function openMap(latitude: number, longitude: number) {
+  if (!isValidCoordinate(latitude, -90, 90) || !isValidCoordinate(longitude, -180, 180)) return;
+  await Linking.openURL('https://www.openstreetmap.org/?mlat=' + encodeURIComponent(String(latitude)) + '&mlon=' + encodeURIComponent(String(longitude)) + '#map=16/' + latitude + '/' + longitude);
+}
 
 export default function Locations() {
   const q = useSavedLocations();
@@ -104,15 +110,25 @@ export default function Locations() {
                 {location.address || String(location.latitude) + ', ' + String(location.longitude)}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={'Delete ' + location.name}
-              disabled={del.isPending}
-              onPress={() => del.mutate(location.id)}
-              style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.remove}>{del.isPending ? 'Deleting…' : 'Delete'}</Text>
-            </Pressable>
+            <View style={styles.cardActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={'Open map for ' + location.name}
+                onPress={() => openMap(Number(location.latitude), Number(location.longitude)).catch(() => undefined)}
+                style={({ pressed }) => [styles.mapButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.mapText}>Map</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={'Delete ' + location.name}
+                disabled={del.isPending}
+                onPress={() => del.mutate(location.id)}
+                style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.remove}>{del.isPending ? 'Deleting…' : 'Delete'}</Text>
+              </Pressable>
+            </View>
           </View>
         ))}
 
@@ -156,6 +172,14 @@ export default function Locations() {
                   <Text style={styles.resultMeta}>
                     {result.type || result.category || 'Location'} · {result.lat}, {result.lon}
                   </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Open search result in map"
+                    onPress={() => openMap(Number(result.lat), Number(result.lon)).catch(() => undefined)}
+                    style={styles.inlineMap}
+                  >
+                    <Text style={styles.mapText}>Open map</Text>
+                  </Pressable>
                 </Pressable>
               ))}
             </View>
@@ -238,6 +262,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   cardCopy: { flex: 1, gap: 3 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  mapButton: { paddingHorizontal: 9, paddingVertical: 7, borderRadius: 9, borderWidth: 1, borderColor: theme.colors.line },
+  mapText: { color: theme.colors.accent, fontWeight: '800' },
   nameText: { fontSize: 17, fontWeight: '700', color: theme.colors.ink },
   muted: { color: theme.colors.muted, lineHeight: 21 },
   remove: { color: theme.colors.danger, fontWeight: '700' },
@@ -276,6 +303,7 @@ const styles = StyleSheet.create({
   },
   resultTitle: { color: theme.colors.ink, fontWeight: '700', lineHeight: 21 },
   resultMeta: { color: theme.colors.muted, fontSize: 12, marginTop: 4 },
+  inlineMap: { alignSelf: 'flex-start', marginTop: 7 },
   input: {
     minHeight: 48,
     backgroundColor: theme.colors.surface,
