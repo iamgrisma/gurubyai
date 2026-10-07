@@ -16,14 +16,17 @@ begin
   if to_regprocedure('public.queue_notification_push()') is null then
     raise exception 'queue_notification_push function is missing';
   end if;
-  if not has_function_privilege('public','public.queue_notification_push()','execute') = false then
-    raise exception 'public can execute queue_notification_push';
+  if has_function_privilege('anon','public.queue_notification_push()','execute') then
+    raise exception 'anon can execute queue_notification_push';
+  end if;
+  if has_function_privilege('authenticated','public.queue_notification_push()','execute') then
+    raise exception 'authenticated can execute queue_notification_push';
   end if;
   if not exists (
     select 1 from pg_trigger
     where tgrelid='public.notifications'::regclass
       and tgname='trg_queue_notification_push'
-      and not tgenabled='D'
+      and tgenabled <> 'D'
   ) then
     raise exception 'notification push trigger is missing or disabled';
   end if;
