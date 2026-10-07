@@ -46,7 +46,7 @@ export const AdminFinancials: React.FC = () => {
                       <div className="p-8 text-center text-stone-500">No transactions found.</div>
                   ) : (
                       <div className="divide-y divide-stone-100">
-                          {transactions.map(t => (
+                          {transactions.map((t: any) => (
                               <div key={t.id} className="p-4 sm:p-6 hover:bg-stone-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                   <div className="flex items-center gap-4">
                                       <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${
