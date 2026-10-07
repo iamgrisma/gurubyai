@@ -1,7 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Service } from '../data/contracts';
-import * as api from '../data/contracts';
-
+import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import type{Service}from'../data/contracts';import*as api from'../data/contracts';
 export const useProfile=()=>useQuery({queryKey:['profile'],queryFn:api.api.getMyProfile});
 export const useServices=()=>useQuery({queryKey:['services'],queryFn:api.api.getPublicServices,staleTime:300000});
 export const useService=(id?:string)=>{const q=useServices();return{...q,data:q.data?.find(x=>x.id===id)}};
@@ -11,8 +8,8 @@ export const useGurubaServices=(id?:string)=>useQuery({queryKey:['guruba-service
 export const useBookings=(role:'client'|'guruba'='client')=>useQuery({queryKey:['bookings',role],queryFn:()=>api.api.getMyBookings(role)});
 export const useTransactions=()=>useQuery({queryKey:['transactions'],queryFn:api.api.getMyTransactions});
 export const useSavedLocations=()=>useQuery({queryKey:['locations'],queryFn:api.api.getMySavedLocations});
-export const useMessageUsers=()=>useQuery({queryKey:['message-users'],queryFn:api.api.getMessageUsers});
-export const useMessages=(id?:string,b?:string)=>useQuery({queryKey:['messages',id,b],queryFn:()=>api.api.getMessages(id!,b),enabled:!!id});
+export const useMessageUsers=()=>useQuery({queryKey:['message-users'],queryFn:api.api.getMessageUsers,refetchInterval:30000});
+export const useMessages=(id?:string,b?:string)=>useQuery({queryKey:['messages',id,b],queryFn:()=>api.api.getMessages(id!,b),enabled:!!id,refetchInterval:15000,refetchIntervalInBackground:false});
 export const useNotifications=()=>useQuery({queryKey:['notifications'],queryFn:api.api.getMyNotifications,staleTime:30000});
 export const useBookingSlots=(g?:string,s?:string,d?:string)=>useQuery({queryKey:['slots',g,s,d],queryFn:()=>api.api.getAvailableSlots(g!,s!,d!),enabled:!!g&&!!s&&!!d});
 export const useGurubaProfile=()=>useQuery({queryKey:['guruba-profile'],queryFn:api.api.getMyGurubaProfile});
@@ -24,8 +21,8 @@ export const useRescheduleBooking=()=>{const q=useQueryClient();return useMutati
 export const useRequestTopup=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.requestTopup,onSuccess:()=>q.invalidateQueries({queryKey:['transactions']})})};
 export const useSaveLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:({name,lat,lng,address}:{name:string;lat:number;lng:number;address?:string})=>api.api.saveLocation(name,lat,lng,address),onSuccess:()=>q.invalidateQueries({queryKey:['locations']})})};
 export const useDeleteLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.deleteLocation,onSuccess:()=>q.invalidateQueries({queryKey:['locations']})})};
-export const useSendMessage=()=>{const q=useQueryClient();return useMutation({mutationFn:({receiverId,content,bookingId}:{receiverId:string;content:string;bookingId?:string})=>api.api.sendMessage(receiverId,content,bookingId),onSuccess:()=>q.invalidateQueries({queryKey:['messages']})})};
-export const useMarkMessagesRead=()=>useMutation({mutationFn:api.api.markMessagesRead});
+export const useSendMessage=()=>{const q=useQueryClient();return useMutation({mutationFn:({receiverId,content,bookingId}:{receiverId:string;content:string;bookingId?:string})=>api.api.sendMessage(receiverId,content,bookingId),onSuccess:(_,v)=>q.invalidateQueries({queryKey:['messages',v.receiverId]})})};
+export const useMarkMessagesRead=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.markMessagesRead,onSuccess:()=>{q.invalidateQueries({queryKey:['messages']});q.invalidateQueries({queryKey:['message-users']})}})};
 export const useMarkNotificationRead=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.markNotificationRead,onSuccess:()=>q.invalidateQueries({queryKey:['notifications']})})};
 export const useUpsertGurubaProfile=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.upsertGurubaProfile,onSuccess:()=>q.invalidateQueries({queryKey:['guruba-profile']})})};
 export const useSetGurubaService=()=>{const q=useQueryClient();return useMutation({mutationFn:({serviceId,enabled,online}:{serviceId:string;enabled:boolean;online:boolean})=>api.api.setGurubaService(serviceId,enabled,online),onSuccess:()=>q.invalidateQueries({queryKey:['guruba-services']})})};
