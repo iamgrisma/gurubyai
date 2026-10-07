@@ -1,7 +1,8 @@
 User-agent: *
 Allow: /
-Disallow: /bookings
+Disallow: /book/
 Disallow: /booking/
+Disallow: /bookings
 Disallow: /wallet
 Disallow: /messages
 Disallow: /message/
@@ -9,4 +10,8 @@ Disallow: /profile
 Disallow: /locations
 Disallow: /notifications
 Disallow: /guruba-dashboard
-Sitemap: https://purohit-app.pages.dev/sitemap.xml
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /forgot-password
+Disallow: /reset-password
+Sitemap: https://purohit.pages.dev/sitemap.xml
