@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /bookings
+Disallow: /booking/
+Disallow: /wallet
+Disallow: /messages
+Disallow: /message/
+Disallow: /profile
+Disallow: /locations
+Disallow: /notifications
+Disallow: /guruba-dashboard
+Sitemap: https://purohit-app.pages.dev/sitemap.xml
