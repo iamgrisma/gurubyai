@@ -15,7 +15,8 @@ export const AdminGotras: React.FC = () => {
   const { data: gotras = [], isLoading } = useQuery({
       queryKey: ['adminGotras'],
       queryFn: async () => {
-          const { data } = await supabase.from('gotras').select('*').order('name');
+          const { data, error } = await supabase.rpc('admin_get_gotras');
+          if (error) throw error;
           return (data || []) as Gotra[];
       }
   });
