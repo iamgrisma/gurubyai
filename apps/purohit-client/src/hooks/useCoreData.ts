@@ -1,8 +1,8 @@
 import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import type{Service}from'../data/contracts';import*as api from'../data/contracts';
 export const useProfile=()=>useQuery({queryKey:['profile'],queryFn:api.api.getMyProfile});
 export const useApprovedGotras=()=>useQuery({queryKey:['gotras'],queryFn:api.api.getApprovedGotras,staleTime:300000});
-export const useService=(id?:string)=>{const q=useServices();return{...q,data:q.data?.find(x=>x.id===id)}};
 export const useServices=()=>useQuery({queryKey:['services'],queryFn:api.api.getPublicServices,staleTime:300000});
+export const useService=(id?:string)=>{const q=useServices();return{...q,data:q.data?.find(x=>x.id===id)}};
 export const useBookingOptions=(id?:string)=>useQuery({queryKey:['booking-options',id],queryFn:()=>api.api.getBookingOptions(id!),enabled:!!id,staleTime:60000});
 export const useGuruba=(id?:string)=>useQuery({queryKey:['guruba',id],queryFn:async()=>{const rows=await api.api.getPublicGurubas();return rows.find(x=>x.guruba_id===id)??null},enabled:!!id,staleTime:60000});
 export const useGurubaServices=(id?:string)=>useQuery({queryKey:['guruba-services-public',id],queryFn:async()=>{const services=await api.api.getPublicServices();const pairs=await Promise.all(services.map(async service=>{const rows=await api.api.getBookingOptions(service.id) as any[];const match=rows.find(x=>x.guruba_id===id);return match?{service,option:match}:null}));return pairs.filter(Boolean) as {service:Service;option:any}[]},enabled:!!id,staleTime:60000});
@@ -26,8 +26,8 @@ export const useRescheduleBooking=()=>{const q=useQueryClient();return useMutati
 export const useSetBookingMeetingLink=()=>{const q=useQueryClient();return useMutation({mutationFn:({id,link}:{id:string;link:string})=>api.api.setBookingMeetingLink(id,link),onSuccess:()=>q.invalidateQueries({queryKey:['bookings']})})};
 export const useRequestTopup=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.requestTopup,onSuccess:()=>q.invalidateQueries({queryKey:['transactions']})})};
 export const useSaveLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:({name,lat,lng,address}:{name:string;lat:number;lng:number;address?:string})=>api.api.saveLocation(name,lat,lng,address),onSuccess:()=>q.invalidateQueries({queryKey:['locations']})})};
-export const useDeleteLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.deleteLocation,onSuccess:()=>q.invalidateQueries({queryKey:['locations']})};
-export const useUpdateProfile=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.updateMyProfile,onSuccess:()=>{q.invalidateQueries({queryKey:['profile']})})};
+export const useDeleteLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.deleteLocation,onSuccess:()=>q.invalidateQueries({queryKey:['locations']})})};
+export const useUpdateProfile=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.updateMyProfile,onSuccess:()=>q.invalidateQueries({queryKey:['profile']})})};
 export const useRequestGotra=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.requestGotra,onSuccess:()=>q.invalidateQueries({queryKey:['gotras']})})};
 export const useSendMessage=()=>{const q=useQueryClient();return useMutation({mutationFn:({receiverId,content,bookingId}:{receiverId:string;content:string;bookingId?:string})=>api.api.sendMessage(receiverId,content,bookingId),onSuccess:(_,v)=>{q.invalidateQueries({queryKey:['messages',v.receiverId]});q.invalidateQueries({queryKey:['message-users']})}})};
 export const useMarkMessagesRead=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.markMessagesRead,onSuccess:()=>{q.invalidateQueries({queryKey:['messages']});q.invalidateQueries({queryKey:['message-users']})}})};
