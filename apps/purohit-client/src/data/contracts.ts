@@ -10,6 +10,7 @@ export type SavedLocation={id:string;user_id:string;name:string;latitude:number;
 export type LocationSearchResult={place_id?:string;display_name:string;lat:string;lon:string;type?:string;category?:string};
 export type Message={id:string;sender_id:string;receiver_id:string;booking_id?:string|null;content:string;message_type:string;metadata?:Record<string,unknown>|null;is_system?:boolean|null;is_read:boolean;created_at:string};
 export type Notification={id:string;user_id?:string|null;title:string;message:string;notification_type:string;action_url?:string|null;is_read:boolean;read_at?:string|null;created_at:string};
+export type NotificationDevice={id:string;platform:'ios'|'android';device_id?:string|null;expo_project_id?:string|null;is_active:boolean;last_seen_at:string;created_at:string};
 export type GurubaProfile={id:string;user_id:string;bio?:string|null;years_experience?:number|null;rating?:number|null;location?:string|null;specialties?:string[]|null;languages?:string[]|null;guruba_type?:string|null;review_count?:number|null;is_verified?:boolean|null;verification_requested_at?:string|null;profiles?:Profile|null};
 export type Availability={id?:string;guruba_id:string;day_of_week:number;start_time:string;end_time:string};
 export type GurubaService={guruba_id:string;service_id:string;is_online:boolean;custom_price?:number|null};
@@ -32,6 +33,9 @@ searchLocations:async(query:string)=>{const q=query.trim();if(!q)return [];const
 getMessageUsers:()=>rpc<Profile[]>('get_my_message_users'),
 getMessages:(otherUserId:string,bookingId?:string)=>rpc<Message[]>('get_my_messages',{p_other_user_id:otherUserId,p_booking_id:bookingId??null}),
 getMyNotifications:async()=>{const{data,error}=await supabase.from('notifications').select('id,user_id,title,message,notification_type,action_url,is_read,read_at,created_at').order('created_at',{ascending:false}).limit(50);if(error)throw error;return(data??[]) as Notification[];},
+getMyNotificationDevices:()=>rpc<NotificationDevice[]>('get_my_notification_devices'),
+registerNotificationDevice:(i:{token:string;platform:'ios'|'android';deviceId?:string|null;projectId?:string|null})=>rpc<string>('register_my_notification_device',{p_token:i.token,p_platform:i.platform,p_device_id:i.deviceId??null,p_expo_project_id:i.projectId??null}),
+removeNotificationDevice:(id:string)=>rpc<boolean>('remove_my_notification_device',{p_device_id:id}),
 getAvailableSlots:(g:string,s:string,d:string)=>rpc<unknown[]>('get_available_booking_slots',{p_guruba_id:g,p_service_id:s,p_date:d}),
 getMyGurubaProfile:()=>rpc<GurubaProfile[]>('get_my_guruba_profile'),
 getMyGurubaServices:()=>rpc<GurubaService[]>('get_my_guruba_services'),

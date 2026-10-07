@@ -12,6 +12,7 @@ export const useSavedLocations=()=>useQuery({queryKey:['locations'],queryFn:api.
 export const useMessageUsers=()=>useQuery({queryKey:['message-users'],queryFn:api.api.getMessageUsers,refetchInterval:30000});
 export const useMessages=(id?:string,b?:string)=>useQuery({queryKey:['messages',id,b],queryFn:()=>api.api.getMessages(id!,b),enabled:!!id,refetchInterval:15000,refetchIntervalInBackground:false});
 export const useNotifications=()=>useQuery({queryKey:['notifications'],queryFn:api.api.getMyNotifications,staleTime:30000});
+export const useNotificationDevices=()=>useQuery({queryKey:['notification-devices'],queryFn:api.api.getMyNotificationDevices,staleTime:30000});
 export const useBookingSlots=(g?:string,s?:string,d?:string)=>useQuery({queryKey:['slots',g,s,d],queryFn:()=>api.api.getAvailableSlots(g!,s!,d!),enabled:!!g&&!!s&&!!d});
 export const useGurubaProfile=()=>useQuery({queryKey:['guruba-profile'],queryFn:api.api.getMyGurubaProfile});
 export const useGurubaServicesSelf=()=>useQuery({queryKey:['guruba-services'],queryFn:api.api.getMyGurubaServices});
