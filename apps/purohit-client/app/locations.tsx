@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Linking from 'expo-linking';
+import { getCurrentDeviceLocation, openLocationSettings } from '../src/location/currentLocation';
+import { LocationMap } from '../src/ui/LocationMap';
 import { getCurrentLocationSelection } from '../src/platform/location';
 import { api, type LocationSearchResult } from '../src/data/contracts';
 import { useDeleteLocation, useSaveLocation, useSavedLocations } from '../src/hooks/useCoreData';
@@ -29,6 +31,26 @@ export default function Locations() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const [locating, setLocating] = useState(false);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  async function useCurrentLocation() {
+    setError('');
+    setLocating(true);
+    try {
+      const current = await getCurrentDeviceLocation();
+      setLat(String(current.latitude));
+      setLng(String(current.longitude));
+      setAddress(current.address ?? '');
+      setSearch(current.address ?? '');
+      setLocationAccuracy(current.accuracy);
+      setResults([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to read the current location.');
+    } finally {
+      setLocating(false);
+    }
+  }
 
   async function searchAddress() {
     const query = search.trim();
@@ -212,6 +234,28 @@ export default function Locations() {
             style={styles.input}
           />
 
+          {lat && lng ? (
+            <View style={styles.mapCard}>
+              <LocationMap
+                latitude={Number(lat)}
+                longitude={Number(lng)}
+                label={address.trim() || 'Selected service location'}
+              />
+              {locationAccuracy != null ? (
+                <Text style={styles.resultMeta}>Device reported accuracy: about {Math.round(locationAccuracy)} m</Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {error && !save.isPending ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.error}>{error}</Text>
+              <Pressable accessibilityRole="button" onPress={() => openLocationSettings().catch(() => undefined)}>
+                <Text style={styles.settingsLink}>Open location settings</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <View style={styles.row}>
             <TextInput
               accessibilityLabel="Latitude"
@@ -233,8 +277,7 @@ export default function Locations() {
             />
           </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
+          
           <Pressable
             accessibilityRole="button"
             disabled={save.isPending}
@@ -337,6 +380,12 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
   },
   error: { color: theme.colors.danger, lineHeight: 20 },
+  locationButton: { alignSelf: 'flex-start', borderWidth: 1, borderColor: theme.colors.accent, borderRadius: theme.radius.md, paddingVertical: 12, paddingHorizontal: 14 },
+  locationButtonText: { color: theme.colors.accent, fontWeight: '800' },
+  permissionNote: { color: theme.colors.muted, fontSize: 12, lineHeight: 18 },
+  mapCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.line, overflow: 'hidden', paddingBottom: 8, gap: 6 },
+  errorBox: { gap: 7 },
+  settingsLink: { color: theme.colors.accent, fontWeight: '800' },
   button: {
     backgroundColor: theme.colors.ink,
     padding: 15,
