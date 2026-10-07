@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-// Supabase Edge Functions run on Deno; this file is intentionally excluded from the Next.js client typecheck.
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
