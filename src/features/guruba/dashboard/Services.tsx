@@ -23,7 +23,8 @@ export const GurubaServices: React.FC<ServicesProps> = ({ guruba }) => {
       queryKey: ['myServices', guruba?.id],
       queryFn: async () => {
           if (!guruba?.id) return [];
-          const { data } = await supabase.from('guruba_services').select('*').eq('guruba_id', guruba.id);
+          const { data, error } = await supabase.rpc('get_my_guruba_services');
+          if (error) throw error;
           return (data || []) as GurubaService[];
       },
       enabled: !!guruba?.id
