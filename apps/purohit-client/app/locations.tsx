@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { getCurrentLocation } from '../src/platform/current-location';
 import * as Linking from 'expo-linking';
 import { api, type LocationSearchResult } from '../src/data/contracts';
 import { useDeleteLocation, useSaveLocation, useSavedLocations } from '../src/hooks/useCoreData';
@@ -27,6 +28,7 @@ export default function Locations() {
   const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
+  const [locating, setLocating] = useState(false);
 
   async function searchAddress() {
     const query = search.trim();
@@ -56,6 +58,26 @@ export default function Locations() {
     setResults([]);
     setSearch(result.display_name);
     setError('');
+  }
+
+  async function useCurrent() {
+    setError('');
+    setLocating(true);
+    try {
+      const current = await getCurrentLocation();
+      setLat(String(current.latitude));
+      setLng(String(current.longitude));
+      setSearch('Current device location');
+      if (!name.trim()) setName('Current location');
+      try {
+        const reverse = await api.reverseLocation(current.latitude, current.longitude);
+        const label = reverse.display_name ?? 'Current device location';
+        setAddress(label);
+        setSearch(label);
+      } catch { setAddress('Current device location'); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to read the current device location.');
+    } finally { setLocating(false); }
   }
 
   async function add() {
@@ -137,6 +159,9 @@ export default function Locations() {
           <Text style={styles.muted}>
             Search the address first so the coordinates are filled for you.
           </Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Use current device location" disabled={locating} onPress={useCurrent} style={[styles.secondaryAction, locating && styles.disabled]}>
+            <Text style={styles.secondaryActionText}>{locating ? 'Locating…' : 'Use current location'}</Text>
+          </Pressable>
 
           <View style={styles.searchRow}>
             <TextInput
@@ -289,6 +314,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   searchButtonText: { color: '#fff', fontWeight: '800' },
+  secondaryAction: { borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface, padding: 14, borderRadius: theme.radius.md, alignItems: 'center' },
+  secondaryActionText: { color: theme.colors.ink, fontWeight: '800' },
   results: {
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
