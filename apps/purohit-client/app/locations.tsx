@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Linking from 'expo-linking';
+import { getCurrentLocationSelection } from '../src/platform/location';
 import { api, type LocationSearchResult } from '../src/data/contracts';
 import { useDeleteLocation, useSaveLocation, useSavedLocations } from '../src/hooks/useCoreData';
 import { Page } from '../src/ui/layout';
@@ -27,6 +28,7 @@ export default function Locations() {
   const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
+  const [locating, setLocating] = useState(false);
 
   async function searchAddress() {
     const query = search.trim();
@@ -137,6 +139,14 @@ export default function Locations() {
           <Text style={styles.muted}>
             Search the address first so the coordinates are filled for you.
           </Text>
+
+          {Platform.OS === 'ios' || Platform.OS === 'android' ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Use current device location" disabled={locating}
+              onPress={async () => { setError(''); setLocating(true); try { const current = await getCurrentLocationSelection(); if (!current) { setError('Location permission or device location is unavailable. You can still search and enter an address manually.'); return; } setLat(String(current.latitude)); setLng(String(current.longitude)); setAddress(current.address); setSearch(current.address); setResults([]); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to read your current location.'); } finally { setLocating(false); } }}
+              style={[styles.currentLocationButton, locating && styles.disabled]}>
+              <Text style={styles.currentLocationText}>{locating ? 'Getting location…' : 'Use current location'}</Text>
+            </Pressable>
+          ) : null}
 
           <View style={styles.searchRow}>
             <TextInput
@@ -269,6 +279,8 @@ const styles = StyleSheet.create({
   muted: { color: theme.colors.muted, lineHeight: 21 },
   remove: { color: theme.colors.danger, fontWeight: '700' },
   deleteButton: { padding: 8 },
+  currentLocationButton: { minHeight: 48, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  currentLocationText: { color: theme.colors.accent, fontWeight: '800' },
   searchRow: { flexDirection: 'row', gap: 8 },
   searchInput: {
     flex: 1,
