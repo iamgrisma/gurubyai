@@ -1,0 +1,40 @@
+name: Bootstrap React Native Maps Dependency
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/purohit-client/package-lock.json
+
+      - name: Update React Native Maps dependency and lockfile
+        working-directory: apps/purohit-client
+        run: npm install --package-lock-only react-native-maps@1.20.1 --ignore-scripts --no-audit --no-fund
+
+      - name: Commit dependency changes and remove bootstrap workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/bootstrap-react-native-maps.yml
+          git add apps/purohit-client/package.json apps/purohit-client/package-lock.json .github/workflows/bootstrap-react-native-maps.yml
+          if git diff --cached --quiet; then
+            echo "No dependency changes were needed."
+            exit 0
+          fi
+          git commit -m "chore(client): add react native maps dependency"
+          git push origin HEAD:${GITHUB_REF_NAME}
