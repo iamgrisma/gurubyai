@@ -87,6 +87,14 @@ Only after B0-B9. Web is a presentation client of the backend contract.
 ### B11 — Android/Expo
 Only after B0-B9. Mobile uses the same backend/API contract as web.
 
+## Latest implementation checkpoint — 2026-10-07
+
+B3 read-boundary work is now materially aligned in `main`: admin dashboards use admin read projections, Concierge Guruba discovery uses the admin projection, and Guruba self-profile loading uses a private projection RPC. The private Guruba projection is also applied in the production database and verified as authenticated-only with a pinned search path.
+
+Production Supabase has migrations through `b3_admin_read_projections` plus the new private Guruba projection. Security advisor still reports intentional GraphQL table-exposure warnings and intentional authenticated SECURITY DEFINER warnings; leaked-password protection remains a separate Auth dashboard-level warning. No new anonymous function access was introduced by the B3 read-boundary fixes.
+
+Cloudflare account discovery was checked, but the currently connected account returns no Pages projects, so latest frontend deployment status remains unverified rather than being guessed.
+
 ## Current rule
 
 Never mark a phase complete from documentation alone. A phase is complete only after:
