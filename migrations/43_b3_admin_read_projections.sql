@@ -6,3 +6,19 @@ CREATE OR REPLACE FUNCTION public.admin_get_gurubas_for_concierge() RETURNS json
 CREATE OR REPLACE FUNCTION public.admin_get_transactions(p_page integer DEFAULT 1,p_page_size integer DEFAULT 15) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$DECLARE c integer;r jsonb;BEGIN IF NOT public.is_admin(auth.uid()) THEN RAISE EXCEPTION 'Admin access required';END IF;p_page:=greatest(1,p_page);p_page_size:=least(greatest(1,p_page_size),100);SELECT count(*) INTO c FROM transactions;SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at DESC),'[]') INTO r FROM (SELECT t.*,jsonb_build_object('full_name',p.full_name) profiles FROM transactions t LEFT JOIN profiles p ON p.id=t.user_id ORDER BY t.created_at DESC LIMIT p_page_size OFFSET (p_page-1)*p_page_size)x;RETURN jsonb_build_object('transactions',r,'total',c);END$$;REVOKE ALL ON FUNCTION public.admin_get_transactions(integer,integer) FROM public,anon;GRANT EXECUTE ON FUNCTION public.admin_get_transactions(integer,integer) TO authenticated;
 CREATE OR REPLACE FUNCTION public.admin_get_pending_topups(p_page integer DEFAULT 1,p_page_size integer DEFAULT 10) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$DECLARE c integer;r jsonb;BEGIN IF NOT public.is_admin(auth.uid()) THEN RAISE EXCEPTION 'Admin access required';END IF;p_page:=greatest(1,p_page);p_page_size:=least(greatest(1,p_page_size),100);SELECT count(*) INTO c FROM topup_requests WHERE status='pending';SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at DESC),'[]') INTO r FROM (SELECT t.*,jsonb_build_object('full_name',p.full_name,'email',p.email) profiles FROM topup_requests t LEFT JOIN profiles p ON p.id=t.user_id WHERE t.status='pending' ORDER BY t.created_at DESC LIMIT p_page_size OFFSET (p_page-1)*p_page_size)x;RETURN jsonb_build_object('requests',r,'total',c);END$$;REVOKE ALL ON FUNCTION public.admin_get_pending_topups(integer,integer) FROM public,anon;GRANT EXECUTE ON FUNCTION public.admin_get_pending_topups(integer,integer) TO authenticated;
 CREATE OR REPLACE FUNCTION public.admin_get_pending_verifications() RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path=public,pg_temp AS $$SELECT coalesce(jsonb_agg(to_jsonb(x)),'[]') FROM (SELECT p.*,jsonb_build_array(g) gurubas FROM gurubas g JOIN profiles p ON p.id=g.user_id WHERE public.is_admin(auth.uid()) AND g.is_verified=false AND g.verification_requested_at IS NOT NULL)x$$;REVOKE ALL ON FUNCTION public.admin_get_pending_verifications() FROM public,anon;GRANT EXECUTE ON FUNCTION public.admin_get_pending_verifications() TO authenticated;
+-- Private self-read projection for the signed-in Guruba.
+-- This keeps the dashboard off the base table while preserving the current profile payload.
+CREATE OR REPLACE FUNCTION public.get_my_guruba_profile()
+RETURNS SETOF public.gurubas
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path=public,pg_temp
+AS $$
+  SELECT g.*
+  FROM public.gurubas g
+  WHERE g.user_id = auth.uid()
+  LIMIT 1;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_my_guruba_profile() FROM public,anon;
+GRANT EXECUTE ON FUNCTION public.get_my_guruba_profile() TO authenticated;
