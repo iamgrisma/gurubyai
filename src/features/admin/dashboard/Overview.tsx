@@ -45,16 +45,9 @@ export const AdminOverview: React.FC<OverviewProps> = ({ setActiveTab }) => {
     const { data: stats = { users: 0, gurubas: 0, bookings: 0, revenue: 0, pending_verifications: 0, pending_gotras: 0 }, isLoading } = useQuery({
         queryKey: ['adminStats'],
         queryFn: async () => {
-            const { count: uCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-            const { count: gCount } = await supabase.from('gurubas').select('*', { count: 'exact', head: true });
-            const { count: bCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true });
-            const { count: vCount } = await supabase.from('gurubas').select('*', { count: 'exact', head: true }).eq('is_verified', false);
-            const { count: gotraCount } = await supabase.from('gotras').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-
-            const { data: feeData } = await supabase.from('bookings').select('platform_fee').eq('status', 'completed');
-            const revenue = feeData?.reduce((acc, curr) => acc + (curr.platform_fee || 0), 0) || 0;
-
-            return { users: uCount || 0, gurubas: gCount || 0, bookings: bCount || 0, revenue, pending_verifications: vCount || 0, pending_gotras: gotraCount || 0 };
+            const { data, error } = await supabase.rpc('admin_get_overview');
+            if (error) throw error;
+            return data;
         }
     });
 

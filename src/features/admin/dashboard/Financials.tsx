@@ -18,18 +18,9 @@ export const AdminFinancials: React.FC = () => {
           const from = (page - 1) * ITEMS_PER_PAGE;
           const to = from + ITEMS_PER_PAGE - 1;
 
-          const { data, count, error } = await supabase
-            .from('transactions')
-            .select('*, profiles:user_id(full_name)', { count: 'exact' })
-            .order('created_at', { ascending: false })
-            .range(from, to);
-          
+          const { data: result, error } = await supabase.rpc('admin_get_transactions', { p_page: page, p_page_size: ITEMS_PER_PAGE });
           if (error) throw error;
-
-          return { 
-              transactions: (data || []) as (Transaction & { profiles: { full_name: string } })[],
-              total: count || 0
-          };
+          return { transactions: (result?.transactions || []) as any, total: result?.total || 0 };
       },
       placeholderData: keepPreviousData
   });

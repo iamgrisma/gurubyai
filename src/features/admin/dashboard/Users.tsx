@@ -25,38 +25,9 @@ export const AdminUsers: React.FC = () => {
   const { data, isLoading: usersLoading } = useQuery({
       queryKey: ['adminUsers', page, searchTerm],
       queryFn: async () => {
-        let query = supabase.from('profiles').select('*', { count: 'exact' });
-
-        // Apply Search (Server-side)
-        if (searchTerm) {
-            // Search by email or name
-            query = query.or(`email.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`);
-        }
-
-        // Apply Pagination
-        const from = (page - 1) * ITEMS_PER_PAGE;
-        const to = from + ITEMS_PER_PAGE - 1;
-        
-        const { data: profiles, count, error } = await query
-            .range(from, to)
-            .order('created_at', { ascending: false });
-        
+        const { data: result, error } = await supabase.rpc('admin_get_users', { p_search: searchTerm || null, p_page: page, p_page_size: ITEMS_PER_PAGE });
         if (error) throw error;
-
-        // Fetch associated guruba details for ONLY the displayed profiles
-        // This avoids fetching the entire guruba table
-        const profileIds = profiles?.map(p => p.id) || [];
-        const { data: gurubas } = await supabase
-            .from('gurubas')
-            .select('user_id, is_verified, guruba_type')
-            .in('user_id', profileIds);
-        
-        const mappedUsers = profiles?.map(p => ({
-            ...p,
-            gurubas: gurubas?.filter(g => g.user_id === p.id) || []
-        })) || [];
-
-        return { users: mappedUsers, total: count || 0 };
+        return result as { users: any[]; total: number };
       },
       placeholderData: keepPreviousData // Keep showing old data while fetching new page
   });

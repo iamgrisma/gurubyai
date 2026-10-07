@@ -20,19 +20,9 @@ export const AdminTopups: React.FC = () => {
             const from = (page - 1) * ITEMS_PER_PAGE;
             const to = from + ITEMS_PER_PAGE - 1;
 
-            const { data, count, error } = await supabase
-                .from('topup_requests')
-                .select('*, profiles:user_id(full_name, email)', { count: 'exact' })
-                .eq('status', 'pending')
-                .order('created_at', { ascending: false })
-                .range(from, to);
-
+            const { data: result, error } = await supabase.rpc('admin_get_pending_topups', { p_page: page, p_page_size: ITEMS_PER_PAGE });
             if (error) throw error;
-
-            return {
-                requests: data as TopupRequest[] || [],
-                total: count || 0
-            };
+            return { requests: (result?.requests || []) as TopupRequest[], total: result?.total || 0 };
         },
         placeholderData: keepPreviousData
     });

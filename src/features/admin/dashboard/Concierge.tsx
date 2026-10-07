@@ -27,7 +27,7 @@ export const AdminConcierge: React.FC = () => {
   const searchClients = async (term: string) => {
       setClientSearch(term);
       if(term.length < 2) return;
-      const { data } = await supabase.from('profiles').select('*').eq('role', 'client').ilike('email', `%${term}%`).limit(5);
+      const { data } = await supabase.rpc('admin_search_clients', { p_term: term });
       setFilteredClients(data as UserProfile[] || []);
   };
 

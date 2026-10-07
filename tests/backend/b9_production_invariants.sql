@@ -57,3 +57,14 @@ do $$ begin
   if to_regprocedure('public.get_my_message_users()') is null then raise exception 'get_my_message_users RPC missing'; end if;
   if to_regprocedure('public.get_my_messages(uuid,uuid)') is null then raise exception 'get_my_messages RPC missing'; end if;
 end $$;
+
+-- B3 admin read projection assertions.
+do $$ begin
+ if to_regprocedure('public.admin_get_users(text,integer,integer)') is null then raise exception 'admin_get_users missing'; end if;
+ if to_regprocedure('public.admin_get_overview()') is null then raise exception 'admin_get_overview missing'; end if;
+ if to_regprocedure('public.admin_search_clients(text)') is null then raise exception 'admin_search_clients missing'; end if;
+ if to_regprocedure('public.admin_get_gurubas_for_concierge()') is null then raise exception 'admin_get_gurubas_for_concierge missing'; end if;
+ if to_regprocedure('public.admin_get_transactions(integer,integer)') is null then raise exception 'admin_get_transactions missing'; end if;
+ if to_regprocedure('public.admin_get_pending_topups(integer,integer)') is null then raise exception 'admin_get_pending_topups missing'; end if;
+ if to_regprocedure('public.admin_get_pending_verifications()') is null then raise exception 'admin_get_pending_verifications missing'; end if;
+end $$;

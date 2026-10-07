@@ -13,23 +13,9 @@ export const AdminVerification: React.FC = () => {
     const { data: users = [], isLoading } = useQuery({
         queryKey: ['adminVerificationRequests'],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from('gurubas')
-                .select(`
-                    *,
-                    profiles:user_id (
-                        *
-                    )
-                `)
-                .eq('is_verified', false)
-                .not('verification_requested_at', 'is', null);
-
+            const { data, error } = await supabase.rpc('admin_get_pending_verifications');
             if (error) throw error;
-
-            return (data || []).map((g: any) => ({
-                ...g.profiles,
-                gurubas: [g]
-            }));
+            return (data || []) as any[];
         }
     });
 
