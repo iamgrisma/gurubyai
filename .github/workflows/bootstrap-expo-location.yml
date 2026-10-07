@@ -1,0 +1,162 @@
+name: Bootstrap Expo Location Dependency
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/purohit-client/package-lock.json
+
+      - name: Ensure Expo Location dependency
+        working-directory: apps/purohit-client
+        run: npm install --package-lock-only expo-location@~19.0.8 --ignore-scripts --no-audit --no-fund
+
+      - name: Add native current-location UX
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          loc = Path("apps/purohit-client/app/locations.tsx")
+          s = loc.read_text()
+          s = s.replace(
+              "import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';",
+              "import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';\nimport { getCurrentLocation } from '../src/platform/current-location';"
+          )
+          s = s.replace(
+              "  const [error, setError] = useState('');",
+              "  const [error, setError] = useState('');\n  const [locating, setLocating] = useState(false);"
+          )
+          needle = """  function chooseResult(result: LocationSearchResult) {
+            setAddress(result.display_name);
+            setLat(result.lat);
+            setLng(result.lon);
+            setResults([]);
+            setSearch(result.display_name);
+            setError('');
+          }
+
+          """
+          repl = needle + """  async function useCurrent() {
+            setError('');
+            setLocating(true);
+            try {
+              const current = await getCurrentLocation();
+              setLat(String(current.latitude));
+              setLng(String(current.longitude));
+              setSearch('Current device location');
+              if (!name.trim()) setName('Current location');
+              try {
+                const reverse = await api.reverseLocation(current.latitude, current.longitude);
+                const label = reverse.display_name ?? 'Current device location';
+                setAddress(label);
+                setSearch(label);
+              } catch {
+                setAddress('Current device location');
+              }
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Unable to read the current device location.');
+            } finally {
+              setLocating(false);
+            }
+          }
+
+          """
+          if needle not in s:
+              raise SystemExit("locations.tsx chooseResult anchor missing")
+          s = s.replace(needle, repl, 1)
+          needle = """          <Text style={styles.sectionTitle}>Add a location</Text>
+          <Text style={styles.muted}>
+            Search the address first so the coordinates are filled for you.
+          </Text>
+
+          """
+          repl = """          <Text style={styles.sectionTitle}>Add a location</Text>
+          <Text style={styles.muted}>
+            Search the address first, or use your current device location. Permission is requested only when you choose that action.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Use current device location"
+            disabled={locating}
+            onPress={useCurrent}
+            style={[styles.secondaryAction, locating && styles.disabled]}
+          >
+            <Text style={styles.secondaryActionText}>{locating ? 'Locating…' : 'Use current location'}</Text>
+          </Pressable>
+
+          """
+          if needle not in s:
+              raise SystemExit("locations.tsx add-location anchor missing")
+          s = s.replace(needle, repl, 1)
+          needle = "  searchButtonText: { color: '#fff', fontWeight: '800' },"
+          repl = needle + "\n  secondaryAction: { borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface, padding: 14, borderRadius: theme.radius.md, alignItems: 'center' },\n  secondaryActionText: { color: theme.colors.ink, fontWeight: '800' },"
+          if needle not in s:
+              raise SystemExit("locations.tsx style anchor missing")
+          s = s.replace(needle, repl, 1)
+          loc.write_text(s)
+
+          book = Path("apps/purohit-client/app/book/[serviceId].tsx")
+          s = book.read_text()
+          s = s.replace(
+              "import{Card,ErrorState,InlineNotice,PriceBreakdown,StatusBadge}from'../../src/ui/components';",
+              "import{Card,ErrorState,InlineNotice,PriceBreakdown,StatusBadge}from'../../src/ui/components';\nimport{getCurrentLocation}from'../../src/platform/current-location';"
+          )
+          s = s.replace(
+              " const[locationSearch,setLocationSearch]=useState('');const[locationResults,setLocationResults]=useState<LocationSearchResult[]>([]);const[locationSearching,setLocationSearching]=useState(false);",
+              " const[locationSearch,setLocationSearch]=useState('');const[locationResults,setLocationResults]=useState<LocationSearchResult[]>([]);const[locationSearching,setLocationSearching]=useState(false);const[locating,setLocating]=useState(false);"
+          )
+          needle = " function chooseLocation(result:LocationSearchResult){setLocationId(null);setLocationSearch(result.display_name);setLocationAddress(result.display_name);setLocationLat(result.lat);setLocationLng(result.lon);setLocationResults([])}\n"
+          repl = needle + " async function useCurrentLocation(){setLocating(true);try{const current=await getCurrentLocation();setLocationId(null);setLocationSearch('Current device location');setLocationLat(String(current.latitude));setLocationLng(String(current.longitude));setLocationResults([]);try{const reverse=await api.reverseLocation(current.latitude,current.longitude);const label=reverse.display_name??'Current device location';setLocationAddress(label);setLocationSearch(label)}catch{setLocationAddress('Current device location')}}catch(e){alert(e instanceof Error?e.message:'Unable to read the current device location.')}finally{setLocating(false)}}\n"
+          if needle not in s:
+              raise SystemExit("booking chooseLocation anchor missing")
+          s = s.replace(needle, repl, 1)
+          needle = "  {mode==='physical'&&<Card><Text style={s.sectionSmall}>Service location</Text>{saved.data?.length?"
+          repl = "  {mode==='physical'&&<Card><Text style={s.sectionSmall}>Service location</Text><Text style={s.muted}>Choose a saved address, search for one, or use your current device location. Permission is requested only after you press the button.</Text><Pressable accessibilityRole=\"button\" disabled={locating} onPress={useCurrentLocation} style={[s.locationAction,locating&&s.disabled]}><Text style={s.locationActionText}>{locating?'Locating…':'Use current location'}</Text></Pressable>{saved.data?.length?"
+          if needle not in s:
+              raise SystemExit("booking service-location anchor missing")
+          s = s.replace(needle, repl, 1)
+          needle = "location:{padding:12,borderRadius:12,borderWidth:1,borderColor:theme.colors.line,backgroundColor:'#fff',gap:4},"
+          repl = needle + "locationAction:{padding:13,borderRadius:12,borderWidth:1,borderColor:theme.colors.line,backgroundColor:'#fff',alignItems:'center'},locationActionText:{color:theme.colors.ink,fontWeight:'800'},"
+          if needle not in s:
+              raise SystemExit("booking style anchor missing")
+          s = s.replace(needle, repl, 1)
+          book.write_text(s)
+
+          app = Path("apps/purohit-client/app.json")
+          data = json.loads(app.read_text())
+          plugins = data["expo"]["plugins"]
+          target = ["expo-location", {"locationWhenInUsePermission": "Purohit uses your location only when you choose to set a service visit location."}]
+          if not any(isinstance(p, list) and p and p[0] == "expo-location" for p in plugins):
+              plugins.append(target)
+          app.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+
+      - name: Commit dependency and native location changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/bootstrap-expo-location.yml
+          git add apps/purohit-client/package.json apps/purohit-client/package-lock.json apps/purohit-client/app/locations.tsx "apps/purohit-client/app/book/[serviceId].tsx" apps/purohit-client/app.json apps/purohit-client/src/platform/current-location.ts apps/purohit-client/src/data/contracts.ts .github/workflows/bootstrap-expo-location.yml
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "feat(client): wire native current-location flow"
+          git push origin HEAD:${GITHUB_REF_NAME}
