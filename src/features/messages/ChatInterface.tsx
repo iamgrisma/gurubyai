@@ -74,7 +74,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ defaultReceiverId 
               const lastMsg = data[data.length - 1];
               setRetentionHours(lastMsg.retention_hours ?? 120);
               // Side effect: Mark read
-              const unreadIds = data.filter(m => m.receiver_id === user.id && !m.is_read).map(m => m.id);
+              const unreadIds = (data as Message[]).filter(m => m.receiver_id === user.id && !m.is_read).map(m => m.id);
               if (unreadIds.length > 0) {
                   await supabase.rpc('mark_messages_read', { p_message_ids: unreadIds });
               }
