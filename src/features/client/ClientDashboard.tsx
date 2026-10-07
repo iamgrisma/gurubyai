@@ -68,7 +68,8 @@ export const ClientDashboard: React.FC = () => {
     queryKey: ['myReviews', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data } = await supabase.from('reviews').select('booking_id').eq('user_id', user.id);
+      const { data, error } = await supabase.rpc('get_my_reviewed_booking_ids');
+      if (error) throw error;
       return data || [];
     },
     enabled: !!user?.id
