@@ -75,7 +75,7 @@ export const ClientDashboard: React.FC = () => {
     enabled: !!user?.id
   });
 
-  const reviewedBookingIds = new Set(myReviews.map(r => r.booking_id));
+  const reviewedBookingIds = new Set((myReviews as Array<{ booking_id: string }>).map(r => r.booking_id));
   const bookings = bookingsData.map(b => ({
     ...b,
     is_reviewed: reviewedBookingIds.has(b.id)
