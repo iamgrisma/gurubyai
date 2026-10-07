@@ -1,8 +1,6 @@
 {
   "name": "GuruByAI",
-  "description": "AI-powered Hindu priest booking platform",
-  "requestFramePermissions": [
-    "geolocation"
-  ],
-  "ciVerification": "2026-10-07"
+  "description": "A modern platform connecting users with spiritual guides (Gurubas) for rituals and services.",
+  "requestFramePermissions": [],
+  "ciVerification": "2026-10-07-secret-retry"
 }
