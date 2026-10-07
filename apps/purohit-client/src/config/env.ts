@@ -1,3 +1,9 @@
-export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://axctxzjqnxbloxakhhmx.supabase.co';
-export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhdXRoIiwicmVmIjoiYXhjdHp6anFueGJsb3hh aGht eCIsImlhdCI6MTc2MzM4NjA1NCwiZXhwIjoyMDc4OTYyMDU0fQ.nZN3faVe4XiNot3Y2IiTTsprQPhPREfOb9D3Z6kU6-w'.replaceAll(' ','');
-export function assertClientEnv(){if(!SUPABASE_URL||!SUPABASE_ANON_KEY)throw new Error('Missing public Supabase client configuration');}
+const DEFAULT_SUPABASE_URL = 'https://axctxzjqnxbloxakhhmx.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4Y3R4empxbnhibG94YWtoaG14IiwiaWF0IjoxNzYzMzg2MDU0LCJleHAiOjIwNzg5NjIwNTR9.nZN3faVe4XiNot3Y2IiTTsprQPhPREfOb9D3Z6kU6-w';
+
+export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
+
+export function assertClientEnv(){
+  if(!SUPABASE_URL||!SUPABASE_ANON_KEY)throw new Error('Missing public Supabase client configuration');
+}
