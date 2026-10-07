@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Linking from 'expo-linking';
-import { getCurrentDeviceLocation, openLocationSettings } from '../src/location/currentLocation';
-import { LocationMap } from '../src/ui/LocationMap';
-import { getCurrentLocationSelection } from '../src/platform/location';
 import { api, type LocationSearchResult } from '../src/data/contracts';
+import { getCurrentLocation } from '../src/platform/location';
 import { useDeleteLocation, useSaveLocation, useSavedLocations } from '../src/hooks/useCoreData';
 import { Page } from '../src/ui/layout';
 import { theme } from '../src/ui/theme';
@@ -29,28 +27,8 @@ export default function Locations() {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
-  const [locating, setLocating] = useState(false);
-  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
-  const [locating, setLocating] = useState(false);
-
-  async function useCurrentLocation() {
-    setError('');
-    setLocating(true);
-    try {
-      const current = await getCurrentDeviceLocation();
-      setLat(String(current.latitude));
-      setLng(String(current.longitude));
-      setAddress(current.address ?? '');
-      setSearch(current.address ?? '');
-      setLocationAccuracy(current.accuracy);
-      setResults([]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to read the current location.');
-    } finally {
-      setLocating(false);
-    }
-  }
 
   async function searchAddress() {
     const query = search.trim();
@@ -80,6 +58,23 @@ export default function Locations() {
     setResults([]);
     setSearch(result.display_name);
     setError('');
+  }
+
+  async function useCurrentLocation() {
+    setError('');
+    setLocating(true);
+    try {
+      const current = await getCurrentLocation();
+      setAddress(current.address ?? '');
+      setLat(String(current.latitude));
+      setLng(String(current.longitude));
+      setSearch(current.address ?? 'Current location');
+      setResults([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to get your current location.');
+    } finally {
+      setLocating(false);
+    }
   }
 
   async function add() {
@@ -162,14 +157,6 @@ export default function Locations() {
             Search the address first so the coordinates are filled for you.
           </Text>
 
-          {Platform.OS === 'ios' || Platform.OS === 'android' ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Use current device location" disabled={locating}
-              onPress={async () => { setError(''); setLocating(true); try { const current = await getCurrentLocationSelection(); if (!current) { setError('Location permission or device location is unavailable. You can still search and enter an address manually.'); return; } setLat(String(current.latitude)); setLng(String(current.longitude)); setAddress(current.address); setSearch(current.address); setResults([]); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to read your current location.'); } finally { setLocating(false); } }}
-              style={[styles.currentLocationButton, locating && styles.disabled]}>
-              <Text style={styles.currentLocationText}>{locating ? 'Getting location…' : 'Use current location'}</Text>
-            </Pressable>
-          ) : null}
-
           <View style={styles.searchRow}>
             <TextInput
               accessibilityLabel="Search Nepal address"
@@ -190,6 +177,17 @@ export default function Locations() {
               <Text style={styles.searchButtonText}>{searching ? '…' : 'Search'}</Text>
             </Pressable>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Use current device location"
+            disabled={locating}
+            onPress={useCurrentLocation}
+            style={[styles.currentLocationButton, locating && styles.disabled]}
+          >
+            <Text style={styles.currentLocationText}>
+              {locating ? 'Finding current location…' : 'Use current location'}
+            </Text>
+          </Pressable>
 
           {results.length ? (
             <View style={styles.results}>
@@ -234,28 +232,6 @@ export default function Locations() {
             style={styles.input}
           />
 
-          {lat && lng ? (
-            <View style={styles.mapCard}>
-              <LocationMap
-                latitude={Number(lat)}
-                longitude={Number(lng)}
-                label={address.trim() || 'Selected service location'}
-              />
-              {locationAccuracy != null ? (
-                <Text style={styles.resultMeta}>Device reported accuracy: about {Math.round(locationAccuracy)} m</Text>
-              ) : null}
-            </View>
-          ) : null}
-
-          {error && !save.isPending ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.error}>{error}</Text>
-              <Pressable accessibilityRole="button" onPress={() => openLocationSettings().catch(() => undefined)}>
-                <Text style={styles.settingsLink}>Open location settings</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
           <View style={styles.row}>
             <TextInput
               accessibilityLabel="Latitude"
@@ -277,7 +253,8 @@ export default function Locations() {
             />
           </View>
 
-          
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
           <Pressable
             accessibilityRole="button"
             disabled={save.isPending}
@@ -322,8 +299,6 @@ const styles = StyleSheet.create({
   muted: { color: theme.colors.muted, lineHeight: 21 },
   remove: { color: theme.colors.danger, fontWeight: '700' },
   deleteButton: { padding: 8 },
-  currentLocationButton: { minHeight: 48, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
-  currentLocationText: { color: theme.colors.accent, fontWeight: '800' },
   searchRow: { flexDirection: 'row', gap: 8 },
   searchInput: {
     flex: 1,
@@ -344,6 +319,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   searchButtonText: { color: '#fff', fontWeight: '800' },
+  currentLocationButton: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 2 },
+  currentLocationText: { color: theme.colors.accent, fontWeight: '800' },
   results: {
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
@@ -380,12 +357,6 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
   },
   error: { color: theme.colors.danger, lineHeight: 20 },
-  locationButton: { alignSelf: 'flex-start', borderWidth: 1, borderColor: theme.colors.accent, borderRadius: theme.radius.md, paddingVertical: 12, paddingHorizontal: 14 },
-  locationButtonText: { color: theme.colors.accent, fontWeight: '800' },
-  permissionNote: { color: theme.colors.muted, fontSize: 12, lineHeight: 18 },
-  mapCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.line, overflow: 'hidden', paddingBottom: 8, gap: 6 },
-  errorBox: { gap: 7 },
-  settingsLink: { color: theme.colors.accent, fontWeight: '800' },
   button: {
     backgroundColor: theme.colors.ink,
     padding: 15,
