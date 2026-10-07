@@ -36,7 +36,8 @@ export const GurubaSchedule: React.FC<ScheduleProps> = ({ guruba }) => {
         queryKey: ['availability', guruba?.id],
         queryFn: async () => {
             if (!guruba?.id) return [];
-            const { data } = await supabase.from('guruba_availability').select('*').eq('guruba_id', guruba.id);
+            const { data, error } = await supabase.rpc('get_my_availability');
+            if (error) throw error;
             return (data || []) as Availability[];
         },
         enabled: !!guruba?.id
