@@ -1,4 +1,4 @@
-import{ActivityIndicator,ScrollView,StyleSheet,Text,View}from'react-native';import{Link,useLocalSearchParams}from'expo-router';import{useServices,useGuruba}from'../../src/hooks/useCoreData';import{api}from'../../src/data/contracts';import{theme}from'../../src/ui/theme';
+import{ActivityIndicator,ScrollView,StyleSheet,Text,View}from'react-native';import{Link,useLocalSearchParams}from'expo-router';import{useServices}from'../../src/hooks/useCoreData';import{api}from'../../src/data/contracts';import{theme}from'../../src/ui/theme';
 
 export async function generateStaticParams(){try{const rows=await api.getPublicGurubas();return rows.map(x=>({id:x.guruba_id}));}catch{return[];}}
 
