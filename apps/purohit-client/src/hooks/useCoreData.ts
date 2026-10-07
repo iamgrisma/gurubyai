@@ -1,8 +1,6 @@
 import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import*as api from'../data/contracts';
-
 export const useProfile=()=>useQuery({queryKey:['profile'],queryFn:api.api.getMyProfile});
 export const useServices=()=>useQuery({queryKey:['services'],queryFn:api.api.getPublicServices,staleTime:300000});
-export const useService=(id?:string)=>useQuery({queryKey:['service',id],queryFn:async()=>{const rows=await api.api.getPublicService(id!);return rows[0]??null;},enabled:!!id,staleTime:300000});
 export const useBookingOptions=(id?:string)=>useQuery({queryKey:['booking-options',id],queryFn:()=>api.api.getBookingOptions(id!),enabled:!!id,staleTime:60000});
 export const useBookings=(role:'client'|'guruba'='client')=>useQuery({queryKey:['bookings',role],queryFn:()=>api.api.getMyBookings(role)});
 export const useTransactions=()=>useQuery({queryKey:['transactions'],queryFn:api.api.getMyTransactions});
@@ -10,11 +8,17 @@ export const useSavedLocations=()=>useQuery({queryKey:['locations'],queryFn:api.
 export const useMessageUsers=()=>useQuery({queryKey:['message-users'],queryFn:api.api.getMessageUsers});
 export const useMessages=(id?:string,b?:string)=>useQuery({queryKey:['messages',id,b],queryFn:()=>api.api.getMessages(id!,b),enabled:!!id});
 export const useBookingSlots=(g?:string,s?:string,d?:string)=>useQuery({queryKey:['slots',g,s,d],queryFn:()=>api.api.getAvailableSlots(g!,s!,d!),enabled:!!g&&!!s&&!!d});
+export const useGurubaProfile=()=>useQuery({queryKey:['guruba-profile'],queryFn:api.api.getMyGurubaProfile});
+export const useGurubaServices=()=>useQuery({queryKey:['guruba-services'],queryFn:api.api.getMyGurubaServices});
+export const useAvailability=()=>useQuery({queryKey:['availability'],queryFn:api.api.getMyAvailability});
 export const useBookService=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.bookService,onSuccess:()=>q.invalidateQueries({queryKey:['bookings']})})};
-export const useCancelBooking=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.cancelBooking,onSuccess:()=>{q.invalidateQueries({queryKey:['bookings']});q.invalidateQueries({queryKey:['transactions']});q.invalidateQueries({queryKey:['profile']})}})};
+export const useCancelBooking=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.cancelBooking,onSuccess:()=>{q.invalidateQueries({queryKey:['bookings']});q.invalidateQueries({queryKey:['transactions']})})}};
 export const useRescheduleBooking=()=>{const q=useQueryClient();return useMutation({mutationFn:({id,at}:{id:string;at:string})=>api.api.rescheduleBooking(id,at),onSuccess:()=>q.invalidateQueries({queryKey:['bookings']})})};
 export const useRequestTopup=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.requestTopup,onSuccess:()=>q.invalidateQueries({queryKey:['transactions']})})};
 export const useSaveLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:({name,lat,lng,address}:{name:string;lat:number;lng:number;address?:string})=>api.api.saveLocation(name,lat,lng,address),onSuccess:()=>q.invalidateQueries({queryKey:['locations']})})};
 export const useDeleteLocation=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.deleteLocation,onSuccess:()=>q.invalidateQueries({queryKey:['locations']})})};
-export const useSendMessage=()=>{const q=useQueryClient();return useMutation({mutationFn:({receiverId,content,bookingId}:{receiverId:string;content:string;bookingId?:string})=>api.api.sendMessage(receiverId,content,bookingId),onSuccess:(_,v)=>q.invalidateQueries({queryKey:['messages',v.receiverId]})})};
-export const useMarkMessagesRead=()=>useMutation({mutationFn:api.api.markMessagesRead});
+export const useSendMessage=()=>{const q=useQueryClient();return useMutation({mutationFn:({receiverId,content,bookingId}:{receiverId:string;content:string;bookingId?:string})=>api.api.sendMessage(receiverId,content,bookingId),onSuccess:()=>q.invalidateQueries({queryKey:['messages']})})};
+export const useUpsertGurubaProfile=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.upsertGurubaProfile,onSuccess:()=>q.invalidateQueries({queryKey:['guruba-profile']})})};
+export const useSetGurubaService=()=>{const q=useQueryClient();return useMutation({mutationFn:({serviceId,enabled,online}:{serviceId:string;enabled:boolean;online:boolean})=>api.api.setGurubaService(serviceId,enabled,online),onSuccess:()=>q.invalidateQueries({queryKey:['guruba-services']})})};
+export const useSetAvailability=()=>{const q=useQueryClient();return useMutation({mutationFn:({day,start,end}:{day:number;start:string;end:string})=>api.api.setAvailability(day,start,end),onSuccess:()=>q.invalidateQueries({queryKey:['availability']})})};
+export const useDeleteAvailability=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.deleteAvailability,onSuccess:()=>q.invalidateQueries({queryKey:['availability']})})};
