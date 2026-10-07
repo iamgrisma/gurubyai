@@ -1,6 +1,11 @@
 name: Purohit Native Build
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/purohit-client/**'
+      - '.github/workflows/purohit-native-build.yml'
   workflow_dispatch:
   pull_request:
     paths:
@@ -30,6 +35,52 @@ jobs:
       - run: EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform all --no-install --non-interactive
       - run: test -d ios
       - run: test -d android
+
+  android-build:
+    needs: native-preflight
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/purohit-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/purohit-client/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform android --no-install --non-interactive
+      - run: chmod +x android/gradlew
+      - run: ./android/gradlew assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: purohit-android-release-apk
+          path: apps/purohit-client/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+  ios-simulator-build:
+    needs: native-preflight
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: apps/purohit-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/purohit-client/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform ios --no-install --non-interactive
+      - run: npx pod-install ios
+      - run: xcodebuild -workspace ios/Purohit.xcworkspace -scheme Purohit -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: purohit-ios-simulator-app
+          path: apps/purohit-client/ios/build/Build/Products/Release-iphonesimulator/Purohit.app
+          if-no-files-found: error
 
   prepare-eas:
     runs-on: ubuntu-latest
