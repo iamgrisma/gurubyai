@@ -14,3 +14,9 @@ export async function registerForPushNotifications(){
   const token=await Notifications.getExpoPushTokenAsync({projectId});
   return token.data;
 }
+
+function getActionUrl(response:Notifications.NotificationResponse){const data=response.notification.request.content.data as Record<string,unknown>|undefined;const value=data?.action_url??data?.url;return typeof value==='string'&&value.startsWith('/')?value:null;}
+
+export async function getInitialNotificationUrl(){if(Platform.OS==='web')return null;const response=await Notifications.getLastNotificationResponseAsync();return response?getActionUrl(response):null;}
+
+export function subscribeToNotificationInteractions(onUrl:(url:string)=>void){if(Platform.OS==='web')return()=>{};const sub=Notifications.addNotificationResponseReceivedListener(response=>{const url=getActionUrl(response);if(url)onUrl(url);});return()=>sub.remove();}
