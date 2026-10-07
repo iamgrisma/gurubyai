@@ -30,10 +30,13 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
     }, []);
 
     useEffect(() => {
-        if (value && !searchTerm) {
-             setSearchTerm(value);
+        if (!value || gotras.length === 0) {
+             if (!value) setSearchTerm('');
+             return;
         }
-    }, [value]);
+        const selected = gotras.find(g => g.id === value);
+        setSearchTerm(selected?.name || '');
+    }, [value, gotras]);
 
     const filtered = gotras.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
