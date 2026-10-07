@@ -1,14 +1,1 @@
-{
-  "expo":{
-    "name":"Purohit",
-    "slug":"purohit",
-    "version":"0.1.0",
-    "orientation":"portrait",
-    "userInterfaceStyle":"light",
-    "scheme":"purohit",
-    "ios":{"bundleIdentifier":"com.purohit.app"},
-    "android":{"package":"com.purohit.app"},
-    "plugins":["expo-router","expo-notifications"],
-    "web":{"bundler":"metro","output":"static"}
-  }
-}
+{"expo":{"name":"Purohit","slug":"purohit","version":"0.1.0","orientation":"portrait","userInterfaceStyle":"light","scheme":"purohit","ios":{"bundleIdentifier":"com.purohit.app"},"android":{"package":"com.purohit.app"},"plugins":["expo-router","expo-notifications",["expo-location",{"locationWhenInUsePermission":"Allow Purohit to use your location to prefill a physical booking address."}]],"web":{"bundler":"metro","output":"static"}}}
