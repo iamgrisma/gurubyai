@@ -137,7 +137,7 @@ export default function BookingDetail() {
 
   async function saveMeetingLink() {
     const value = meetingLink.trim();
-    if (!/^https?:\/\/\\S+$/i.test(value)) {
+    if (!/^https?:\/\/\S+$/i.test(value)) {
       Alert.alert('Invalid meeting link', 'Enter a complete http:// or https:// meeting URL.');
       return;
     }
@@ -160,8 +160,10 @@ export default function BookingDetail() {
     }
   }
 
+  const scheduledAtForActions = booking.scheduled_at;
+
   async function markCompleted() {
-    if (booking.scheduled_at && new Date(booking.scheduled_at) > new Date()) {
+    if (scheduledAtForActions && new Date(scheduledAtForActions) > new Date()) {
       Alert.alert('Too early', 'This booking cannot be completed before its scheduled time.');
       return;
     }
