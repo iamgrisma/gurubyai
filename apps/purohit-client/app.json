@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Purohit",
+    "slug": "purohit",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "purohit",
+    "web": {"bundler": "metro"}
+  }
+}
