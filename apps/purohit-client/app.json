@@ -8,6 +8,7 @@
     "scheme":"purohit",
     "ios":{"bundleIdentifier":"com.purohit.app"},
     "android":{"package":"com.purohit.app"},
+    "plugins":["expo-router","expo-notifications"],
     "web":{"bundler":"metro"}
   }
 }
