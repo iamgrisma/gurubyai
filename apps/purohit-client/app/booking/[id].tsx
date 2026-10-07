@@ -37,15 +37,6 @@ const formatDateTime = (value?: string | null) => {
   return date.toLocaleString();
 };
 
-const humanize = (value?: string | null) => (value ?? '').replace(/[_\.]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
-const eventTitle = (eventType: string, status?: string | null) => {
-  if (eventType === 'booking.created') return 'Booking requested';
-  if (eventType === 'booking.rescheduled') return 'Booking rescheduled';
-  if (eventType === 'booking.status_changed' && status) return `Status changed to ${humanize(status)}`;
-  return humanize(eventType);
-};
-
 export default function BookingDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const profile = useProfile();
@@ -93,7 +84,7 @@ export default function BookingDetail() {
 
   async function refreshAfter(action: Promise<unknown>) {
     await action;
-    await Promise.all([q.refetch(), profile.refetch(), tx.refetch(), events.refetch()]);
+    await Promise.all([q.refetch(), profile.refetch(), tx.refetch()]);
   }
 
   async function confirmCancellation() {
@@ -124,7 +115,7 @@ export default function BookingDetail() {
       await reschedule.mutateAsync({ id, at: iso });
       setNewTime('');
       setShowReschedule(false);
-      await Promise.all([q.refetch(), events.refetch()]);
+      await q.refetch();
     } catch {
       // Mutation error is rendered below.
     }
@@ -140,7 +131,7 @@ export default function BookingDetail() {
       await propose.mutateAsync({ id, at: iso, deadline: new Date(Date.now() + 3600000).toISOString() });
       setProposalTime('');
       setShowProposal(false);
-      await Promise.all([q.refetch(), events.refetch()]);
+      await q.refetch();
     } catch {
       // Mutation error is rendered below.
     }
@@ -165,13 +156,29 @@ export default function BookingDetail() {
   async function acceptPendingBooking() {
     try {
       await confirm.mutateAsync(id);
-      await Promise.all([q.refetch(), events.refetch()]);
+      await q.refetch();
     } catch {
       // Mutation error is rendered below.
     }
   }
 
   const scheduledAtForActions = booking.scheduled_at;
+
+  const eventRows = useMemo(() => (events.data ?? []).map((event) => {
+    const status = event.status?.replaceAll('_', ' ') ?? '';
+    if (event.event_type === 'booking.created') {
+      return { ...event, title: 'Booking requested', detail: status ? `Status: ${status}` : 'The booking request was created.' };
+    }
+    if (event.event_type === 'booking.rescheduled') {
+      return { ...event, title: 'Time rescheduled', detail: event.scheduled_at ? `New time: ${formatDateTime(event.scheduled_at)}` : 'The booking time was changed.' };
+    }
+    if (event.event_type === 'booking.status_changed') {
+      const from = event.previous_status?.replaceAll('_', ' ');
+      const transition = from && status ? `${from} → ${status}` : status ? `Status: ${status}` : 'Booking status changed.';
+      return { ...event, title: 'Status updated', detail: transition };
+    }
+    return { ...event, title: event.event_type.replaceAll('.', ' ').replaceAll('_', ' '), detail: status || 'Booking event recorded.' };
+  }), [events.data]);
 
   async function markCompleted() {
     if (scheduledAtForActions && new Date(scheduledAtForActions) > new Date()) {
@@ -302,34 +309,27 @@ export default function BookingDetail() {
         </Card>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Booking timeline</Text>
-          <Text style={s.muted}>Server-recorded booking events, ordered oldest to newest.</Text>
-          {events.isLoading ? (
-            <Card><Text style={s.muted}>Loading event history…</Text></Card>
-          ) : events.isError ? (
-            <Card><Text style={s.error}>Event history could not be loaded. The booking state above remains server-authoritative.</Text></Card>
-          ) : events.data?.length ? (
-            <View style={s.timeline}>
-              {events.data.map((event, index) => (
-                <View key={event.id} style={s.timelineItem}>
-                  <View style={s.timelineRail}>
-                    <View style={s.timelineDot} />
-                    {index < events.data.length - 1 ? <View style={s.timelineLine} /> : null}
-                  </View>
-                  <View style={s.timelineBody}>
-                    <Text style={s.timelineTitle}>{eventTitle(event.event_type, event.status)}</Text>
-                    <Text style={s.timelineMeta}>{formatDateTime(event.created_at)}</Text>
-                    {event.scheduled_at ? <Text style={s.timelineMeta}>Scheduled: {formatDateTime(event.scheduled_at)}</Text> : null}
-                    {event.previous_status && event.status ? (
-                      <Text style={s.timelineMeta}>Previous status: {humanize(event.previous_status)}</Text>
-                    ) : null}
-                  </View>
-                </View>
-              ))}
+          <Text style={s.sectionTitle}>Booking history</Text>
+          {events.isLoading ? <ActivityIndicator /> : null}
+          {events.isError ? (
+            <Text style={s.muted}>Booking history is temporarily unavailable. The current booking state above remains server-authoritative.</Text>
+          ) : null}
+          {!events.isLoading && !events.isError && eventRows.length === 0 ? (
+            <Text style={s.muted}>No recorded booking events yet.</Text>
+          ) : null}
+          {eventRows.map((event, index) => (
+            <View key={event.id} style={s.timelineRow}>
+              <View style={s.timelineRail}>
+                <View style={s.timelineDot} />
+                {index < eventRows.length - 1 ? <View style={s.timelineLine} /> : null}
+              </View>
+              <View style={s.timelineCopy}>
+                <Text style={s.timelineTitle}>{event.title}</Text>
+                <Text style={s.timelineDetail}>{event.detail}</Text>
+                <Text style={s.timelineDate}>{formatDateTime(event.created_at)}</Text>
+              </View>
             </View>
-          ) : (
-            <Card><Text style={s.muted}>No recorded event history is available for this booking yet.</Text></Card>
-          )}
+          ))}
         </View>
 
         {otherUserId ? (
@@ -514,14 +514,14 @@ const s = StyleSheet.create({
   confirmTitle: { fontSize: 20, fontWeight: '800', color: theme.colors.ink },
   section: { gap: 10 },
   sectionTitle: { fontSize: 21, fontWeight: '700', color: theme.colors.ink },
-  timeline: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: theme.colors.line },
-  timelineItem: { flexDirection: 'row', minHeight: 72 },
-  timelineRail: { width: 24, alignItems: 'center' },
+  timelineRow: { flexDirection: 'row', gap: 10, minHeight: 68 },
+  timelineRail: { width: 18, alignItems: 'center' },
   timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.ink, marginTop: 5 },
-  timelineLine: { width: 1, flex: 1, backgroundColor: theme.colors.line, marginTop: 4, marginBottom: -1 },
-  timelineBody: { flex: 1, paddingLeft: 8, paddingBottom: 16 },
+  timelineLine: { width: 1, flex: 1, backgroundColor: theme.colors.line, marginTop: 5 },
+  timelineCopy: { flex: 1, paddingBottom: 10 },
   timelineTitle: { fontSize: 15, fontWeight: '800', color: theme.colors.ink },
-  timelineMeta: { marginTop: 3, color: theme.colors.muted, lineHeight: 19 },
+  timelineDetail: { marginTop: 2, color: theme.colors.ink, lineHeight: 20 },
+  timelineDate: { marginTop: 2, fontSize: 12, color: theme.colors.muted },
   editor: { backgroundColor: theme.colors.canvas, borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: theme.colors.line },
   input: { flex: 1, minHeight: 48, backgroundColor: '#fff', borderWidth: 1, borderColor: theme.colors.line, borderRadius: 12, padding: 12, color: theme.colors.ink },
   meetingBox: { marginTop: 8, gap: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.line },

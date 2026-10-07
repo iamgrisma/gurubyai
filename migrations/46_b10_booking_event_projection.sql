@@ -1,7 +1,4 @@
--- B10: authenticated booking event projection for client/provider timelines.
--- booking_events is intentionally not exposed directly; this RPC returns only the
--- timeline fields needed by the application after verifying booking ownership.
-
+-- B10/B11: authenticated booking event history projection for client/provider timeline UX.
 begin;
 
 create or replace function public.get_my_booking_events(p_booking_id uuid)
@@ -28,7 +25,6 @@ as $function$
   join public.bookings b on b.id = e.booking_id
   left join public.gurubas g on g.id = b.guruba_id
   where e.booking_id = p_booking_id
-    and (select auth.uid()) is not null
     and (
       b.user_id = (select auth.uid())
       or g.user_id = (select auth.uid())
