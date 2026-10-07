@@ -18,7 +18,7 @@ import { Page } from '../../src/ui/layout';
 import { theme } from '../../src/ui/theme';
 
 const parseNepalTime = (value: string) => {
-  const match = value.trim().match(/^(\\d{4})-(\\d{2})-(\\d{2})[T ](\\d{2}):(\\d{2})$/);
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/);
   if (!match) return null;
   const [, y, m, d, h, min] = match.map(Number);
   if (![y, m, d, h, min].every(Number.isFinite)) return null;
@@ -137,7 +137,7 @@ export default function BookingDetail() {
 
   async function saveMeetingLink() {
     const value = meetingLink.trim();
-    if (!/^https?:\\/\\/\\S+$/i.test(value)) {
+    if (!/^https?:\/\/\\S+$/i.test(value)) {
       Alert.alert('Invalid meeting link', 'Enter a complete http:// or https:// meeting URL.');
       return;
     }
