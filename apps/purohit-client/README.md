@@ -2,20 +2,32 @@
 
 New cross-platform Purohit client for Web + iOS + Android.
 
-This application is intentionally independent from the legacy Next.js frontend under `src/`. The legacy frontend is not the implementation source.
+The legacy Next.js frontend under `src/` is not the implementation source.
+
+## Stack
+- Expo + React Native + React Native Web
+- Expo Router
+- TanStack Query
+- Supabase Auth + server-authoritative RPC/read projections
 
 ## Local
-
 ```bash
 npm install
 npm run typecheck
 npm run web
 ```
 
-## Architecture
+## Web
+```bash
+npm run export:web
+```
 
-- Expo + React Native + React Native Web
-- shared TypeScript domain/data/hooks/UI
-- Supabase Auth and RPC/read-projection boundary
-- no privileged/service-role credentials
-- platform adapters only where native/web behavior differs
+The standalone Cloudflare Pages project is configured separately from the legacy production Pages project.
+
+## Native
+EAS profiles live in `eas.json`:
+- development: internal development client
+- preview: internal distribution
+- production: store build
+
+Store identifiers/credentials must be supplied before submitting production binaries.
