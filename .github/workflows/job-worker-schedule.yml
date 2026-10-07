@@ -1,0 +1,26 @@
+name: Purohit Job Worker
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_URL: https://axctxzjqnxbloxakhhmx.supabase.co
+    steps:
+      - name: Check scheduler credential
+        if: env.SUPABASE_SERVICE_ROLE_KEY == ''
+        run: echo "SUPABASE_SERVICE_ROLE_KEY is not configured; worker invocation skipped safely."
+
+      - name: Invoke job worker
+        if: env.SUPABASE_SERVICE_ROLE_KEY != ''
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error             --request POST             --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"             --header "Content-Type: application/json"             --data '{}'             "${SUPABASE_URL}/functions/v1/job-worker"
