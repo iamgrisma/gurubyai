@@ -136,7 +136,7 @@ export default function BookingDetail() {
   }
 
   async function saveMeetingLink() {
-    const value = meetingLink.trim().replace(/^((?:wa\\.me\\/))/i, 'https://$1');
+    const value = meetingLink.trim();
     if (!/^https?:\\/\\/\\S+$/i.test(value)) {
       Alert.alert('Invalid meeting link', 'Enter a complete http:// or https:// meeting URL.');
       return;
