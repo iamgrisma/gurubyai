@@ -30,6 +30,7 @@ jobs:
 
   backend-contracts:
     runs-on: ubuntu-latest
+    environment: SUPABASE_DB_URL
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
