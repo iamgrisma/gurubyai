@@ -13,7 +13,7 @@ type BookingOption={guruba_id:string;service_id:string;is_online?:boolean|null;c
 type Mode='online'|'physical';
 
 export default function Book(){
- const{serviceId}=useLocalSearchParams<{serviceId:string}>();const p=useProfile();const services=useServices();const o=useBookingOptions(serviceId);const saved=useSavedLocations();
+ const{serviceId,gurubaId:initialGurubaId}=useLocalSearchParams<{serviceId:string;gurubaId?:string}>();const p=useProfile();const services=useServices();const o=useBookingOptions(serviceId);const saved=useSavedLocations();
  const[gurubaId,setGurubaId]=useState<string>();const[date,setDate]=useState(new Date().toISOString().slice(0,10));const[slot,setSlot]=useState<string>();const[note,setNote]=useState('');const[review,setReview]=useState(false);const[requestKey,setRequestKey]=useState(makeRequestKey);
  const[mode,setMode]=useState<Mode>('online');const[locationId,setLocationId]=useState<string|null>(null);const[locationAddress,setLocationAddress]=useState('');const[locationLat,setLocationLat]=useState('');const[locationLng,setLocationLng]=useState('');const[locationSearch,setLocationSearch]=useState('');const[locationResults,setLocationResults]=useState<LocationSearchResult[]>([]);const[locationSearching,setLocationSearching]=useState(false);
  const[customTime,setCustomTime]=useState(false);const[proposedTime,setProposedTime]=useState('');
@@ -23,6 +23,7 @@ export default function Book(){
  async function searchLocation(){const query=locationSearch.trim();if(!query){setLocationResults([]);return}setLocationSearching(true);try{setLocationResults(await api.searchLocations(query))}catch{setLocationResults([])}finally{setLocationSearching(false)}}
  function chooseLocation(result:LocationSearchResult){setLocationId(null);setLocationSearch(result.display_name);setLocationAddress(result.display_name);setLocationLat(result.lat);setLocationLng(result.lon);setLocationResults([])}
  useEffect(()=>{setRequestKey(makeRequestKey());setSlot(undefined);setCustomTime(false);setProposedTime('')},[gurubaId,date,mode]);
+ useEffect(()=>{if(initialGurubaId&&options.some(x=>x.guruba_id===initialGurubaId))setGurubaId(initialGurubaId)},[initialGurubaId,options.map(x=>x.guruba_id).join('|')]);
  useEffect(()=>{if(selectedLocation){setLocationAddress(selectedLocation.address??'');setLocationLat(String(selectedLocation.latitude));setLocationLng(String(selectedLocation.longitude))}},[selectedLocation?.id]);
  useEffect(()=>{if(selected){setMode(selected.is_online?'online':'physical')}},[selected?.guruba_id,selected?.is_online]);
  const canReview=Boolean(gurubaId&&selected&&(customTime?proposedTime.trim():slot));
