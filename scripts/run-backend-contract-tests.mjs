@@ -8,6 +8,7 @@ const files = [
   "tests/backend/b9_security_invariants.sql",
   "tests/backend/b9_production_invariants.sql",
   "tests/backend/b9_wallet_reconciliation.sql",
+  "tests/backend/b9_b7_queue_invariants.sql",
   "tests/backend/b9_authenticated_integration.sql",
 ];
 
@@ -24,11 +25,7 @@ for (const file of files) {
   process.stdout.write("\n==> " + file + "\n");
   try {
     const { stdout, stderr } = await execFileAsync("psql", [
-      databaseUrl,
-      "-v", "ON_ERROR_STOP=1",
-      "-X",
-      "-q",
-      "-f", file,
+      databaseUrl, "-v", "ON_ERROR_STOP=1", "-X", "-q", "-f", file,
     ], { env: process.env, maxBuffer: 4 * 1024 * 1024 });
 
     if (stdout) process.stdout.write(stdout);
