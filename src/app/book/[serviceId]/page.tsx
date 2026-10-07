@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default async function Page({ params }: { params: Promise<{ serviceId: string }> }) {
   const resolvedParams = await params;
-  const { data: service } = await supabase.from('services').select('*').eq('id', resolvedParams.serviceId).single();
+  const { data: service } = await supabase.rpc('get_public_service', { p_service_id: resolvedParams.serviceId }).maybeSingle();
   
   if (!service) return <div className="text-center py-20">Service not found</div>;
 
