@@ -246,7 +246,7 @@ export default function BookingDetail() {
 
         <Card>
           <Text style={s.label}>Guruba</Text>
-          <Text style={s.value}>{booking.gurubas?.full_name ?? booking.guruba_name ?? 'Guruba'}</Text>
+          <Text style={s.value}>{booking.gurubas?.full_name ?? 'Guruba'}</Text>
 
           <Text style={s.label}>Scheduled</Text>
           <Text style={s.value}>{formatDateTime(booking.scheduled_at ?? booking.proposed_time)}</Text>
