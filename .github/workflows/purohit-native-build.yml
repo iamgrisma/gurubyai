@@ -52,7 +52,9 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform android --no-install --non-interactive
       - run: chmod +x android/gradlew
-      - run: ./android/gradlew assembleRelease
+      - name: Assemble Android release
+        working-directory: apps/purohit-client/android
+        run: ./gradlew assembleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: purohit-android-release-apk
@@ -75,7 +77,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform ios --no-install --non-interactive
       - run: npx pod-install ios
-      - run: xcodebuild -workspace ios/Purohit.xcworkspace -scheme Purohit -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+      - name: Build iOS simulator app
+        run: xcodebuild -workspace ios/Purohit.xcworkspace -scheme Purohit -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
       - uses: actions/upload-artifact@v4
         with:
           name: purohit-ios-simulator-app
@@ -120,7 +123,6 @@ jobs:
       - name: Link or initialize EAS project
         run: npx eas-cli@latest init --force --non-interactive
       - name: Verify EAS project id
-        run: |
-          test -n "$(node -p "require('./app.json').expo.extra?.eas?.projectId || ''")"
+        run: test -n "$(node -p "require('./app.json').expo.extra?.eas?.projectId || ''")"
       - name: Trigger iOS + Android preview build
         run: npx eas-cli@latest build --platform all --profile preview --non-interactive --no-wait
