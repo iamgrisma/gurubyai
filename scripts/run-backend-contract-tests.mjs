@@ -8,6 +8,7 @@ const files = [
   "tests/backend/b9_security_invariants.sql",
   "tests/backend/b9_production_invariants.sql",
   "tests/backend/b9_wallet_reconciliation.sql",
+  "tests/backend/b9_authenticated_integration.sql",
 ];
 
 const databaseUrl = process.env.SUPABASE_DB_URL;
@@ -36,6 +37,18 @@ for (const file of files) {
     console.error(error?.stderr || error?.message || error);
     process.exit(error?.code || 1);
   }
+}
+
+console.log("\n==> scripts/run-b9-race-lock-test.mjs");
+try {
+  const { stdout, stderr } = await execFileAsync("node", [
+    "scripts/run-b9-race-lock-test.mjs",
+  ], { env: process.env, maxBuffer: 4 * 1024 * 1024 });
+  if (stdout) process.stdout.write(stdout);
+  if (stderr) process.stderr.write(stderr);
+} catch (error) {
+  console.error(error?.stderr || error?.message || error);
+  process.exit(error?.code || 1);
 }
 
 console.log("\nB9 backend contract suite passed.");
