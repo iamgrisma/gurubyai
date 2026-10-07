@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Linking from 'expo-linking';
+import { LocationMap } from '../src/ui/LocationMap';
 import { api, type LocationSearchResult } from '../src/data/contracts';
 import { getCurrentLocation } from '../src/platform/location';
 import { useDeleteLocation, useSaveLocation, useSavedLocations } from '../src/hooks/useCoreData';
@@ -252,6 +253,10 @@ export default function Locations() {
               style={styles.half}
             />
           </View>
+
+          {lat && lng ? (
+            <LocationMap latitude={Number(lat)} longitude={Number(lng)} label={address.trim() || 'Selected service location'} />
+          ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
