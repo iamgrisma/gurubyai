@@ -1,0 +1,75 @@
+name: Purohit Native Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/purohit-client/**'
+      - '.github/workflows/native-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-preflight:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/purohit-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/purohit-client/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx expo config --type public --json > /tmp/purohit-expo-config.json
+      - run: test -s /tmp/purohit-expo-config.json
+      - run: npm run production:smoke
+      - run: EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform all --no-install --non-interactive
+      - run: test -d ios
+      - run: test -d android
+
+  prepare-eas:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: \${{ steps.check.outputs.configured }}
+    env:
+      EXPO_TOKEN: \${{ secrets.EXPO_TOKEN }}
+    steps:
+      - id: check
+        shell: bash
+        run: |
+          if [ -n "\${EXPO_TOKEN:-}" ]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+            echo 'EAS token is configured.'
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo 'EXPO_TOKEN is not configured; EAS cloud build will be skipped.'
+          fi
+
+  eas-build:
+    needs: [native-preflight, prepare-eas]
+    if: needs.prepare-eas.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/purohit-client
+    env:
+      EXPO_TOKEN: \${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/purohit-client/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Link or initialize EAS project
+        run: npx eas-cli@latest init --force --non-interactive
+      - name: Verify EAS project id
+        run: |
+          test -n "$(node -p "require('./app.json').expo.extra?.eas?.projectId || ''")"
+      - name: Trigger iOS + Android preview build
+        run: npx eas-cli@latest build --platform all --profile preview --non-interactive --no-wait
