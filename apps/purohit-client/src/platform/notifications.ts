@@ -12,7 +12,7 @@ export async function registerForPushNotifications(){
   const projectId=Constants.expoConfig?.extra?.eas?.projectId??Constants.easConfig?.projectId;
   if(!projectId)return null;
   const token=await Notifications.getExpoPushTokenAsync({projectId});
-  return token.data;
+  return {token:token.data,projectId,platform:Platform.OS as 'ios'|'android'};
 }
 
 function getActionUrl(response:Notifications.NotificationResponse){const data=response.notification.request.content.data as Record<string,unknown>|undefined;const value=data?.action_url??data?.url;return typeof value==='string'&&value.startsWith('/')?value:null;}
