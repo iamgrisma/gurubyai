@@ -7,6 +7,7 @@ export type Guruba={guruba_id:string;user_id:string;full_name?:string|null;avata
 export type Booking={id:string;user_id:string;guruba_id?:string|null;service_id?:string|null;scheduled_at?:string|null;status:string;proposed_time?:string|null;confirmation_deadline?:string|null;platform_fee?:number|null;meeting_link?:string|null;location_address?:string|null;is_online?:boolean|null;booking_note?:string|null;created_at?:string|null;is_reviewed?:boolean|null;services?:Service|null;gurubas?:Guruba|null;profiles?:Profile|null};
 export type Transaction={id:string;user_id:string;amount:number;type:'credit'|'debit';description:string;status:'completed'|'pending'|'failed';created_at:string};
 export type SavedLocation={id:string;user_id:string;name:string;latitude:number;longitude:number;address?:string|null;created_at:string};
+export type LocationSearchResult={place_id?:string;display_name:string;lat:string;lon:string;type?:string;category?:string};
 export type Message={id:string;sender_id:string;receiver_id:string;booking_id?:string|null;content:string;message_type:string;metadata?:Record<string,unknown>|null;is_system?:boolean|null;is_read:boolean;created_at:string};
 export type Notification={id:string;user_id?:string|null;title:string;message:string;notification_type:string;action_url?:string|null;is_read:boolean;read_at?:string|null;created_at:string};
 export type GurubaProfile={id:string;user_id:string;bio?:string|null;years_experience?:number|null;rating?:number|null;location?:string|null;specialties?:string[]|null;languages?:string[]|null;guruba_type?:string|null;review_count?:number|null;is_verified?:boolean|null;verification_requested_at?:string|null;profiles?:Profile|null};
@@ -25,6 +26,7 @@ getBookingOptions:(serviceId:string)=>rpc<unknown[]>('get_public_booking_options
 getMyBookings:(role:'client'|'guruba'='client')=>rpc<Booking[]>('get_my_bookings',{p_role:role}),
 getMyTransactions:()=>rpc<Transaction[]>('get_my_transactions'),
 getMySavedLocations:()=>rpc<SavedLocation[]>('get_my_saved_locations'),
+searchLocations:async(query:string)=>{const q=query.trim();if(!q)return [];const{data,error}=await supabase.functions.invoke('location-provider',{body:{op:'search',q}});if(error)throw error;const rows=(data as {results?:unknown})?.results;return(Array.isArray(rows)?rows:[]) as LocationSearchResult[];},
 getMessageUsers:()=>rpc<Profile[]>('get_my_message_users'),
 getMessages:(otherUserId:string,bookingId?:string)=>rpc<Message[]>('get_my_messages',{p_other_user_id:otherUserId,p_booking_id:bookingId??null}),
 getMyNotifications:async()=>{const{data,error}=await supabase.from('notifications').select('id,user_id,title,message,notification_type,action_url,is_read,read_at,created_at').order('created_at',{ascending:false}).limit(50);if(error)throw error;return(data??[]) as Notification[];},
