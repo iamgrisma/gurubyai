@@ -29,7 +29,6 @@ begin
   raise notice 'B9 authorization and queue hardening assertions passed';
 end $$;
 
-
 -- Profile exposure hardening: anonymous clients must not have direct SELECT.
 do $$
 declare v_count integer;
@@ -69,7 +68,9 @@ do $$ begin
  if to_regprocedure('public.admin_get_pending_verifications()') is null then raise exception 'admin_get_pending_verifications missing'; end if;
 end $$;
 
--- B3 read projection surface checks
+-- B3 read projection surface checks.
+-- The current projection surface intentionally contains 16 functions:
+-- 15 private/admin projections plus the one explicitly public Guruba directory projection.
 DO $$
 DECLARE n integer;
 BEGIN
@@ -84,9 +85,10 @@ BEGIN
       'admin_get_gurubas_for_concierge','admin_get_transactions',
       'admin_get_pending_topups','admin_get_pending_verifications'
     );
-  IF n < 17 THEN RAISE EXCEPTION 'B3 projection functions missing: %', n; END IF;
+  IF n <> 16 THEN RAISE EXCEPTION 'B3 projection functions expected 16, found %', n; END IF;
 END $$;
 
+-- Only the explicitly public Guruba directory projection may be executable by anon.
 DO $$
 DECLARE bad integer;
 BEGIN
@@ -94,13 +96,17 @@ BEGIN
   FROM pg_proc
   WHERE pronamespace='public'::regnamespace
     AND proname IN (
-      'get_my_profile','get_public_gurubas','get_my_transactions',
-      'get_my_saved_locations','get_my_bookings','get_my_message_users',
-      'get_my_message_user','get_my_messages','get_my_guruba_profile',
-      'admin_get_users','admin_get_overview','admin_search_clients',
+      'get_my_profile','get_my_transactions','get_my_saved_locations',
+      'get_my_bookings','get_my_message_users','get_my_message_user',
+      'get_my_messages','get_my_guruba_profile','admin_get_users',
+      'admin_get_overview','admin_search_clients',
       'admin_get_gurubas_for_concierge','admin_get_transactions',
       'admin_get_pending_topups','admin_get_pending_verifications'
     )
     AND has_function_privilege('anon', oid, 'EXECUTE');
-  IF bad <> 0 THEN RAISE EXCEPTION 'B3 projection functions exposed to anon: %', bad; END IF;
+  IF bad <> 0 THEN RAISE EXCEPTION 'B3 private/admin projection functions exposed to anon: %', bad; END IF;
+
+  IF NOT has_function_privilege('anon','public.get_public_gurubas()','EXECUTE') THEN
+    RAISE EXCEPTION 'public get_public_gurubas() must remain anon executable';
+  END IF;
 END $$;
