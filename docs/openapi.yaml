@@ -66,6 +66,43 @@ paths:
     post:
       operationId: getPublicGurubas
       responses: {'200': {description: Verified Guruba projection.}}
+
+  /rpc/get_my_guruba_profile:
+    post:
+      operationId: getMyGurubaProfile
+      responses: {'200': {description: Current authenticated Guruba profile projection.}}
+  /rpc/admin_get_users:
+    post:
+      operationId: adminGetUsers
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {p_search: {type: string, nullable: true}, p_page: {type: integer, minimum: 1}, p_page_size: {type: integer, minimum: 1, maximum: 100}}}}}}
+      responses: {'200': {description: Admin user page projection.}}
+  /rpc/admin_get_overview:
+    post:
+      operationId: adminGetOverview
+      responses: {'200': {description: Admin dashboard overview projection.}}
+  /rpc/admin_search_clients:
+    post:
+      operationId: adminSearchClients
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [p_term], properties: {p_term: {type: string}}}}}}
+      responses: {'200': {description: Matching client profile projections.}}
+  /rpc/admin_get_gurubas_for_concierge:
+    post:
+      operationId: adminGetGurubasForConcierge
+      responses: {'200': {description: Admin Guruba assignment projection.}}
+  /rpc/admin_get_transactions:
+    post:
+      operationId: adminGetTransactions
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {p_page: {type: integer, minimum: 1}, p_page_size: {type: integer, minimum: 1, maximum: 100}}}}}}
+      responses: {'200': {description: Admin transaction page projection.}}
+  /rpc/admin_get_pending_topups:
+    post:
+      operationId: adminGetPendingTopups
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {p_page: {type: integer, minimum: 1}, p_page_size: {type: integer, minimum: 1, maximum: 100}}}}}}
+      responses: {'200': {description: Pending top-up page projection.}}
+  /rpc/admin_get_pending_verifications:
+    post:
+      operationId: adminGetPendingVerifications
+      responses: {'200': {description: Pending Guruba verification projection.}}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
