@@ -31,12 +31,13 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
     }, []);
 
     useEffect(() => {
-        if (value) {
-             setSearchTerm(value);
-        } else {
-             setSearchTerm('');
+        if (!value || gotras.length === 0) {
+             if (!value) setSearchTerm('');
+             return;
         }
-    }, [value]);
+        const selected = gotras.find(g => g.id === value);
+        setSearchTerm(selected?.name || '');
+    }, [value, gotras]);
 
     const filtered = gotras.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -45,7 +46,6 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
         try {
             const { error } = await supabase.rpc('request_gotra', { p_name: searchTerm.trim() });
             if (error) throw error;
-            onChange(searchTerm.trim());
             setShowDropdown(false);
             alert(`Requested to add '${searchTerm}'.`);
         } catch (e) {
@@ -61,7 +61,6 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                     value={searchTerm}
                     onChange={(e) => { 
                         setSearchTerm(e.target.value); 
-                        onChange(e.target.value);
                         setShowDropdown(true); 
                     }}
                     onFocus={() => setShowDropdown(true)}
@@ -76,7 +75,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                                     type="button"
                                     className="w-full text-left px-4 py-2 hover:bg-stone-100 text-sm"
                                     onClick={() => {
-                                        onChange(g.name);
+                                        onChange(g.id);
                                         setSearchTerm(g.name);
                                         setShowDropdown(false);
                                     }}
