@@ -1,5 +1,8 @@
 {
-  "name": "Guruba",
-  "description": "A modern platform connecting users with spiritual guides (Gurubas) for rituals and services.",
-  "requestFramePermissions": []
+  "name": "GuruByAI",
+  "description": "AI-powered Hindu priest booking platform",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "ciVerification": "2026-10-07"
 }
