@@ -13,6 +13,7 @@ export type Notification={id:string;user_id?:string|null;title:string;message:st
 export type GurubaProfile={id:string;user_id:string;bio?:string|null;years_experience?:number|null;rating?:number|null;location?:string|null;specialties?:string[]|null;languages?:string[]|null;guruba_type?:string|null;review_count?:number|null;is_verified?:boolean|null;verification_requested_at?:string|null;profiles?:Profile|null};
 export type Availability={id?:string;guruba_id:string;day_of_week:number;start_time:string;end_time:string};
 export type GurubaService={guruba_id:string;service_id:string;is_online:boolean;custom_price?:number|null};
+export type PublicBookingOption={guruba_id:string;service_id:string;is_online:boolean;custom_price?:number|null;guruba:{id:string;user_id:string;bio?:string|null;years_experience?:number|null;rating?:number|null;location?:string|null;specialties?:string[]|null;languages?:string[]|null;guruba_type?:string|null;review_count?:number|null;is_verified?:boolean|null;full_name?:string|null;avatar_url?:string|null};}
 async function rpc<T>(name:string,args:Record<string,unknown>={}){const{data,error}=await supabase.rpc(name,args);if(error)throw error;return data as T;}
 
 export const api={
@@ -21,8 +22,9 @@ getApprovedGotras:()=>rpc<Gotra[]>('get_approved_gotras'),
 updateMyProfile:(i:{fullName?:string|null;phone?:string|null;gotraId?:string|null;city?:string|null;latitude?:number|null;longitude?:number|null;address?:string|null;languages?:string[]|null})=>rpc<unknown>('update_my_profile',{p_full_name:i.fullName??null,p_phone:i.phone??null,p_gotra_id:i.gotraId??null,p_avatar_url:null,p_city:i.city??null,p_latitude:i.latitude??null,p_longitude:i.longitude??null,p_address:i.address??null,p_languages:i.languages??null}),
 requestGotra:(name:string)=>rpc<string>('request_gotra',{p_name:name}),
 getPublicServices:()=>rpc<Service[]>('get_public_services'),
+getPublicService:(serviceId:string)=>rpc<Service[]>('get_public_service',{p_service_id:serviceId}),
 getPublicGurubas:()=>rpc<Guruba[]>('get_public_gurubas'),
-getBookingOptions:(serviceId:string)=>rpc<unknown[]>('get_public_booking_options',{p_service_id:serviceId}),
+getBookingOptions:(serviceId:string)=>rpc<PublicBookingOption[]>('get_public_booking_options',{p_service_id:serviceId}),
 getMyBookings:(role:'client'|'guruba'='client')=>rpc<Booking[]>('get_my_bookings',{p_role:role}),
 getMyTransactions:()=>rpc<Transaction[]>('get_my_transactions'),
 getMySavedLocations:()=>rpc<SavedLocation[]>('get_my_saved_locations'),

@@ -2,10 +2,10 @@ import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import ty
 export const useProfile=()=>useQuery({queryKey:['profile'],queryFn:api.api.getMyProfile});
 export const useApprovedGotras=()=>useQuery({queryKey:['gotras'],queryFn:api.api.getApprovedGotras,staleTime:300000});
 export const useServices=()=>useQuery({queryKey:['services'],queryFn:api.api.getPublicServices,staleTime:300000});
-export const useService=(id?:string)=>{const q=useServices();return{...q,data:q.data?.find(x=>x.id===id)}};
+export const useService=(id?:string)=>useQuery({queryKey:['service',id],queryFn:async()=>{const rows=await api.api.getPublicService(id!);return rows[0]??null},enabled:!!id,staleTime:300000});
 export const useBookingOptions=(id?:string)=>useQuery({queryKey:['booking-options',id],queryFn:()=>api.api.getBookingOptions(id!),enabled:!!id,staleTime:60000});
 export const useGuruba=(id?:string)=>useQuery({queryKey:['guruba',id],queryFn:async()=>{const rows=await api.api.getPublicGurubas();return rows.find(x=>x.guruba_id===id)??null},enabled:!!id,staleTime:60000});
-export const useGurubaServices=(id?:string)=>useQuery({queryKey:['guruba-services-public',id],queryFn:async()=>{const services=await api.api.getPublicServices();const pairs=await Promise.all(services.map(async service=>{const rows=await api.api.getBookingOptions(service.id) as any[];const match=rows.find(x=>x.guruba_id===id);return match?{service,option:match}:null}));return pairs.filter(Boolean) as {service:Service;option:any}[]},enabled:!!id,staleTime:60000});
+export const useGurubaServices=(id?:string)=>useQuery({queryKey:['guruba-services-public',id],queryFn:async()=>{const services=await api.api.getPublicServices();const pairs=await Promise.all(services.map(async service=>{const rows=await api.api.getBookingOptions(service.id);const match=rows.find(x=>x.guruba_id===id);return match?{service,option:match}:null}));return pairs.filter(Boolean) as {service:Service;option:any}[]},enabled:!!id,staleTime:60000});
 export const useBookings=(role:'client'|'guruba'='client')=>useQuery({queryKey:['bookings',role],queryFn:()=>api.api.getMyBookings(role),refetchInterval:role==='guruba'?15000:30000,refetchIntervalInBackground:false});
 export const useTransactions=()=>useQuery({queryKey:['transactions'],queryFn:api.api.getMyTransactions});
 export const useSavedLocations=()=>useQuery({queryKey:['locations'],queryFn:api.api.getMySavedLocations});
