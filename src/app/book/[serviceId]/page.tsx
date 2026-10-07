@@ -2,11 +2,16 @@ export const runtime = 'edge';
 import { Suspense } from 'react';
 import { BookingFlow } from '@/features/booking/BookingFlow';
 import { supabase } from '@/lib/supabaseClient';
+import type { Service } from '@/types';
 
 export default async function Page({ params }: { params: Promise<{ serviceId: string }> }) {
   const resolvedParams = await params;
-  const { data: service } = await supabase.rpc('get_public_service', { p_service_id: resolvedParams.serviceId }).maybeSingle();
-  
+  const { data: serviceData } = await supabase
+    .rpc('get_public_service', { p_service_id: resolvedParams.serviceId })
+    .maybeSingle();
+
+  const service = serviceData as Service | null;
+
   if (!service) return <div className="text-center py-20">Service not found</div>;
 
   return (
