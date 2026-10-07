@@ -1,6 +1,7 @@
 import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import*as api from'../data/contracts';
 export const useProfile=()=>useQuery({queryKey:['profile'],queryFn:api.api.getMyProfile});
 export const useServices=()=>useQuery({queryKey:['services'],queryFn:api.api.getPublicServices,staleTime:300000});
+export const useService=(id?:string)=>{const q=useServices();return{...q,data:q.data?.find(x=>x.id===id)}};
 export const useBookingOptions=(id?:string)=>useQuery({queryKey:['booking-options',id],queryFn:()=>api.api.getBookingOptions(id!),enabled:!!id,staleTime:60000});
 export const useBookings=(role:'client'|'guruba'='client')=>useQuery({queryKey:['bookings',role],queryFn:()=>api.api.getMyBookings(role)});
 export const useTransactions=()=>useQuery({queryKey:['transactions'],queryFn:api.api.getMyTransactions});
