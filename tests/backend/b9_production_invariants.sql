@@ -68,3 +68,39 @@ do $$ begin
  if to_regprocedure('public.admin_get_pending_topups(integer,integer)') is null then raise exception 'admin_get_pending_topups missing'; end if;
  if to_regprocedure('public.admin_get_pending_verifications()') is null then raise exception 'admin_get_pending_verifications missing'; end if;
 end $$;
+
+-- B3 read projection surface checks
+DO $$
+DECLARE n integer;
+BEGIN
+  SELECT count(*) INTO n
+  FROM pg_proc
+  WHERE pronamespace='public'::regnamespace
+    AND proname IN (
+      'get_my_profile','get_public_gurubas','get_my_transactions',
+      'get_my_saved_locations','get_my_bookings','get_my_message_users',
+      'get_my_message_user','get_my_messages','get_my_guruba_profile',
+      'admin_get_users','admin_get_overview','admin_search_clients',
+      'admin_get_gurubas_for_concierge','admin_get_transactions',
+      'admin_get_pending_topups','admin_get_pending_verifications'
+    );
+  IF n < 17 THEN RAISE EXCEPTION 'B3 projection functions missing: %', n; END IF;
+END $$;
+
+DO $$
+DECLARE bad integer;
+BEGIN
+  SELECT count(*) INTO bad
+  FROM pg_proc
+  WHERE pronamespace='public'::regnamespace
+    AND proname IN (
+      'get_my_profile','get_public_gurubas','get_my_transactions',
+      'get_my_saved_locations','get_my_bookings','get_my_message_users',
+      'get_my_message_user','get_my_messages','get_my_guruba_profile',
+      'admin_get_users','admin_get_overview','admin_search_clients',
+      'admin_get_gurubas_for_concierge','admin_get_transactions',
+      'admin_get_pending_topups','admin_get_pending_verifications'
+    )
+    AND has_function_privilege('anon', oid, 'EXECUTE');
+  IF bad <> 0 THEN RAISE EXCEPTION 'B3 projection functions exposed to anon: %', bad; END IF;
+END $$;
