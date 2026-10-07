@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const files = [
+  "tests/backend/b11_booking_events_projection.sql",
   "tests/backend/b11_notification_devices.sql",
   "tests/backend/b9_contract_assertions.sql",
   "tests/backend/b9_security_invariants.sql",

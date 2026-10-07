@@ -5,6 +5,7 @@ export type Gotra={id:string;name:string};
 export type Service={id:string;title:string;description?:string|null;duration_minutes:number;base_price:number;image_url?:string|null;category?:string|null;is_featured?:boolean|null;is_online_enabled?:boolean|null};
 export type Guruba={guruba_id:string;user_id:string;full_name?:string|null;avatar_url?:string|null;bio?:string|null;years_experience?:number|null;rating?:number|null;location?:string|null;specialties?:string[]|null;languages?:string[]|null;guruba_type?:string|null;review_count?:number|null;is_verified?:boolean|null;gotra_id?:string|null};
 export type Booking={id:string;user_id:string;guruba_id?:string|null;service_id?:string|null;scheduled_at?:string|null;status:string;proposed_time?:string|null;confirmation_deadline?:string|null;platform_fee?:number|null;meeting_link?:string|null;location_address?:string|null;is_online?:boolean|null;booking_note?:string|null;created_at?:string|null;is_reviewed?:boolean|null;services?:Service|null;gurubas?:Guruba|null;profiles?:Profile|null};
+export type BookingEvent={id:string;event_type:string;scheduled_at?:string|null;status?:string|null;previous_status?:string|null;created_at:string};
 export type Transaction={id:string;user_id:string;amount:number;type:'credit'|'debit';description:string;status:'completed'|'pending'|'failed';created_at:string};
 export type SavedLocation={id:string;user_id:string;name:string;latitude:number;longitude:number;address?:string|null;created_at:string};
 export type LocationSearchResult={place_id?:string;display_name:string;lat:string;lon:string;type?:string;category?:string};
@@ -27,6 +28,7 @@ getPublicService:(serviceId:string)=>rpc<Service[]>('get_public_service',{p_serv
 getPublicGurubas:()=>rpc<Guruba[]>('get_public_gurubas'),
 getBookingOptions:(serviceId:string)=>rpc<PublicBookingOption[]>('get_public_booking_options',{p_service_id:serviceId}),
 getMyBookings:(role:'client'|'guruba'='client')=>rpc<Booking[]>('get_my_bookings',{p_role:role}),
+getMyBookingEvents:(bookingId:string)=>rpc<BookingEvent[]>('get_my_booking_events',{p_booking_id:bookingId}),
 getMyTransactions:()=>rpc<Transaction[]>('get_my_transactions'),
 getMySavedLocations:()=>rpc<SavedLocation[]>('get_my_saved_locations'),
 searchLocations:async(query:string)=>{const q=query.trim();if(!q)return [];const{data,error}=await supabase.functions.invoke('location-provider',{body:{op:'search',q}});if(error)throw error;const rows=(data as {results?:unknown})?.results;return(Array.isArray(rows)?rows:[]) as LocationSearchResult[];},
