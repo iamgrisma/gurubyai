@@ -42,7 +42,6 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
         try {
             const { error } = await supabase.rpc('request_gotra', { p_name: searchTerm.trim() });
             if (error) throw error;
-            onChange(searchTerm.trim());
             setShowDropdown(false);
             alert(`Requested to add '${searchTerm}'. Selected pending approval.`);
         } catch (e) {
@@ -58,8 +57,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                     className="w-full rounded-xl border-stone-200 shadow-sm focus:border-saffron-500 focus:ring-saffron-500 p-3 border"
                     value={searchTerm}
                     onChange={(e) => { 
-                        setSearchTerm(e.target.value); 
-                        onChange(e.target.value);
+                        setSearchTerm(e.target.value);
                         setShowDropdown(true); 
                     }}
                     onFocus={() => setShowDropdown(true)}
@@ -74,7 +72,7 @@ const GotraSelect = ({ value, onChange }: { value: string, onChange: (val: strin
                                     type="button"
                                     className="w-full text-left px-4 py-3 hover:bg-stone-100 text-sm border-b border-stone-50 last:border-0"
                                     onClick={() => {
-                                        onChange(g.name);
+                                        onChange(g.id);
                                         setSearchTerm(g.name);
                                         setShowDropdown(false);
                                     }}
