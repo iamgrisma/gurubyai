@@ -1,8 +1,13 @@
-import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import*as api from'../data/contracts';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Service } from '../data/contracts';
+import * as api from '../data/contracts';
+
 export const useProfile=()=>useQuery({queryKey:['profile'],queryFn:api.api.getMyProfile});
 export const useServices=()=>useQuery({queryKey:['services'],queryFn:api.api.getPublicServices,staleTime:300000});
 export const useService=(id?:string)=>{const q=useServices();return{...q,data:q.data?.find(x=>x.id===id)}};
 export const useBookingOptions=(id?:string)=>useQuery({queryKey:['booking-options',id],queryFn:()=>api.api.getBookingOptions(id!),enabled:!!id,staleTime:60000});
+export const useGuruba=(id?:string)=>useQuery({queryKey:['guruba',id],queryFn:async()=>{const rows=await api.api.getPublicGurubas();return rows.find(x=>x.guruba_id===id)??null},enabled:!!id,staleTime:60000});
+export const useGurubaServices=(id?:string)=>useQuery({queryKey:['guruba-services-public',id],queryFn:async()=>{const services=await api.api.getPublicServices();const pairs=await Promise.all(services.map(async service=>{const rows=await api.api.getBookingOptions(service.id) as any[];const match=rows.find(x=>x.guruba_id===id);return match?{service,option:match}:null}));return pairs.filter(Boolean) as {service:Service;option:any}[]},enabled:!!id,staleTime:60000});
 export const useBookings=(role:'client'|'guruba'='client')=>useQuery({queryKey:['bookings',role],queryFn:()=>api.api.getMyBookings(role)});
 export const useTransactions=()=>useQuery({queryKey:['transactions'],queryFn:api.api.getMyTransactions});
 export const useSavedLocations=()=>useQuery({queryKey:['locations'],queryFn:api.api.getMySavedLocations});
@@ -11,7 +16,7 @@ export const useMessages=(id?:string,b?:string)=>useQuery({queryKey:['messages',
 export const useNotifications=()=>useQuery({queryKey:['notifications'],queryFn:api.api.getMyNotifications,staleTime:30000});
 export const useBookingSlots=(g?:string,s?:string,d?:string)=>useQuery({queryKey:['slots',g,s,d],queryFn:()=>api.api.getAvailableSlots(g!,s!,d!),enabled:!!g&&!!s&&!!d});
 export const useGurubaProfile=()=>useQuery({queryKey:['guruba-profile'],queryFn:api.api.getMyGurubaProfile});
-export const useGurubaServices=()=>useQuery({queryKey:['guruba-services'],queryFn:api.api.getMyGurubaServices});
+export const useGurubaServicesSelf=()=>useQuery({queryKey:['guruba-services'],queryFn:api.api.getMyGurubaServices});
 export const useAvailability=()=>useQuery({queryKey:['availability'],queryFn:api.api.getMyAvailability});
 export const useBookService=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.bookService,onSuccess:()=>q.invalidateQueries({queryKey:['bookings']})})};
 export const useCancelBooking=()=>{const q=useQueryClient();return useMutation({mutationFn:api.api.cancelBooking,onSuccess:()=>{q.invalidateQueries({queryKey:['bookings']});q.invalidateQueries({queryKey:['transactions']})}})};
